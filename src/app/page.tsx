@@ -1,33 +1,20 @@
-import Link from "next/link";
-import Image from "next/image";
-import { PanelsTopLeft } from "lucide-react";
-import { ArrowRightIcon, GitHubLogoIcon } from "@radix-ui/react-icons";
+'use client';
 
-import { Button } from "@/components/ui/button";
-import { ModeToggle } from "@/components/mode-toggle";
+import { AuthPage } from "@/components/AuthPage";
+import { useRouter } from "next/navigation";
 
 export default function HomePage() {
+  const router = useRouter();
+
+  const handleLogin = (user: any) => {
+    // Store user data if needed (e.g., in context or localStorage)
+    console.log("Logged in user:", user);
+    router.push("/dashboard"); // Redirect to dashboard after login
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
-      
-      <main className="min-h-[calc(100vh-57px-97px)] flex-1">
-        <div className="container relative pb-10">
-          <section className="mx-auto flex max-w-[980px] flex-col items-center gap-2 py-8 md:py-12 md:pb-8 lg:py-24 lg:pb-6">
-            
-            <div className="flex w-full items-center justify-center space-x-4 py-4 md:pb-6">
-              <Button variant="default" asChild>
-                <Link href="/dashboard">
-                  Demo
-                  <ArrowRightIcon className="ml-2" />
-                </Link>
-              </Button>
-             
-            </div>
-          </section>
-          
-        </div>
-      </main>
-      
+      <AuthPage onLogin={handleLogin} />
     </div>
   );
 }

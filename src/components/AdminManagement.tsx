@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -10,19 +12,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { DEFAULT_PERMISSIONS, getAdminHierarchy } from './utils/permissions';
+import { DEFAULT_PERMISSIONS, getAdminHierarchy, canCreateAdmin, Role } from './utils/permissions';
 import { 
   Plus, 
-  Edit, 
+  Eye, 
+  UserPlus, 
+  Lock, 
+  Unlock, 
   Shield, 
   Users, 
   Car, 
-  Building2, 
-  Settings,
-  Eye,
-  UserPlus,
-  Lock,
-  Unlock
+  Building2 
 } from 'lucide-react';
 
 interface Admin {
@@ -30,7 +30,7 @@ interface Admin {
   name: string;
   email: string;
   phone: string;
-  role: 'super_admin' | 'admin' | 'executive_admin' | 'hotel_admin';
+  role: Role;
   status: 'active' | 'inactive';
   created_by: number;
   created_at: string;
@@ -48,7 +48,7 @@ interface Admin {
 }
 
 interface AdminManagementProps {
-  currentUser: any;
+  currentUser: Admin;
 }
 
 export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser }) => {
@@ -83,16 +83,17 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
     name: '',
     email: '',
     phone: '',
-    role: '' as any,
+    role: '' as Role,
     permissions: DEFAULT_PERMISSIONS.admin
   });
 
   const getAvailableRoles = () => {
-    return getAdminHierarchy(currentUser.role);
+    return getAdminHierarchy(currentUser?.role);
   };
 
   const handleCreateAdmin = () => {
     if (!newAdmin.name || !newAdmin.email || !newAdmin.phone || !newAdmin.role) return;
+    if (!canCreateAdmin(currentUser.role, newAdmin.role)) return;
 
     const admin: Admin = {
       id: Date.now(),
@@ -107,11 +108,11 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
     };
 
     setAdmins([...admins, admin]);
-    setNewAdmin({ name: '', email: '', phone: '', role: '' as any, permissions: DEFAULT_PERMISSIONS.admin });
+    setNewAdmin({ name: '', email: '', phone: '', role: '' as Role, permissions: DEFAULT_PERMISSIONS.admin });
     setShowCreateForm(false);
   };
 
-  const handleUpdatePermissions = (adminId: number, permissions: any) => {
+  const handleUpdatePermissions = (adminId: number, permissions: Admin['permissions']) => {
     setAdmins(admins.map(admin => 
       admin.id === adminId ? { ...admin, permissions } : admin
     ));
@@ -125,24 +126,24 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
     ));
   };
 
-  const getRoleLabel = (role: string) => {
-    const labels = {
-      'super_admin': 'Super Admin',
-      'admin': 'Admin',
-      'executive_admin': 'Executive Admin',
-      'hotel_admin': 'Hotel Admin'
+  const getRoleLabel = (role: Role) => {
+    const labels: Record<Role, string> = {
+      super_admin: 'Super Admin',
+      admin: 'Admin',
+      executive_admin: 'Executive Admin',
+      hotel_admin: 'Hotel Admin'
     };
-    return labels[role as keyof typeof labels] || role;
+    return labels[role];
   };
 
-  const getRoleIcon = (role: string) => {
-    const icons = {
-      'super_admin': <Shield className="w-4 h-4" />,
-      'admin': <Users className="w-4 h-4" />,
-      'executive_admin': <Car className="w-4 h-4" />,
-      'hotel_admin': <Building2 className="w-4 h-4" />
+  const getRoleIcon = (role: Role) => {
+    const icons: Record<Role, JSX.Element> = {
+      super_admin: <Shield className="w-4 h-4" />,
+      admin: <Users className="w-4 h-4" />,
+      executive_admin: <Car className="w-4 h-4" />,
+      hotel_admin: <Building2 className="w-4 h-4" />
     };
-    return icons[role as keyof typeof icons];
+    return icons[role];
   };
 
   const getStatusBadge = (status: string) => {
@@ -152,8 +153,8 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
   };
 
   const filteredAdmins = admins.filter(admin => {
-    if (currentUser.role === 'super_admin') return true;
-    return admin.created_by === currentUser.id || admin.id === currentUser.id;
+    if (currentUser && currentUser?.role === 'super_admin') return true;
+    return admin.created_by === currentUser?.id || admin.id === currentUser?.id;
   });
 
   return (
@@ -210,11 +211,11 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
                 </div>
                 <div>
                   <Label htmlFor="role">Role</Label>
-                  <Select value={newAdmin.role} onValueChange={(value) => {
+                  <Select value={newAdmin.role} onValueChange={(value: Role) => {
                     setNewAdmin({
                       ...newAdmin, 
-                      role: value as any,
-                      permissions: DEFAULT_PERMISSIONS[value as keyof typeof DEFAULT_PERMISSIONS]
+                      role: value,
+                      permissions: DEFAULT_PERMISSIONS[value]
                     });
                   }}>
                     <SelectTrigger>
@@ -236,7 +237,7 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
                   <Button variant="outline" onClick={() => setShowCreateForm(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleCreateAdmin}>
+                  <Button onClick={handleCreateAdmin} disabled={!canCreateAdmin(currentUser.role, newAdmin.role)}>
                     Create Admin
                   </Button>
                 </div>
@@ -492,3 +493,4 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
     </div>
   );
 };
+export type { Admin }; // add this at the bottom of the file

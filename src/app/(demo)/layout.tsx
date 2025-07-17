@@ -1,7 +1,7 @@
 'use client';
 
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { dummyUser } from "@/lib/dummy-user";
+import { dummyUser } from "@/lib/dummy-user" // ✅ don't add .js or .ts extension // or your actual file path
 import { usePathname } from 'next/navigation';
 
 export default function DashboardRootLayout({

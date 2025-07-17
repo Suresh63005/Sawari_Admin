@@ -12,25 +12,13 @@ interface AuthPageProps {
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSendOTP = async () => {
-    if (!phone || !role) return;
-    
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setStep('otp');
-      setLoading(false);
-    }, 1000);
-  };
-
-  const handleVerifyOTP = async () => {
-    if (!otp) return;
+  const handleLogin = async () => {
+    if (!email || !password || !role) return;
     
     setLoading(true);
     // Simulate API call
@@ -38,8 +26,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
       const user = {
         id: 1,
         name: 'John Doe',
-        email: 'john@sawari.com',
-        phone,
+        email,
         role,
         permissions: getRolePermissions(role)
       };
@@ -67,7 +54,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
         vehicles: true,
         rides: true,
         hotels: true,
-        earnings: false, // Admin cannot view earnings
+        earnings: false,
         support: true,
         notifications: true,
         admin_management: true,
@@ -123,99 +110,70 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {step === 'phone' ? (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="role">Admin Role</Label>
-                <Select value={role} onValueChange={setRole}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="super_admin">
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4" />
-                        Super Admin
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="admin">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        Admin
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="executive_admin">
-                      <div className="flex items-center gap-2">
-                        <Car className="w-4 h-4" />
-                        Executive Admin
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="hotel_admin">
-                      <div className="flex items-center gap-2">
-                        <Building className="w-4 h-4" />
-                        Hotel Admin
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+971 XX XXX XXXX"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-              
-              <Button 
-                onClick={handleSendOTP}
-                disabled={!phone || !role || loading}
-                className="w-full"
-              >
-                {loading ? 'Sending...' : 'Send OTP'}
-              </Button>
-            </>
-          ) : (
-            <>
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Enter the OTP sent to {phone}
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="otp">OTP Code</Label>
-                <Input
-                  id="otp"
-                  type="text"
-                  placeholder="Enter 6-digit OTP"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  maxLength={6}
-                />
-              </div>
-              
-              <Button 
-                onClick={handleVerifyOTP}
-                disabled={!otp || loading}
-                className="w-full"
-              >
-                {loading ? 'Verifying...' : 'Verify OTP'}
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                onClick={() => setStep('phone')}
-                className="w-full"
-              >
-                Back to Phone
-              </Button>
-            </>
-          )}
+          <div className="space-y-2">
+            <Label htmlFor="role">Admin Role</Label>
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select your role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="super_admin">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    Super Admin
+                  </div>
+                </SelectItem>
+                <SelectItem value="admin">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Admin
+                  </div>
+                </SelectItem>
+                <SelectItem value="executive_admin">
+                  <div className="flex items-center gap-2">
+                    <Car className="w-4 h-4" />
+                    Executive Admin
+                  </div>
+                </SelectItem>
+                <SelectItem value="hotel_admin">
+                  <div className="flex items-center gap-2">
+                    <Building className="w-4 h-4" />
+                    Hotel Admin
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          <Button 
+            onClick={handleLogin}
+            disabled={!email || !password || !role || loading}
+            className="w-full"
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </Button>
         </CardContent>
       </Card>
     </div>

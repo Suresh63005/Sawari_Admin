@@ -1,11 +1,15 @@
 import {
-  Tag,
+  LayoutDashboard,
   Users,
+  Car,
+  MapPin,
+  Building2,
+  DollarSign,
+  HeadphonesIcon,
+  Bell,
   Settings,
-  Bookmark,
-  SquarePen,
-  LayoutGrid,
-  LucideIcon
+  LucideIcon,
+  LogOut
 } from "lucide-react";
 
 type Submenu = {
@@ -17,9 +21,10 @@ type Submenu = {
 type Menu = {
   href: string;
   label: string;
-  active?: boolean;
+  active: boolean;
   icon: LucideIcon;
   submenus?: Submenu[];
+  permission: string; // Added to align with user.permissions
 };
 
 type Group = {
@@ -35,53 +40,82 @@ export function getMenuList(pathname: string): Group[] {
         {
           href: "/dashboard",
           label: "Dashboard",
-          icon: LayoutGrid,
-          submenus: []
+          active: pathname === "/dashboard",
+          icon: LayoutDashboard,
+          permission: "dashboard"
         }
       ]
     },
     {
-      groupLabel: "Contents",
+      groupLabel: "Management",
       menus: [
         {
-          href: "",
-          label: "Posts",
-          icon: SquarePen,
-          submenus: [
-            {
-              href: "/posts",
-              label: "All Posts"
-            },
-            {
-              href: "/posts/new",
-              label: "New Post"
-            }
-          ]
+          href: "/drivers",
+          label: "Drivers",
+          active: pathname === "/drivers",
+          icon: Users,
+          permission: "drivers"
         },
         {
-          href: "/categories",
-          label: "Categories",
-          icon: Bookmark
+          href: "/vehicles",
+          label: "Vehicles",
+          active: pathname === "/vehicles",
+          icon: Car,
+          permission: "vehicles"
         },
         {
-          href: "/tags",
-          label: "Tags",
-          icon: Tag
+          href: "/rides",
+          label: "Rides",
+          active: pathname === "/rides",
+          icon: MapPin,
+          permission: "rides"
+        },
+        {
+          href: "/hotels",
+          label: "Hotels",
+          active: pathname === "/hotels",
+          icon: Building2,
+          permission: "hotels"
+        },
+        {
+          href: "/earnings",
+          label: "Earnings",
+          active: pathname === "/earnings",
+          icon: DollarSign,
+          permission: "earnings"
         }
       ]
     },
     {
-      groupLabel: "Settings",
+      groupLabel: "System",
       menus: [
         {
-          href: "/users",
-          label: "Users",
-          icon: Users
+          href: "/support",
+          label: "Support",
+          active: pathname === "/support",
+          icon: HeadphonesIcon,
+          permission: "support"
         },
         {
-          href: "/account",
-          label: "Account",
-          icon: Settings
+          href: "/notifications",
+          label: "Notifications",
+          active: pathname === "/notifications",
+          icon: Bell,
+          permission: "notifications"
+        },
+        {
+          href: "/admin-management",
+          label: "Admin Management",
+          active: pathname === "/admin-management",
+          icon: Settings,
+          permission: "admin_management"
+        },
+        {
+          href: "/admin-management",
+          label: "Logout",
+          active: pathname === "/",
+          icon: LogOut,
+          permission: "admin_management"
         }
       ]
     }

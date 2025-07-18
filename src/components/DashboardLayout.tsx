@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Users, 
@@ -20,6 +20,8 @@ import { Badge } from './ui/badge';
 import { cn } from './ui/utils';
 import { getMenuList } from '../lib/menu-list';
 import { useRouter } from 'next/navigation';
+import { getToken } from '@/lib/getToken';
+import Cookies from 'js-cookie';
 
 // Define and export the User interface
 export interface User {
@@ -44,19 +46,29 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setIsAuthenticated(false);
+      router.push('/');
+    } else {
+      setIsAuthenticated(true);
+    }
+  }, [router]);
 
   // Get and filter menu list based on permissions
-  const menuGroups = getMenuList(currentPage).map(group => ({
-    ...group,
-    menus: group.menus.filter(item => user.permissions[item.permission])
-  })).filter(group => group.menus.length > 0);
+  const menuGroups = getMenuList(currentPage, user.permissions)
+    .filter(group => group.menus.length > 0);
 
   const getRoleLabel = (role: string) => {
     const labels = {
       'super_admin': 'Super Admin',
       'admin': 'Admin',
       'executive_admin': 'Executive Admin',
-      'hotel_admin': 'Hotel Admin'
+      'ride_manager': 'Rider Manager'
     };
     return labels[role as keyof typeof labels] || role;
   };
@@ -66,10 +78,28 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       'super_admin': 'destructive',
       'admin': 'default',
       'executive_admin': 'secondary',
-      'hotel_admin': 'outline'
+      'ride_manager': 'outline'
     };
     return variants[role as keyof typeof variants] || 'default';
   };
+
+  // Enhanced logout handler
+  const handleLogout = () => {
+    Cookies.remove('token');
+    localStorage.removeItem('token');
+    onLogout();
+    router.push('/login');
+  };
+
+  // Show loading state while checking authentication
+  if (isAuthenticated === null) {
+    return <div>Loading...</div>;
+  }
+
+  // Render nothing or redirect if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -178,10 +208,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <Button
               variant="ghost"
               className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={() => {
-                onLogout();
-                router.push('/');
-              }}
+              onClick={handleLogout}
             >
               <LogOut className="w-4 h-4 mr-2" />
               Logout

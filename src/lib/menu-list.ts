@@ -1,3 +1,4 @@
+// lib/menu-list.ts
 import {
   LayoutDashboard,
   Users,
@@ -24,7 +25,7 @@ type Menu = {
   active: boolean;
   icon: LucideIcon;
   submenus?: Submenu[];
-  permission: string; // Added to align with user.permissions
+  permission: string;
 };
 
 type Group = {
@@ -32,8 +33,8 @@ type Group = {
   menus: Menu[];
 };
 
-export function getMenuList(pathname: string): Group[] {
-  return [
+export function getMenuList(pathname: string, userPermissions: { [key: string]: boolean }): Group[] {
+  const allMenus: Group[] = [
     {
       groupLabel: "",
       menus: [
@@ -111,13 +112,18 @@ export function getMenuList(pathname: string): Group[] {
           permission: "admin_management"
         },
         {
-          href: "/admin-management",
+          href: "/logout",
           label: "Logout",
-          active: pathname === "/",
+          active: pathname === "/logout",
           icon: LogOut,
           permission: "admin_management"
         }
       ]
     }
   ];
+
+  return allMenus.map(group => ({
+    ...group,
+    menus: group.menus.filter(menu => userPermissions[menu.permission])
+  })).filter(group => group.menus.length > 0);
 }

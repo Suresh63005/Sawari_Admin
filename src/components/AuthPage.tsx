@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Car, Shield, Users, Building } from 'lucide-react';
+import { Car } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import apiClient from '@/lib/apiClient'; // Import the Axios client
 
 interface AuthPageProps {
   onLogin: (user: any) => void;
@@ -14,86 +15,46 @@ interface AuthPageProps {
 export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleLogin = async () => {
-    if (!email || !password || !role) return;
-    
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      const user = {
-        id: 1,
-        name: 'John Doe',
-        email,
-        role,
-        permissions: getRolePermissions(role)
-      };
-      onLogin(user);
-      setLoading(false);
-    }, 1000);
-  };
+  if (!email || !password) {
+    setError('Email and password are required');
+    return;
+  }
 
-  const getRolePermissions = (role: string) => {
-    const permissions = {
-      'super_admin': {
-        dashboard: true,
-        drivers: true,
-        vehicles: true,
-        rides: true,
-        hotels: true,
-        earnings: true,
-        support: true,
-        notifications: true,
-        admin_management: true,
-      },
-      'admin': {
-        dashboard: true,
-        drivers: true,
-        vehicles: true,
-        rides: true,
-        hotels: true,
-        earnings: false,
-        support: true,
-        notifications: true,
-        admin_management: true,
-      },
-      'executive_admin': {
-        dashboard: true,
-        drivers: true,
-        vehicles: true,
-        rides: true,
-        hotels: false,
-        earnings: false,
-        support: true,
-        notifications: true,
-        admin_management: true,
-      },
-      'hotel_admin': {
-        dashboard: true,
-        drivers: false,
-        vehicles: false,
-        rides: true,
-        hotels: false,
-        earnings: false,
-        support: false,
-        notifications: false,
-        admin_management: false,
-      }
-    };
-    return permissions[role as keyof typeof permissions] || permissions.hotel_admin;
-  };
+  setLoading(true);
+  setError('');
 
-  const getRoleIcon = (role: string) => {
-    const icons = {
-      'super_admin': <Shield className="w-5 h-5" />,
-      'admin': <Users className="w-5 h-5" />,
-      'executive_admin': <Car className="w-5 h-5" />,
-      'hotel_admin': <Building className="w-5 h-5" />
+  try {
+    const response = await apiClient.post('/v1/admin/auth/login', {
+      email,
+      password,
+    });
+
+    const data = response.data;
+
+    const user = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      permissions: data.permissions,
     };
-    return icons[role as keyof typeof icons];
-  };
+
+    // Store token in localStorage (or another storage mechanism)
+    localStorage.setItem('token', data.token);
+
+    onLogin(user);
+    router.push('/dashboard');
+  } catch (err: any) {
+    setError(err.response?.data?.message || 'Login failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -110,41 +71,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="role">Admin Role</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select your role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="super_admin">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4" />
-                    Super Admin
-                  </div>
-                </SelectItem>
-                <SelectItem value="admin">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    Admin
-                  </div>
-                </SelectItem>
-                <SelectItem value="executive_admin">
-                  <div className="flex items-center gap-2">
-                    <Car className="w-4 h-4" />
-                    Executive Admin
-                  </div>
-                </SelectItem>
-                <SelectItem value="hotel_admin">
-                  <div className="flex items-center gap-2">
-                    <Building className="w-4 h-4" />
-                    Hotel Admin
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -167,9 +93,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
             />
           </div>
 
+          {error && (
+            <p className="text-red-500 text-sm">{error}</p>
+          )}
+
           <Button 
             onClick={handleLogin}
-            disabled={!email || !password || !role || loading}
+            disabled={!email || !password || loading}
             className="w-full"
           >
             {loading ? 'Logging in...' : 'Login'}

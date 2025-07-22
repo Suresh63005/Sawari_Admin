@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
@@ -12,34 +12,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Avatar, AvatarFallback } from './ui/avatar';
+import { Plus, Eye, UserPlus, Shield, Users, Car, MapPin, Lock, Unlock } from 'lucide-react';
+import apiClient from '@/lib/apiClient';
 import { DEFAULT_PERMISSIONS, getAdminHierarchy, canCreateAdmin, Role } from './utils/permissions';
-import { 
-  Plus, 
-  Eye, 
-  UserPlus, 
-  Lock, 
-  Unlock, 
-  Shield, 
-  Users, 
-  Car, 
-  Building2 
-} from 'lucide-react';
+import { useToast } from './ui/use-toast';
 
 interface Admin {
-  id: number;
+  id: string;
   name: string;
   email: string;
   phone: string;
   role: Role;
-  status: 'active' | 'inactive';
-  created_by: number;
+  status: 'active' | 'inactive' | 'blocked';
+  created_by: string;
   created_at: string;
   permissions: {
     dashboard: boolean;
     drivers: boolean;
     vehicles: boolean;
     rides: boolean;
-    hotels: boolean;
     earnings: boolean;
     support: boolean;
     notifications: boolean;
@@ -52,78 +43,129 @@ interface AdminManagementProps {
 }
 
 export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser }) => {
-  const [admins, setAdmins] = useState<Admin[]>([
-    {
-      id: 1,
-      name: 'John Doe',
-      email: 'john@sawari.com',
-      phone: '+971 50 123 4567',
-      role: 'super_admin',
-      status: 'active',
-      created_by: 0,
-      created_at: '2024-01-01',
-      permissions: DEFAULT_PERMISSIONS.super_admin
-    },
-    {
-      id: 2,
-      name: 'Sarah Manager',
-      email: 'sarah@sawari.com',
-      phone: '+971 55 234 5678',
-      role: 'admin',
-      status: 'active',
-      created_by: 1,
-      created_at: '2024-02-15',
-      permissions: DEFAULT_PERMISSIONS.admin
-    }
-  ]);
-
+  const { toast } = useToast();
+  const [admins, setAdmins] = useState<Admin[]>([]);
   const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [newAdmin, setNewAdmin] = useState({
-    name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     role: '' as Role,
-    permissions: DEFAULT_PERMISSIONS.admin
+    password: '',
   });
+
+  useEffect(() => {
+    const fetchAdmins = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.get('/v1/admin/auth/admin-management');
+        console.log('Fetched admins:', response.data); // Debug log
+        setAdmins(response.data);
+      } catch (err: any) {
+        console.error('Fetch admins error:', err);
+        setError(err.response?.data?.message || 'Failed to fetch admins');
+        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to fetch admins' });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAdmins();
+  }, []);
 
   const getAvailableRoles = () => {
     return getAdminHierarchy(currentUser?.role);
   };
 
-  const handleCreateAdmin = () => {
-    if (!newAdmin.name || !newAdmin.email || !newAdmin.phone || !newAdmin.role) return;
-    if (!canCreateAdmin(currentUser.role, newAdmin.role)) return;
+  const handleCreateAdmin = async () => {
+    if (!newAdmin.first_name || !newAdmin.last_name || !newAdmin.email || !newAdmin.phone || !newAdmin.role || !newAdmin.password) {
+      toast({ variant: 'destructive', title: 'Error', description: 'All fields are required' });
+      return;
+    }
+    if (!canCreateAdmin(currentUser.role, newAdmin.role)) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Insufficient permissions to create this role' });
+      return;
+    }
 
-    const admin: Admin = {
-      id: Date.now(),
-      name: newAdmin.name,
-      email: newAdmin.email,
-      phone: newAdmin.phone,
-      role: newAdmin.role,
-      status: 'active',
-      created_by: currentUser.id,
-      created_at: new Date().toISOString().split('T')[0],
-      permissions: DEFAULT_PERMISSIONS[newAdmin.role]
-    };
-
-    setAdmins([...admins, admin]);
-    setNewAdmin({ name: '', email: '', phone: '', role: '' as Role, permissions: DEFAULT_PERMISSIONS.admin });
-    setShowCreateForm(false);
+    try {
+      const response = await apiClient.post('/v1/admin/auth/admin-management', newAdmin);
+      setAdmins([...admins, response.data]);
+      setNewAdmin({ first_name: '', last_name: '', email: '', phone: '', role: '' as Role, password: '' });
+      setShowCreateForm(false);
+      toast({ title: 'Success', description: 'Admin created successfully' });
+    } catch (err: any) {
+      console.error('Create admin error:', err);
+      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to create admin' });
+    }
   };
 
-  const handleUpdatePermissions = (adminId: number, permissions: Admin['permissions']) => {
-    setAdmins(admins.map(admin => 
-      admin.id === adminId ? { ...admin, permissions } : admin
-    ));
+  const handleUpdatePermissions = async (adminId: string, permissions: Admin['permissions']) => {
+    if (adminId === currentUser.id) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You cannot modify your own permissions' });
+      return;
+    }
+    try {
+      console.log(`Updating permissions for admin ${adminId}:`, permissions); // Debug log
+      const response = await apiClient.put(`/v1/admin/auth/admin-management/${adminId}/permissions`, permissions);
+      // Update local state optimistically
+      setAdmins(prev =>
+        prev.map(a => (a.id === adminId ? { ...a, permissions: response.data.permissions } : a))
+      );
+      setSelectedAdmin(prev => (prev && prev.id === adminId ? { ...prev, permissions: response.data.permissions } : prev));
+      toast({ title: 'Success', description: 'Permissions updated successfully' });
+    } catch (err: any) {
+      console.error('Update permissions error:', err);
+      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to update permissions' });
+    }
   };
 
-  const handleToggleStatus = (adminId: number) => {
-    setAdmins(admins.map(admin => 
-      admin.id === adminId 
-        ? { ...admin, status: admin.status === 'active' ? 'inactive' : 'active' }
-        : admin
-    ));
+  const handleStatusSwitch = async (adminId: string, checked: boolean) => {
+    if (adminId === currentUser.id) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You cannot modify your own status' });
+      return;
+    }
+    const admin = admins.find((a: Admin) => a.id === adminId);
+    if (!admin) return;
+
+    const newStatus = checked ? 'active' : 'inactive'; // Only active/inactive toggle
+
+    try {
+      console.log(`Switching status for admin ${adminId} to ${newStatus}`); // Debug log
+      await apiClient.put(`/v1/admin/auth/admin-management/${adminId}/status`, { status: newStatus });
+      // Re-fetch admins to ensure sync
+      const response = await apiClient.get('/v1/admin/auth/admin-management');
+      setAdmins(response.data);
+      toast({ title: 'Success', description: `Admin status updated to ${newStatus}` });
+    } catch (err: any) {
+      console.error('Switch status error:', err);
+      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to update status' });
+    }
+  };
+
+  const handleBlockUnblockAdmin = async (adminId: string) => {
+    if (adminId === currentUser.id) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You cannot block or unblock yourself' });
+      return;
+    }
+    const admin = admins.find((a: Admin) => a.id === adminId);
+    if (!admin) return;
+
+    const newStatus = admin.status === 'blocked' ? 'active' : 'blocked'; // Toggle between blocked and active
+
+    try {
+      console.log(`Toggling block status for admin ${adminId} to ${newStatus}`); // Debug log
+      await apiClient.put(`/v1/admin/auth/admin-management/${adminId}/status`, { status: newStatus });
+      // Re-fetch admins to ensure sync
+      const response = await apiClient.get('/v1/admin/auth/admin-management');
+      setAdmins(response.data);
+      toast({ title: 'Success', description: `Admin ${newStatus === 'blocked' ? 'blocked' : 'unblocked'}` });
+    } catch (err: any) {
+      console.error('Block/Unblock admin error:', err);
+      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to toggle block status' });
+    }
   };
 
   const getRoleLabel = (role: Role) => {
@@ -131,7 +173,7 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
       super_admin: 'Super Admin',
       admin: 'Admin',
       executive_admin: 'Executive Admin',
-      hotel_admin: 'Hotel Admin'
+      ride_manager: 'Ride Manager',
     };
     return labels[role];
   };
@@ -141,21 +183,38 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
       super_admin: <Shield className="w-4 h-4" />,
       admin: <Users className="w-4 h-4" />,
       executive_admin: <Car className="w-4 h-4" />,
-      hotel_admin: <Building2 className="w-4 h-4" />
+      ride_manager: <MapPin className="w-4 h-4" />,
     };
     return icons[role];
   };
 
-  const getStatusBadge = (status: string) => {
-    return status === 'active' ? 
-      <Badge variant="default">Active</Badge> : 
-      <Badge variant="secondary">Inactive</Badge>;
+  const getStatusBadge = (status: 'active' | 'inactive' | 'blocked') => {
+    switch (status) {
+      case 'active':
+        return <Badge variant="default">Active</Badge>;
+      case 'inactive':
+        return <Badge variant="secondary">Inactive</Badge>;
+      case 'blocked':
+        return <Badge variant="destructive">Blocked</Badge>;
+      default:
+        return <Badge variant="secondary">Inactive</Badge>;
+    }
   };
 
-  const filteredAdmins = admins.filter(admin => {
-    if (currentUser && currentUser?.role === 'super_admin') return true;
-    return admin.created_by === currentUser?.id || admin.id === currentUser?.id;
-  });
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-6 rounded-lg shadow-lg">
+          <h2 className="text-red-600 text-xl font-semibold">Error</h2>
+          <p className="text-gray-700 mt-2">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -181,12 +240,21 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="first_name">First Name</Label>
                   <Input
-                    id="name"
-                    value={newAdmin.name}
-                    onChange={(e) => setNewAdmin({...newAdmin, name: e.target.value})}
-                    placeholder="Enter full name"
+                    id="first_name"
+                    value={newAdmin.first_name}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, first_name: e.target.value })}
+                    placeholder="Enter first name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="last_name">Last Name</Label>
+                  <Input
+                    id="last_name"
+                    value={newAdmin.last_name}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, last_name: e.target.value })}
+                    placeholder="Enter last name"
                   />
                 </div>
                 <div>
@@ -195,7 +263,7 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
                     id="email"
                     type="email"
                     value={newAdmin.email}
-                    onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
                     placeholder="Enter email address"
                   />
                 </div>
@@ -205,18 +273,24 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
                     id="phone"
                     type="tel"
                     value={newAdmin.phone}
-                    onChange={(e) => setNewAdmin({...newAdmin, phone: e.target.value})}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, phone: e.target.value })}
                     placeholder="+971 XX XXX XXXX"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newAdmin.password}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, password: e.target.value })}
+                    placeholder="Enter password"
                   />
                 </div>
                 <div>
                   <Label htmlFor="role">Role</Label>
                   <Select value={newAdmin.role} onValueChange={(value: Role) => {
-                    setNewAdmin({
-                      ...newAdmin, 
-                      role: value,
-                      permissions: DEFAULT_PERMISSIONS[value]
-                    });
+                    setNewAdmin({ ...newAdmin, role: value });
                   }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
@@ -247,10 +321,9 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
         )}
       </div>
 
-      {/* Admin List */}
       <Card>
         <CardHeader>
-          <CardTitle>Admin Accounts ({filteredAdmins.length})</CardTitle>
+          <CardTitle>Admin Accounts ({admins.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -264,7 +337,7 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAdmins.map((admin) => (
+              {admins.map((admin: Admin) => (
                 <TableRow key={admin.id}>
                   <TableCell>
                     <div className="flex items-center space-x-3">
@@ -284,13 +357,39 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
                       <span>{getRoleLabel(admin.role)}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{getStatusBadge(admin.status)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      {getStatusBadge(admin.status)}
+                      <Switch
+                        checked={admin.status === 'active'}
+                        onCheckedChange={(checked) => handleStatusSwitch(admin.id, checked)}
+                        disabled={admin.id === currentUser.id || admin.status === 'blocked'}
+                      />
+                    </div>
+                  </TableCell>
                   <TableCell>{admin.created_at}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => setSelectedAdmin(admin)}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const response = await apiClient.get('/v1/admin/auth/admin-management');
+                                const freshAdmin = response.data.find((a: Admin) => a.id === admin.id);
+                                if (freshAdmin) {
+                                  setSelectedAdmin(freshAdmin);
+                                } else {
+                                  setSelectedAdmin(admin); // Fallback
+                                }
+                              } catch (err) {
+                                console.error('Failed to fetch admin:', err);
+                                setSelectedAdmin(admin); // Fallback
+                              }
+                            }}
+                          >
                             <Eye className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
@@ -327,7 +426,14 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
                                   </div>
                                   <div>
                                     <Label>Status</Label>
-                                    <p className="text-sm">{selectedAdmin.status}</p>
+                                    <div className="flex items-center space-x-2">
+                                      <p className="text-sm">{selectedAdmin.status}</p>
+                                      <Switch
+                                        checked={selectedAdmin.status === 'active'}
+                                        onCheckedChange={(checked) => handleStatusSwitch(selectedAdmin.id, checked)}
+                                        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+                                      />
+                                    </div>
                                   </div>
                                   <div>
                                     <Label>Created</Label>
@@ -337,151 +443,168 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
                               </TabsContent>
                               <TabsContent value="permissions" className="space-y-4">
                                 <div className="space-y-4">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <Label>Dashboard Access</Label>
-                                      <p className="text-sm text-muted-foreground">View dashboard and analytics</p>
+                                  {currentUser.role === 'super_admin' || currentUser.permissions.dashboard ? (
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <Label>Dashboard Access</Label>
+                                        <p className="text-sm text-muted-foreground">View dashboard and analytics</p>
+                                      </div>
+                                      <Switch
+                                        checked={selectedAdmin.permissions.dashboard}
+                                        onCheckedChange={(checked) => {
+                                          const newPermissions = { ...selectedAdmin.permissions, dashboard: checked };
+                                          console.log('Updating dashboard permission:', newPermissions); // Debug log
+                                          setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
+                                          handleUpdatePermissions(selectedAdmin.id, newPermissions);
+                                        }}
+                                        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+                                      />
                                     </div>
-                                    <Switch
-                                      checked={selectedAdmin.permissions.dashboard}
-                                      onCheckedChange={(checked) => {
-                                        const newPermissions = { ...selectedAdmin.permissions, dashboard: checked };
-                                        setSelectedAdmin({ ...selectedAdmin, permissions: newPermissions });
-                                        handleUpdatePermissions(selectedAdmin.id, newPermissions);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <Label>Driver Management</Label>
-                                      <p className="text-sm text-muted-foreground">Manage driver approvals and status</p>
+                                  ) : null}
+                                  {currentUser.role === 'super_admin' || currentUser.permissions.drivers ? (
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <Label>Driver Management</Label>
+                                        <p className="text-sm text-muted-foreground">Manage driver approvals and status</p>
+                                      </div>
+                                      <Switch
+                                        checked={selectedAdmin.permissions.drivers}
+                                        onCheckedChange={(checked) => {
+                                          const newPermissions = { ...selectedAdmin.permissions, drivers: checked };
+                                          console.log('Updating drivers permission:', newPermissions); // Debug log
+                                          setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
+                                          handleUpdatePermissions(selectedAdmin.id, newPermissions);
+                                        }}
+                                        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+                                      />
                                     </div>
-                                    <Switch
-                                      checked={selectedAdmin.permissions.drivers}
-                                      onCheckedChange={(checked) => {
-                                        const newPermissions = { ...selectedAdmin.permissions, drivers: checked };
-                                        setSelectedAdmin({ ...selectedAdmin, permissions: newPermissions });
-                                        handleUpdatePermissions(selectedAdmin.id, newPermissions);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <Label>Vehicle Management</Label>
-                                      <p className="text-sm text-muted-foreground">Manage vehicle approvals and status</p>
+                                  ) : null}
+                                  {currentUser.role === 'super_admin' || currentUser.permissions.vehicles ? (
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <Label>Vehicle Management</Label>
+                                        <p className="text-sm text-muted-foreground">Manage vehicle approvals and status</p>
+                                      </div>
+                                      <Switch
+                                        checked={selectedAdmin.permissions.vehicles}
+                                        onCheckedChange={(checked) => {
+                                          const newPermissions = { ...selectedAdmin.permissions, vehicles: checked };
+                                          console.log('Updating vehicles permission:', newPermissions); // Debug log
+                                          setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
+                                          handleUpdatePermissions(selectedAdmin.id, newPermissions);
+                                        }}
+                                        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+                                      />
                                     </div>
-                                    <Switch
-                                      checked={selectedAdmin.permissions.vehicles}
-                                      onCheckedChange={(checked) => {
-                                        const newPermissions = { ...selectedAdmin.permissions, vehicles: checked };
-                                        setSelectedAdmin({ ...selectedAdmin, permissions: newPermissions });
-                                        handleUpdatePermissions(selectedAdmin.id, newPermissions);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <Label>Ride Management</Label>
-                                      <p className="text-sm text-muted-foreground">Manage ride bookings and assignments</p>
+                                  ) : null}
+                                  {currentUser.role === 'super_admin' || currentUser.permissions.rides ? (
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <Label>Ride Management</Label>
+                                        <p className="text-sm text-muted-foreground">Manage ride bookings and assignments</p>
+                                      </div>
+                                      <Switch
+                                        checked={selectedAdmin.permissions.rides}
+                                        onCheckedChange={(checked) => {
+                                          const newPermissions = { ...selectedAdmin.permissions, rides: checked };
+                                          console.log('Updating rides permission:', newPermissions); // Debug log
+                                          setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
+                                          handleUpdatePermissions(selectedAdmin.id, newPermissions);
+                                        }}
+                                        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+                                      />
                                     </div>
-                                    <Switch
-                                      checked={selectedAdmin.permissions.rides}
-                                      onCheckedChange={(checked) => {
-                                        const newPermissions = { ...selectedAdmin.permissions, rides: checked };
-                                        setSelectedAdmin({ ...selectedAdmin, permissions: newPermissions });
-                                        handleUpdatePermissions(selectedAdmin.id, newPermissions);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <Label>Hotel Management</Label>
-                                      <p className="text-sm text-muted-foreground">Manage hotel partnerships</p>
+                                  ) : null}
+                                  {currentUser.role === 'super_admin' || currentUser.permissions.earnings ? (
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <Label>Earnings & Reports</Label>
+                                        <p className="text-sm text-muted-foreground">View financial reports and earnings</p>
+                                      </div>
+                                      <Switch
+                                        checked={selectedAdmin.permissions.earnings}
+                                        onCheckedChange={(checked) => {
+                                          const newPermissions = { ...selectedAdmin.permissions, earnings: checked };
+                                          console.log('Updating earnings permission:', newPermissions); // Debug log
+                                          setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
+                                          handleUpdatePermissions(selectedAdmin.id, newPermissions);
+                                        }}
+                                        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+                                      />
                                     </div>
-                                    <Switch
-                                      checked={selectedAdmin.permissions.hotels}
-                                      onCheckedChange={(checked) => {
-                                        const newPermissions = { ...selectedAdmin.permissions, hotels: checked };
-                                        setSelectedAdmin({ ...selectedAdmin, permissions: newPermissions });
-                                        handleUpdatePermissions(selectedAdmin.id, newPermissions);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <Label>Earnings & Reports</Label>
-                                      <p className="text-sm text-muted-foreground">View financial reports and earnings</p>
+                                  ) : null}
+                                  {currentUser.role === 'super_admin' || currentUser.permissions.support ? (
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <Label>Support & Tickets</Label>
+                                        <p className="text-sm text-muted-foreground">Handle support tickets and disputes</p>
+                                      </div>
+                                      <Switch
+                                        checked={selectedAdmin.permissions.support}
+                                        onCheckedChange={(checked) => {
+                                          const newPermissions = { ...selectedAdmin.permissions, support: checked };
+                                          console.log('Updating support permission:', newPermissions); // Debug log
+                                          setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
+                                          handleUpdatePermissions(selectedAdmin.id, newPermissions);
+                                        }}
+                                        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+                                      />
                                     </div>
-                                    <Switch
-                                      checked={selectedAdmin.permissions.earnings}
-                                      onCheckedChange={(checked) => {
-                                        const newPermissions = { ...selectedAdmin.permissions, earnings: checked };
-                                        setSelectedAdmin({ ...selectedAdmin, permissions: newPermissions });
-                                        handleUpdatePermissions(selectedAdmin.id, newPermissions);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <Label>Support & Tickets</Label>
-                                      <p className="text-sm text-muted-foreground">Handle support tickets and disputes</p>
+                                  ) : null}
+                                  {currentUser.role === 'super_admin' || currentUser.permissions.notifications ? (
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <Label>Notifications</Label>
+                                        <p className="text-sm text-muted-foreground">Send notifications and alerts</p>
+                                      </div>
+                                      <Switch
+                                        checked={selectedAdmin.permissions.notifications}
+                                        onCheckedChange={(checked) => {
+                                          const newPermissions = { ...selectedAdmin.permissions, notifications: checked };
+                                          console.log('Updating notifications permission:', newPermissions); // Debug log
+                                          setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
+                                          handleUpdatePermissions(selectedAdmin.id, newPermissions);
+                                        }}
+                                        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+                                      />
                                     </div>
-                                    <Switch
-                                      checked={selectedAdmin.permissions.support}
-                                      onCheckedChange={(checked) => {
-                                        const newPermissions = { ...selectedAdmin.permissions, support: checked };
-                                        setSelectedAdmin({ ...selectedAdmin, permissions: newPermissions });
-                                        handleUpdatePermissions(selectedAdmin.id, newPermissions);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <Label>Notifications</Label>
-                                      <p className="text-sm text-muted-foreground">Send notifications and alerts</p>
+                                  ) : null}
+                                  {currentUser.role === 'super_admin' || currentUser.permissions.admin_management ? (
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <Label>Admin Management</Label>
+                                        <p className="text-sm text-muted-foreground">Create and manage admin accounts</p>
+                                      </div>
+                                      <Switch
+                                        checked={selectedAdmin.permissions.admin_management}
+                                        onCheckedChange={(checked) => {
+                                          const newPermissions = { ...selectedAdmin.permissions, admin_management: checked };
+                                          console.log('Updating admin_management permission:', newPermissions); // Debug log
+                                          setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
+                                          handleUpdatePermissions(selectedAdmin.id, newPermissions);
+                                        }}
+                                        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+                                      />
                                     </div>
-                                    <Switch
-                                      checked={selectedAdmin.permissions.notifications}
-                                      onCheckedChange={(checked) => {
-                                        const newPermissions = { ...selectedAdmin.permissions, notifications: checked };
-                                        setSelectedAdmin({ ...selectedAdmin, permissions: newPermissions });
-                                        handleUpdatePermissions(selectedAdmin.id, newPermissions);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <Label>Admin Management</Label>
-                                      <p className="text-sm text-muted-foreground">Create and manage admin accounts</p>
-                                    </div>
-                                    <Switch
-                                      checked={selectedAdmin.permissions.admin_management}
-                                      onCheckedChange={(checked) => {
-                                        const newPermissions = { ...selectedAdmin.permissions, admin_management: checked };
-                                        setSelectedAdmin({ ...selectedAdmin, permissions: newPermissions });
-                                        handleUpdatePermissions(selectedAdmin.id, newPermissions);
-                                      }}
-                                    />
-                                  </div>
+                                  ) : null}
                                 </div>
                               </TabsContent>
                             </Tabs>
                           )}
                         </DialogContent>
                       </Dialog>
-                      
-                      {admin.id !== currentUser.id && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleToggleStatus(admin.id)}
-                        >
-                          {admin.status === 'active' ? 
-                            <Lock className="w-4 h-4" /> : 
-                            <Unlock className="w-4 h-4" />
-                          }
-                        </Button>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleBlockUnblockAdmin(admin.id)}
+                        disabled={admin.id === currentUser.id}
+                      >
+                        {admin.status === 'blocked' ? (
+                          <Unlock className="w-4 h-4 text-green-500"  />
+                        ) : (
+                          <Lock className="w-4 h-4 text-red-500"  />
+                        )}
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -493,4 +616,5 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
     </div>
   );
 };
-export type { Admin }; // add this at the bottom of the file
+
+export type { Admin };

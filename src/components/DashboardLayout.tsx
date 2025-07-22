@@ -5,7 +5,6 @@ import {
   Users, 
   Car, 
   MapPin, 
-  Building2, 
   DollarSign, 
   HeadphonesIcon, 
   Bell, 
@@ -23,14 +22,12 @@ import { useRouter } from 'next/navigation';
 import { getToken } from '@/lib/getToken';
 import Cookies from 'js-cookie';
 
-// Define and export the User interface
 export interface User {
   name: string;
   role: string;
   permissions: Record<string, boolean>;
 }
 
-// Define and export the DashboardLayoutProps interface
 export interface DashboardLayoutProps {
   user: User;
   children: React.ReactNode;
@@ -48,7 +45,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
-  // Check authentication on mount
   useEffect(() => {
     const token = getToken();
     if (!token) {
@@ -59,7 +55,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     }
   }, [router]);
 
-  // Get and filter menu list based on permissions
   const menuGroups = getMenuList(currentPage, user.permissions)
     .filter(group => group.menus.length > 0);
 
@@ -83,33 +78,28 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     return variants[role as keyof typeof variants] || 'default';
   };
 
-  // Enhanced logout handler
   const handleLogout = () => {
     Cookies.remove('token');
     localStorage.removeItem('token');
     onLogout();
-    router.push('/login');
+    router.push('/');
   };
 
-  // Show loading state while checking authentication
   if (isAuthenticated === null) {
     return <div>Loading...</div>;
   }
 
-  // Render nothing or redirect if not authenticated
   if (!isAuthenticated) {
-    return null;
+    return "not Authenticated"; // or redirect to login
   }
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
       <div className={cn(
         "fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
-          {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center space-x-2">
               <div className="bg-primary text-primary-foreground p-2 rounded-lg">
@@ -127,7 +117,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </Button>
           </div>
 
-          {/* User Info */}
           <div className="p-4 border-b">
             <div className="flex items-center space-x-3">
               <Avatar>
@@ -148,7 +137,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </div>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             {menuGroups.map((group, index) => (
               <div key={index} className="space-y-2">
@@ -180,9 +168,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
         <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Button
@@ -216,13 +202,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </div>
 
-        {/* Page Content */}
         <div className="flex-1 overflow-auto p-6">
           {children}
         </div>
       </div>
 
-      {/* Overlay */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"

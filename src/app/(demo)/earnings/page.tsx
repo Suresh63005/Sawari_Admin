@@ -11,7 +11,7 @@ export default function EarningsManagement({ user }: { user: any }) {
         <div className="text-center">
           <Shield className="w-16 h-16 mx-auto mb-4 text-gray-400" />
           <h3 className="text-lg font-medium text-gray-900">Access Restricted</h3>
-          <p className="text-sm text-gray-500">You don't have permission to view earnings data.</p>
+          <p className="text-sm text-gray-500">You don&apos;t have permission to view earnings data.</p>
         </div>
       </div>
     );

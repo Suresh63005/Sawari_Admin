@@ -1,27 +1,20 @@
-export type Role = 'super_admin' | 'admin' | 'executive_admin' | 'hotel_admin';
+export type Role = 'super_admin' | 'admin' | 'executive_admin' | 'ride_manager';
 
-export interface User {
-  role: Role;
-  permissions: {
-    dashboard: boolean;
-    drivers: boolean;
-    vehicles: boolean;
-    rides: boolean;
-    hotels: boolean;
-    earnings: boolean;
-    support: boolean;
-    notifications: boolean;
-    admin_management: boolean;
-  };
-}
-
-export const DEFAULT_PERMISSIONS: Record<Role, User['permissions']> = {
+export const DEFAULT_PERMISSIONS: Record<Role, {
+  dashboard: boolean;
+  drivers: boolean;
+  vehicles: boolean;
+  rides: boolean;
+  earnings: boolean;
+  support: boolean;
+  notifications: boolean;
+  admin_management: boolean;
+}> = {
   super_admin: {
     dashboard: true,
     drivers: true,
     vehicles: true,
     rides: true,
-    hotels: true,
     earnings: true,
     support: true,
     notifications: true,
@@ -32,7 +25,6 @@ export const DEFAULT_PERMISSIONS: Record<Role, User['permissions']> = {
     drivers: true,
     vehicles: true,
     rides: true,
-    hotels: true,
     earnings: false,
     support: true,
     notifications: true,
@@ -43,46 +35,34 @@ export const DEFAULT_PERMISSIONS: Record<Role, User['permissions']> = {
     drivers: true,
     vehicles: true,
     rides: true,
-    hotels: false,
     earnings: false,
     support: true,
     notifications: true,
-    admin_management: true,
+    admin_management: false,
   },
-  hotel_admin: {
+  ride_manager: {
     dashboard: true,
     drivers: false,
     vehicles: false,
     rides: true,
-    hotels: false,
     earnings: false,
     support: false,
     notifications: false,
     admin_management: false,
-  }
+  },
 };
 
-export const checkPermission = (user: User | null, permission: keyof User['permissions']): boolean => {
-  if (!user || !user.permissions) return false;
-  return user.permissions[permission] === true;
-};
-
-export const hasAnyPermission = (user: User | null, permissions: (keyof User['permissions'])[]): boolean => {
-  if (!user || !user.permissions) return false;
-  return permissions.some(permission => user.permissions[permission] === true);
-};
-
-export const getAdminHierarchy = (role: Role): Role[] => {
+export const getAdminHierarchy = (currentRole: Role): Role[] => {
   const hierarchy: Record<Role, Role[]> = {
-    super_admin: ['admin', 'executive_admin', 'hotel_admin'],
-    admin: ['executive_admin', 'hotel_admin'],
-    executive_admin: ['hotel_admin'],
-    hotel_admin: []
+    super_admin: ['super_admin', 'admin', 'executive_admin', 'ride_manager'],
+    admin: ['admin', 'executive_admin', 'ride_manager'],
+    executive_admin: ['executive_admin', 'ride_manager'],
+    ride_manager: ['ride_manager'],
   };
-  return hierarchy[role] || [];
+  return hierarchy[currentRole] || ['ride_manager'];
 };
 
-export const canCreateAdmin = (currentUserRole: Role, targetRole: Role): boolean => {
-  const allowedRoles = getAdminHierarchy(currentUserRole);
-  return allowedRoles.includes(targetRole);
+export const canCreateAdmin = (currentRole: Role, newRole: Role): boolean => {
+  const hierarchy = getAdminHierarchy(currentRole);
+  return hierarchy.includes(newRole) && currentRole !== newRole;
 };

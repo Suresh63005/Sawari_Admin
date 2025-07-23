@@ -1,10 +1,8 @@
-// lib/menu-list.ts
 import {
   LayoutDashboard,
   Users,
   Car,
   MapPin,
-  Building2,
   DollarSign,
   HeadphonesIcon,
   Bell,
@@ -70,13 +68,6 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           active: pathname === "/rides",
           icon: MapPin,
           permission: "rides"
-        },
-        {
-          href: "/hotels",
-          label: "Hotels",
-          active: pathname === "/hotels",
-          icon: Building2,
-          permission: "hotels"
         },
         {
           href: "/earnings",

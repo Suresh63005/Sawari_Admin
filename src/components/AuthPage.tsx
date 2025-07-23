@@ -6,13 +6,11 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Car } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import apiClient from '@/lib/apiClient'; // Import the Axios client
+import apiClient from '@/lib/apiClient';
 
-interface AuthPageProps {
-  onLogin: (user: any) => void;
-}
 
-export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
+
+export const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,41 +18,43 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
   const router = useRouter();
 
   const handleLogin = async () => {
-  if (!email || !password) {
-    setError('Email and password are required');
-    return;
-  }
+    if (!email || !password) {
+      setError('Email and password are required');
+      return;
+    }
 
-  setLoading(true);
-  setError('');
+    setLoading(true);
+    setError('');
 
-  try {
-    const response = await apiClient.post('/v1/admin/auth/login', {
-      email,
-      password,
-    });
+    try {
+      const response = await apiClient.post('/v1/admin/auth/login', {
+        email,
+        password,
+      });
 
-    const data = response.data;
+      const data = response.data;
 
-    const user = {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      permissions: data.permissions,
-    };
+      const user = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        permissions: data.permissions,
+      };
 
-    // Store token in localStorage (or another storage mechanism)
-    localStorage.setItem('token', data.token);
+      // Store token in localStorage
+      localStorage.setItem('token', data.token);
+      console.log('Token stored:', localStorage.getItem('token')); // Debug log
 
-    onLogin(user);
-    router.push('/dashboard');
-  } catch (err: any) {
-    setError(err.response?.data?.message || 'Login failed');
-  } finally {
-    setLoading(false);
-  }
-};
+      
+      router.push('/dashboard');
+    } catch (err: any) {
+      console.error('Login error:', err); // Debug log
+      setError(err.response?.data?.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

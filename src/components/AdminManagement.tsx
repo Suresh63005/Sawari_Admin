@@ -397,7 +397,7 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
                           <DialogHeader>
                             <DialogTitle>Admin Details & Permissions</DialogTitle>
                             <DialogDescription>
-                              Manage {admin.name}'s account and permissions
+                              Manage {admin.name}&apos;s account and permissions
                             </DialogDescription>
                           </DialogHeader>
                           {selectedAdmin && (

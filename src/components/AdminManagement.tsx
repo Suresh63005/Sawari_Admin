@@ -219,106 +219,115 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
+        {/* <div>
           <h2 className="text-2xl font-bold">Admin Management</h2>
           <p className="text-muted-foreground">Manage admin accounts and permissions</p>
-        </div>
+        </div> */}
         {getAvailableRoles().length > 0 && (
-          <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
-            <DialogTrigger asChild>
-              <Button>
-                <UserPlus className="w-4 h-4 mr-2" />
+  <>
+    <div className="flex justify-end mb-4">
+      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+        <DialogTrigger asChild>
+          <Button>
+            <UserPlus className="w-4 h-4 mr-2" />
+            Create Admin
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Admin</DialogTitle>
+            <DialogDescription>
+              Add a new admin account with specified permissions
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="first_name">First Name</Label>
+              <Input
+                id="first_name"
+                value={newAdmin.first_name}
+                onChange={(e) => setNewAdmin({ ...newAdmin, first_name: e.target.value })}
+                placeholder="Enter first name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="last_name">Last Name</Label>
+              <Input
+                id="last_name"
+                value={newAdmin.last_name}
+                onChange={(e) => setNewAdmin({ ...newAdmin, last_name: e.target.value })}
+                placeholder="Enter last name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newAdmin.email}
+                onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={newAdmin.phone}
+                onChange={(e) => setNewAdmin({ ...newAdmin, phone: e.target.value })}
+                placeholder="+971 XX XXX XXXX"
+              />
+            </div>
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={newAdmin.password}
+                onChange={(e) => setNewAdmin({ ...newAdmin, password: e.target.value })}
+                placeholder="Enter password"
+              />
+            </div>
+            <div>
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={newAdmin.role}
+                onValueChange={(value: Role) => setNewAdmin({ ...newAdmin, role: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableRoles().map((role) => (
+                    <SelectItem key={role} value={role}>
+                      <div className="flex items-center gap-2">
+                        {getRoleIcon(role)}
+                        {getRoleLabel(role)}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateAdmin}
+                disabled={!canCreateAdmin(currentUser.role, newAdmin.role)}
+              >
                 Create Admin
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Create New Admin</DialogTitle>
-                <DialogDescription>
-                  Add a new admin account with specified permissions
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="first_name">First Name</Label>
-                  <Input
-                    id="first_name"
-                    value={newAdmin.first_name}
-                    onChange={(e) => setNewAdmin({ ...newAdmin, first_name: e.target.value })}
-                    placeholder="Enter first name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="last_name">Last Name</Label>
-                  <Input
-                    id="last_name"
-                    value={newAdmin.last_name}
-                    onChange={(e) => setNewAdmin({ ...newAdmin, last_name: e.target.value })}
-                    placeholder="Enter last name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newAdmin.email}
-                    onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
-                    placeholder="Enter email address"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={newAdmin.phone}
-                    onChange={(e) => setNewAdmin({ ...newAdmin, phone: e.target.value })}
-                    placeholder="+971 XX XXX XXXX"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newAdmin.password}
-                    onChange={(e) => setNewAdmin({ ...newAdmin, password: e.target.value })}
-                    placeholder="Enter password"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={newAdmin.role} onValueChange={(value: Role) => {
-                    setNewAdmin({ ...newAdmin, role: value });
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAvailableRoles().map(role => (
-                        <SelectItem key={role} value={role}>
-                          <div className="flex items-center gap-2">
-                            {getRoleIcon(role)}
-                            {getRoleLabel(role)}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setShowCreateForm(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreateAdmin} disabled={!canCreateAdmin(currentUser.role, newAdmin.role)}>
-                    Create Admin
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  </>
+)}
+
       </div>
 
       <Card>

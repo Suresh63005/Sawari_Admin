@@ -156,12 +156,12 @@ if (user && user.role === 'hotel_admin') {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
+        {/* <div>
           <h2 className="text-2xl font-bold">Ride Management</h2>
           <p className="text-muted-foreground">
             {user &&user.role === 'hotel_admin' ? 'Manage your hotel bookings' : 'Monitor and manage all rides'}
           </p>
-        </div>
+        </div> */}
         {user &&user.role === 'hotel_admin' && (
           <Button>
             <Car className="w-4 h-4 mr-2" />

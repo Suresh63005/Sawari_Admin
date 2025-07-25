@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 export default function SupportManagement() {
   return (
     <div className="space-y-6">
-      <div>
+      {/* <div>
         <h2 className="text-2xl font-bold">Support & Disputes</h2>
         <p className="text-muted-foreground">Handle customer support tickets</p>
-      </div>
+      </div> */}
       <Card>
         <CardHeader>
           <CardTitle>Open Tickets</CardTitle>

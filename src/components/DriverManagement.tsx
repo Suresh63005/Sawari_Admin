@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
@@ -8,24 +10,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { 
-  Search, 
-  Filter, 
-  Eye, 
-  CheckCircle, 
-  XCircle, 
-  Ban, 
-  UnlockIcon,
-  Star,
-  MapPin,
-  Phone,
-  Mail,
-  Calendar,
-  Languages
+  Search, Eye, CheckCircle, XCircle, Ban, Unlock, Star, MapPin, Phone, Mail, Calendar, Languages, Car 
 } from 'lucide-react';
+import apiClient from '@/lib/apiClient';
+import { useToast } from '@/components/ui/use-toast';
+import Swal from 'sweetalert2'; // Import SweetAlert2
 
 interface Driver {
-  id: number;
-  name: string;
+  id: string;
+  first_name: string;
+  last_name: string;
   email: string;
   phone: string;
   dob: string;
@@ -34,141 +28,274 @@ interface Driver {
   status: 'active' | 'inactive' | 'blocked';
   is_approved: boolean;
   rating: number;
-  total_rides: number;
+  ride_count: number;
   joined_date: string;
   license_expiry: string;
-  documents: {
-    license_front: string;
-    license_back: string;
-    gov_id: string;
-  };
-  vehicles: number;
+  license_front: string;
+  license_back: string;
+  emirates_doc_front: string;
+  emirates_doc_back: string;
+  license_verification_status?: string;
+  emirates_verification_status?: string;
 }
 
-export const DriverManagement: React.FC = () => {
+export default function DriverManagement() {
+  const { toast } = useToast();
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [licenseModalOpen, setLicenseModalOpen] = useState(false);
+  const [emiratesModalOpen, setEmiratesModalOpen] = useState(false);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [driverIdFilter, setDriverIdFilter] = useState<string | null>(null);
 
-  const mockDrivers: Driver[] = [
-    {
-      id: 1,
-      name: 'Ahmed Hassan',
-      email: 'ahmed@example.com',
-      phone: '+971 50 123 4567',
-      dob: '1985-03-15',
-      experience: 8,
-      languages: ['Arabic', 'English'],
-      status: 'active',
-      is_approved: true,
-      rating: 4.8,
-      total_rides: 156,
-      joined_date: '2024-01-15',
-      license_expiry: '2025-03-15',
-      documents: {
-        license_front: 'license_front.jpg',
-        license_back: 'license_back.jpg',
-        gov_id: 'emirates_id.jpg'
-      },
-      vehicles: 1
-    },
-    {
-      id: 2,
-      name: 'Mohammed Ali',
-      email: 'mohammed@example.com',
-      phone: '+971 55 234 5678',
-      dob: '1990-07-22',
-      experience: 5,
-      languages: ['Arabic', 'English', 'Urdu'],
-      status: 'active',
-      is_approved: false,
-      rating: 0,
-      total_rides: 0,
-      joined_date: '2024-07-10',
-      license_expiry: '2025-07-22',
-      documents: {
-        license_front: 'license_front.jpg',
-        license_back: 'license_back.jpg',
-        gov_id: 'emirates_id.jpg'
-      },
-      vehicles: 0
-    },
-    {
-      id: 3,
-      name: 'Ravi Kumar',
-      email: 'ravi@example.com',
-      phone: '+971 56 345 6789',
-      dob: '1988-11-10',
-      experience: 6,
-      languages: ['English', 'Hindi', 'Arabic'],
-      status: 'blocked',
-      is_approved: true,
-      rating: 4.2,
-      total_rides: 89,
-      joined_date: '2024-02-20',
-      license_expiry: '2025-11-10',
-      documents: {
-        license_front: 'license_front.jpg',
-        license_back: 'license_back.jpg',
-        gov_id: 'emirates_id.jpg'
-      },
-      vehicles: 2
+
+ useEffect(() => {
+  const fetchDrivers = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/v1/admin/driver');
+      const normalizedDrivers = response.data.map((driver: Driver) => ({
+        ...driver,
+        languages: Array.isArray(driver.languages) ? driver.languages : [],
+      }));
+
+      const storedDriverId = localStorage.getItem("selectedDriverId");
+
+      if (storedDriverId) {
+        setDriverIdFilter(storedDriverId); // store in state
+        localStorage.removeItem("selectedDriverId"); // clear for next time
+      }
+
+      setDrivers(normalizedDrivers); // always store full list
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to fetch drivers',
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const filteredDrivers = mockDrivers.filter(driver => {
-    const matchesSearch = driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         driver.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         driver.phone.includes(searchTerm);
-    
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'pending' && !driver.is_approved) ||
-                         (statusFilter === 'approved' && driver.is_approved && driver.status === 'active') ||
-                         (statusFilter === 'blocked' && driver.status === 'blocked');
-    
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleApprove = (driverId: number) => {
-    console.log('Approving driver:', driverId);
-    // API call to approve driver
   };
 
-  const handleReject = (driverId: number) => {
-    console.log('Rejecting driver:', driverId);
-    // API call to reject driver
+  fetchDrivers();
+}, []);
+
+
+
+ const filteredDrivers = drivers.filter(driver => {
+  const matchesDriverId = driverIdFilter ? driver.id === driverIdFilter : true;
+
+  const matchesSearch =
+    `${driver.first_name} ${driver.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    driver.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    driver.phone.includes(searchTerm);
+
+  const matchesStatus = statusFilter === 'all' ||
+    (statusFilter === 'pending' && !driver.is_approved) ||
+    (statusFilter === 'approved' && driver.is_approved && driver.status === 'active') ||
+    (statusFilter === 'blocked' && driver.status === 'blocked');
+
+  return matchesDriverId && matchesSearch && matchesStatus;
+});
+
+
+  const verifiedBy = 'some-user-id'; // Replace with actual user ID from auth context
+
+  const handleLicenseVerify = async (driverId: string) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to verify the license?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, verify it!',
+    });
+    if (result.isConfirmed) {
+      try {
+        await apiClient.post(`/v1/admin/driver/${driverId}/verify-license`, { verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'verified' } : d));
+        toast({ title: 'Success', description: 'License verified' });
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to verify license' });
+      }
+    }
   };
 
-  const handleBlock = (driverId: number) => {
-    console.log('Blocking driver:', driverId);
-    // API call to block driver
+  const handleLicenseReject = async (driverId: string) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to reject the license?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, reject it!',
+      input: 'text',
+      inputPlaceholder: 'Enter rejection reason',
+      inputValidator: (value) => !value && 'You need to provide a reason!',
+    });
+    if (result.isConfirmed && result.value) {
+      try {
+        await apiClient.post(`/v1/admin/driver/${driverId}/reject-license`, { reason: result.value, verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'rejected' } : d));
+        toast({ title: 'Success', description: 'License rejected' });
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to reject license' });
+      }
+    }
   };
 
-  const handleUnblock = (driverId: number) => {
-    console.log('Unblocking driver:', driverId);
-    // API call to unblock driver
+  const handleEmiratesVerify = async (driverId: string) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to verify the emirates ID?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, verify it!',
+    });
+    if (result.isConfirmed) {
+      try {
+        await apiClient.post(`/v1/admin/driver/${driverId}/verify-emirates`, { verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'verified' } : d));
+        toast({ title: 'Success', description: 'Emirates ID verified' });
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to verify emirates ID' });
+      }
+    }
+  };
+
+  const handleEmiratesReject = async (driverId: string) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to reject the emirates ID?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, reject it!',
+      input: 'text',
+      inputPlaceholder: 'Enter rejection reason',
+      inputValidator: (value) => !value && 'You need to provide a reason!',
+    });
+    if (result.isConfirmed && result.value) {
+      try {
+        await apiClient.post(`/v1/admin/driver/${driverId}/reject-emirates`, { reason: result.value, verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'rejected' } : d));
+        toast({ title: 'Success', description: 'Emirates ID rejected' });
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to reject emirates ID' });
+      }
+    }
+  };
+
+  const handleApprove = async (driverId: string) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to approve this driver?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, approve!',
+    });
+    if (result.isConfirmed) {
+      try {
+        await apiClient.post(`/v1/admin/driver/${driverId}/approve`, { verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: true, status: 'active' } : d));
+        toast({ title: 'Success', description: 'Driver approved' });
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to approve driver' });
+      }
+    }
+  };
+
+  const handleReject = async (driverId: string) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to reject this driver?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, reject!',
+      input: 'text',
+      inputPlaceholder: 'Enter rejection reason',
+      inputValidator: (value) => !value && 'You need to provide a reason!',
+    });
+    if (result.isConfirmed && result.value) {
+      try {
+        await apiClient.post(`/v1/admin/driver/${driverId}/reject`, { reason: result.value, verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: false } : d));
+        toast({ title: 'Success', description: 'Driver rejected' });
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to reject driver' });
+      }
+    }
+  };
+
+  const handleBlock = async (driverId: string) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to block this driver?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, block!',
+    });
+    if (result.isConfirmed) {
+      try {
+        await apiClient.post(`/v1/admin/driver/${driverId}/block`, { verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'blocked' } : d));
+        toast({ title: 'Success', description: 'Driver blocked' });
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to block driver' });
+      }
+    }
+  };
+
+  const handleUnblock = async (driverId: string) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to unblock this driver?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, unblock!',
+    });
+    if (result.isConfirmed) {
+      try {
+        await apiClient.post(`/v1/admin/driver/${driverId}/unblock`, { verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'active' } : d));
+        toast({ title: 'Success', description: 'Driver unblocked' });
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to unblock driver' });
+      }
+    }
   };
 
   const getStatusBadge = (driver: Driver) => {
-    if (!driver.is_approved) {
-      return <Badge variant="secondary">Pending</Badge>;
-    }
-    if (driver.status === 'blocked') {
-      return <Badge variant="destructive">Blocked</Badge>;
-    }
+    if (!driver.is_approved) return <Badge variant="secondary">Pending</Badge>;
+    if (driver.status === 'blocked') return <Badge variant="destructive">Blocked</Badge>;
     return <Badge variant="default">Active</Badge>;
+  };
+
+  const handleImageClick = (imageUrl: string) => {
+    setSelectedImage(imageUrl);
+    setImageModalOpen(true);
   };
 
   return (
     <div className="space-y-6">
-      {/* <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Driver Management</h2>
-          <p className="text-muted-foreground">Manage driver approvals and status</p>
-        </div>
-      </div> */}
-
-      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
@@ -187,36 +314,15 @@ export const DriverManagement: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant={statusFilter === 'all' ? 'default' : 'outline'}
-                onClick={() => setStatusFilter('all')}
-              >
-                All
-              </Button>
-              <Button
-                variant={statusFilter === 'pending' ? 'default' : 'outline'}
-                onClick={() => setStatusFilter('pending')}
-              >
-                Pending
-              </Button>
-              <Button
-                variant={statusFilter === 'approved' ? 'default' : 'outline'}
-                onClick={() => setStatusFilter('approved')}
-              >
-                Approved
-              </Button>
-              <Button
-                variant={statusFilter === 'blocked' ? 'default' : 'outline'}
-                onClick={() => setStatusFilter('blocked')}
-              >
-                Blocked
-              </Button>
+              <Button variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>All</Button>
+              <Button variant={statusFilter === 'pending' ? 'default' : 'outline'} onClick={() => setStatusFilter('pending')}>Pending</Button>
+              <Button variant={statusFilter === 'approved' ? 'default' : 'outline'} onClick={() => setStatusFilter('approved')}>Approved</Button>
+              <Button variant={statusFilter === 'blocked' ? 'default' : 'outline'} onClick={() => setStatusFilter('blocked')}>Blocked</Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Drivers Table */}
       <Card>
         <CardHeader>
           <CardTitle>Drivers ({filteredDrivers.length})</CardTitle>
@@ -239,11 +345,11 @@ export const DriverManagement: React.FC = () => {
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       <Avatar>
-                        <AvatarFallback>{driver.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                        <AvatarFallback>{`${driver.first_name[0]}${driver.last_name[0]}`}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{driver.name}</p>
-                        <p className="text-sm text-muted-foreground">{driver.total_rides} rides</p>
+                        <p className="font-medium">{`${driver.first_name} ${driver.last_name}`}</p>
+                        <p className="text-sm text-muted-foreground">{driver.ride_count} rides</p>
                       </div>
                     </div>
                   </TableCell>
@@ -272,9 +378,7 @@ export const DriverManagement: React.FC = () => {
                         <DialogContent className="max-w-2xl">
                           <DialogHeader>
                             <DialogTitle>Driver Details</DialogTitle>
-                            <DialogDescription>
-                              Complete information about {driver.name}
-                            </DialogDescription>
+                            <DialogDescription>Complete information about {`${driver.first_name} ${driver.last_name}`}</DialogDescription>
                           </DialogHeader>
                           {selectedDriver && (
                             <Tabs defaultValue="profile" className="w-full">
@@ -291,7 +395,7 @@ export const DriverManagement: React.FC = () => {
                                       <p className="flex items-center text-sm"><Calendar className="w-4 h-4 mr-2" />Born: {selectedDriver.dob}</p>
                                       <p className="flex items-center text-sm"><Phone className="w-4 h-4 mr-2" />{selectedDriver.phone}</p>
                                       <p className="flex items-center text-sm"><Mail className="w-4 h-4 mr-2" />{selectedDriver.email}</p>
-                                      <p className="flex items-center text-sm"><Languages className="w-4 h-4 mr-2" />{selectedDriver.languages.join(', ')}</p>
+                                      <p className="flex items-center text-sm"><Languages className="w-4 h-4 mr-2" />{Array.isArray(selectedDriver.languages) ? selectedDriver.languages.join(', ') : 'N/A'}</p>
                                     </div>
                                   </div>
                                   <div className="space-y-2">
@@ -299,7 +403,6 @@ export const DriverManagement: React.FC = () => {
                                     <div className="space-y-1">
                                       <p className="text-sm">Experience: {selectedDriver.experience} years</p>
                                       <p className="text-sm">License Expiry: {selectedDriver.license_expiry}</p>
-                                      <p className="text-sm">Vehicles: {selectedDriver.vehicles}</p>
                                       <p className="text-sm">Joined: {selectedDriver.joined_date}</p>
                                     </div>
                                   </div>
@@ -309,19 +412,92 @@ export const DriverManagement: React.FC = () => {
                                 <div className="grid grid-cols-1 gap-4">
                                   <div className="space-y-2">
                                     <label className="text-sm font-medium">Required Documents</label>
-                                    <div className="space-y-2">
-                                      <div className="flex items-center justify-between p-2 border rounded">
-                                        <span className="text-sm">Driving License (Front)</span>
-                                        <Button variant="outline" size="sm">View</Button>
-                                      </div>
-                                      <div className="flex items-center justify-between p-2 border rounded">
-                                        <span className="text-sm">Driving License (Back)</span>
-                                        <Button variant="outline" size="sm">View</Button>
-                                      </div>
-                                      <div className="flex items-center justify-between p-2 border rounded">
-                                        <span className="text-sm">Government ID</span>
-                                        <Button variant="outline" size="sm">View</Button>
-                                      </div>
+                                    <div className="space-y-4">
+                                      <Button variant="outline" size="sm" onClick={() => setLicenseModalOpen(true)}>
+                                        View License Documents
+                                      </Button>
+                                      <Dialog open={licenseModalOpen} onOpenChange={setLicenseModalOpen}>
+                                        <DialogContent className="max-w-4xl">
+                                          <DialogHeader>
+                                            <DialogTitle>License Documents</DialogTitle>
+                                          </DialogHeader>
+                                          <div className="flex space-x-4">
+                                            <img 
+                                              src={selectedDriver.license_front} 
+                                              alt="License Front" 
+                                              className="w-1/2 h-auto rounded cursor-pointer" 
+                                              onClick={() => handleImageClick(selectedDriver.license_front)}
+                                            />
+                                            <img 
+                                              src={selectedDriver.license_back} 
+                                              alt="License Back" 
+                                              className="w-1/2 h-auto rounded cursor-pointer" 
+                                              onClick={() => handleImageClick(selectedDriver.license_back)}
+                                            />
+                                          </div>
+                                          <div className="flex justify-end space-x-2 mt-4">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => handleLicenseVerify(selectedDriver.id)}
+                                              className="text-green-600 hover:text-green-700"
+                                            >
+                                              Verify
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => handleLicenseReject(selectedDriver.id)}
+                                              className="text-red-600 hover:text-red-700"
+                                            >
+                                              Reject
+                                            </Button>
+                                          </div>
+                                        </DialogContent>
+                                      </Dialog>
+
+                                      <Button variant="outline" size="sm" onClick={() => setEmiratesModalOpen(true)}>
+                                        View Emirates Documents
+                                      </Button>
+                                      <Dialog open={emiratesModalOpen} onOpenChange={setEmiratesModalOpen}>
+                                        <DialogContent className="max-w-4xl">
+                                          <DialogHeader>
+                                            <DialogTitle>Emirates Documents</DialogTitle>
+                                          </DialogHeader>
+                                          <div className="flex space-x-4">
+                                            <img 
+                                              src={selectedDriver.emirates_doc_front} 
+                                              alt="Emirates Front" 
+                                              className="w-1/2 h-auto rounded cursor-pointer" 
+                                              onClick={() => handleImageClick(selectedDriver.emirates_doc_front)}
+                                            />
+                                            <img 
+                                              src={selectedDriver.emirates_doc_back} 
+                                              alt="Emirates Back" 
+                                              className="w-1/2 h-auto rounded cursor-pointer" 
+                                              onClick={() => handleImageClick(selectedDriver.emirates_doc_back)}
+                                            />
+                                          </div>
+                                          <div className="flex justify-end space-x-2 mt-4">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => handleEmiratesVerify(selectedDriver.id)}
+                                              className="text-green-600 hover:text-green-700"
+                                            >
+                                              Verify
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => handleEmiratesReject(selectedDriver.id)}
+                                              className="text-red-600 hover:text-red-700"
+                                            >
+                                              Reject
+                                            </Button>
+                                          </div>
+                                        </DialogContent>
+                                      </Dialog>
                                     </div>
                                   </div>
                                 </div>
@@ -336,7 +512,7 @@ export const DriverManagement: React.FC = () => {
                                       <div className="space-y-2">
                                         <div className="flex justify-between">
                                           <span className="text-sm">Total Rides</span>
-                                          <span className="text-sm font-medium">{selectedDriver.total_rides}</span>
+                                          <span className="text-sm font-medium">{selectedDriver.ride_count}</span>
                                         </div>
                                         <div className="flex justify-between">
                                           <span className="text-sm">Rating</span>
@@ -367,7 +543,6 @@ export const DriverManagement: React.FC = () => {
                           )}
                         </DialogContent>
                       </Dialog>
-                      
                       {!driver.is_approved && (
                         <>
                           <Button
@@ -388,7 +563,6 @@ export const DriverManagement: React.FC = () => {
                           </Button>
                         </>
                       )}
-                      
                       {driver.is_approved && (
                         <>
                           {driver.status === 'blocked' ? (
@@ -398,7 +572,7 @@ export const DriverManagement: React.FC = () => {
                               onClick={() => handleUnblock(driver.id)}
                               className="text-green-600 hover:text-green-700"
                             >
-                              <UnlockIcon className="w-4 h-4" />
+                              <Unlock className="w-4 h-4" />
                             </Button>
                           ) : (
                             <Button
@@ -412,6 +586,17 @@ export const DriverManagement: React.FC = () => {
                           )}
                         </>
                       )}
+<Button
+  variant="outline"
+  size="sm"
+  onClick={() => {
+    localStorage.setItem("selectedDriverId", driver.id);
+    window.location.href = "/vehicles"; // or use router.push("/vehicles") in Next.js
+  }}
+>
+  <Car className="w-4 h-4" />
+</Button>
+
                     </div>
                   </TableCell>
                 </TableRow>
@@ -420,6 +605,18 @@ export const DriverManagement: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Image Modal */}
+      <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Enlarged Document</DialogTitle>
+          </DialogHeader>
+          {selectedImage && (
+            <img src={selectedImage} alt="Enlarged Document" className="w-full h-auto rounded" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { DriverManagement } from "@/components/DriverManagement";
+import DriverManagement from "@/components/DriverManagement";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { dummyUser } from "@/lib/dummy-user";
 

@@ -19,10 +19,10 @@ export default function EarningsManagement({ user }: { user: any }) {
 
   return (
     <div className="space-y-6">
-      <div>
+      {/* <div>
         <h2 className="text-2xl font-bold">Earnings & Commissions</h2>
         <p className="text-muted-foreground">Track revenue and manage payouts</p>
-      </div>
+      </div> */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>

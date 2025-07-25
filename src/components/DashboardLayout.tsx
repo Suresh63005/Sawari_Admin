@@ -185,7 +185,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
           
           <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm"
+              onClick={() => router.push('/general-notifications')}
+            >
               <Bell className="w-4 h-4" />
             </Button>
             <Button variant="ghost" size="sm">

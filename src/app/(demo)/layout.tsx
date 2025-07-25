@@ -31,6 +31,7 @@ const [error, setError] = useState<string | null>(null);
             role: response.data.role,
             permissions: response.data.permissions
           });
+          console.log(Object.keys(response.data.permissions),"perrrrrrmissionsssssssssssss"); // Debug log
         } else {
           console.log('No token found, redirecting to login'); // Debug log
           router.push('/login');

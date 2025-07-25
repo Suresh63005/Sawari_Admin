@@ -1,57 +1,68 @@
 'use client';
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Shield } from "lucide-react";
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { EarningsManagement } from '@/components/EarningsManagement';
+import apiClient from '@/lib/apiClient';
+import { Admin } from '@/components/AdminManagement'; // Reusing Admin type for consistency
 
-export default function EarningsManagement({ user }: { user: any }) {
-  // Only show earnings if user has permission
-  if (user && !user.permissions?.earnings) {
+export default function EarningsManagementPage() {
+  const [currentUser, setCurrentUser] = useState<Admin | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const response = await apiClient.get('/v1/admin/auth/me');
+          setCurrentUser({
+            id: response.data.id,
+            name: response.data.name,
+            email: response.data.email,
+            phone: response.data.phone || '',
+            role: response.data.role,
+            status: response.data.status || 'active',
+            created_by: response.data.created_by || '',
+            created_at: response.data.created_at || new Date().toISOString().split('T')[0],
+            permissions: response.data.permissions,
+          });
+        } else {
+          router.push('/login');
+        }
+      } catch (err: any) {
+        console.error('Fetch current user error:', err);
+        setError(err.response?.data?.message || 'Failed to fetch user data');
+        router.push('/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCurrentUser();
+  }, [router]);
+
+  // if (loading) {
+  //   return <div>Loading...</div>;
+  // }
+
+  if (error || !currentUser) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Shield className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-lg font-medium text-gray-900">Access Restricted</h3>
-          <p className="text-sm text-gray-500">You don't have permission to view earnings data.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-6 rounded-lg shadow-lg">
+          <h2 className="text-red-600 text-xl font-semibold">Error</h2>
+          <p className="text-gray-700 mt-2">{error || 'User not authenticated'}</p>
+          <button
+            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            onClick={() => router.push('/login')}
+          >
+            Go to Login
+          </button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6">
-      {/* <div>
-        <h2 className="text-2xl font-bold">Earnings & Commissions</h2>
-        <p className="text-muted-foreground">Track revenue and manage payouts</p>
-      </div> */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Revenue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">AED 125,000</p>
-            <p className="text-sm text-muted-foreground">This month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Commission Earned</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">AED 12,500</p>
-            <p className="text-sm text-muted-foreground">10% average</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending Payouts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">AED 8,750</p>
-            <p className="text-sm text-muted-foreground">To 23 drivers</p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+  return <EarningsManagement currentUser={currentUser} />;
 }

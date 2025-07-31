@@ -4,17 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
-import { Car } from 'lucide-react';
+import { Car, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/apiClient';
-
-
 
 export const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   const handleLogin = async () => {
@@ -45,7 +44,6 @@ export const AuthPage = () => {
       // Store token in localStorage
       localStorage.setItem('token', data.token);
       console.log('Token stored:', localStorage.getItem('token')); // Debug log
-
       
       router.push('/dashboard');
     } catch (err: any) {
@@ -84,13 +82,22 @@ export const AuthPage = () => {
 
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
           {error && (

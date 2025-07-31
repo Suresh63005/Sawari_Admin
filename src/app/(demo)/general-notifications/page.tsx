@@ -5,10 +5,10 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 export default function NotificationManagement() {
   return (
     <div className="space-y-6">
-      <div>
+      {/* <div>
         <h2 className="text-2xl font-bold">Notifications</h2>
         <p className="text-muted-foreground">Send alerts to drivers and hotel admins</p>
-      </div>
+      </div> */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Notifications</CardTitle>

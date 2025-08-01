@@ -5,12 +5,12 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import {
   Search, MapPin, Clock, User, Car, Phone, Eye, Navigation,
-  Calendar, DollarSign, AlertCircle
+  Calendar, DollarSign, AlertCircle, Edit, X
 } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import MapView from './MapView';
@@ -26,7 +26,7 @@ interface Ride {
   scheduled_time: string;
   driver_name?: string;
   driver_id?: number;
-  status: 'pending' | 'accepted' | 'ongoing' | 'completed' | 'cancelled';
+  status: 'pending' | 'accepted' | 'on-route' | 'completed' | 'cancelled';
   ride_type: 'scheduled' | 'immediate';
   fare: number;
   distance: string;
@@ -59,19 +59,15 @@ export interface AssignedDriver {
   Vehicles: Vehicle[];
 }
 
-
-
-
 export const RideManagement: React.FC<{ user: any }> = ({ user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [rides, setRides] = useState<Ride[]>([]);
   const [driver, setDriver] = useState<AssignedDriver[]>([]);
-  console.log(driver,"vvvvvvvvvvvvvvvvvvv")
   const [riderVehicle, setRiderVehicle] = useState<Vehicle>({
     car_brand: '',
     car_model: ''
-    });
+  });
   const [ridesCount, setRiderCount] = useState<RideSummary>({
     totalRides: 0,
     pending: 0,
@@ -81,75 +77,143 @@ export const RideManagement: React.FC<{ user: any }> = ({ user }) => {
     cancelled: 0,
     totalRevenue: 0,
   });
-  console.log(rides, "rides data");
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    customer_name: '',
+    phone: '',
+    pickup_location: '',
+    drop_location: '',
+    car_model: '',
+    scheduled_time: '',
+    ride_type: 'scheduled' as 'scheduled' | 'immediate',
+    notes: '',
+    fare: 0,
+  });
 
   const fetchRides = async () => {
-  try {
-    const url = statusFilter === 'all' || statusFilter === ''
-      ? `/v1/admin/ride/all?search=${searchTerm}`
-      : `/v1/admin/ride/all?search=${searchTerm}&status=${statusFilter}`;
-    const res = await apiClient.get(url);
-    const data = res.data.data;;
-    console.log(data, "data from api");
-    setRides(data.rides || []);
-    setDriver(data.rides)
-    setRiderCount({
-      totalRides: data.counts.totalRides || 0,
-      pending: data.counts.pending || 0,
-      accepted: data.counts.accepted || 0,
-      onRoute: data.counts.on_route || 0,
-      completed: data.counts.completed || 0,
-      cancelled: data.counts.cancelled || 0,
-      totalRevenue: data.totalRevenue || 0
+    try {
+      const url = statusFilter === 'all' || statusFilter === ''
+        ? `/v1/admin/ride/all?search=${searchTerm}`
+        : `/v1/admin/ride/all?search=${searchTerm}&status=${statusFilter}`;
+      const res = await apiClient.get(url);
+      const data = res.data.data;
+      setRides(data.rides || []);
+      setDriver(data.rides);
+      setRiderCount({
+        totalRides: data.counts.totalRides || 0,
+        pending: data.counts.pending || 0,
+        accepted: data.counts.accepted || 0,
+        onRoute: data.counts.onRoute || 0,
+        completed: data.counts.completed || 0,
+        cancelled: data.counts.cancelled || 0,
+        totalRevenue: data.totalRevenue || 0
+      });
+    } catch (err) {
+      console.error('Failed to fetch rides:', err);
     }
-    );
-    console.log('Fetched rides:', res.data.data?.rides);
-  } catch (err) {
-    console.error('Failed to fetch rides:', err);
-  }
-};
+  };
 
   useEffect(() => {
     fetchRides();
   }, [searchTerm, statusFilter]);
 
-  // const handleAssignDriver = async (rideId: number, driverId: number) => {
-  //   try {
-  //     await apiClient.put(`/v1/admin/ride/assign-driver/${rideId}`, { driver_id: driverId });
-  //     fetchRides();
-  //   } catch (err) {
-  //     console.error('Failed to assign driver:', err);
-  //   }
-  // };
-
-const getStatusBadge = (status: string) => {
-  const variants = {
-    'pending': { variant: 'secondary', text: 'Pending' },
-    'assigned': { variant: 'default', text: 'Assigned' },
-    'on-route': { variant: 'default', text: 'on-route' },
-    'completed': { variant: 'default', text: 'Completed' },
-    'cancelled': { variant: 'secondary', text: 'Cancelled' } // ✅ fixed
+  const handleCreateRide = async () => {
+    try {
+      await apiClient.post('/v1/admin/ride', {
+        ...formData,
+        hotel_name: user?.role === 'hotel_admin' ? user?.hotel_name : formData.customer_name,
+        status: 'pending',
+        actual_cost: formData.fare,
+      });
+      setIsCreateModalOpen(false);
+      setFormData({
+        customer_name: '',
+        phone: '',
+        pickup_location: '',
+        drop_location: '',
+        car_model: '',
+        scheduled_time: '',
+        ride_type: 'scheduled',
+        notes: '',
+        fare: 0,
+      });
+      fetchRides();
+    } catch (err) {
+      console.error('Failed to create ride:', err);
+    }
   };
-  const config = variants[status as keyof typeof variants] || variants.pending;
-  return <Badge variant={config.variant as 'default' | 'secondary' | 'outline'}>{config.text}</Badge>;
-};
 
+  const handleEditRide = async () => {
+    if (!selectedRide) return;
+    try {
+      await apiClient.put(`/v1/admin/ride/${selectedRide.id}`, {
+        ...formData,
+        actual_cost: formData.fare,
+      });
+      setIsEditModalOpen(false);
+      fetchRides();
+    } catch (err) {
+      console.error('Failed to edit ride:', err);
+    }
+  };
 
- const filteredRides = rides?.filter(ride => {
-  const matchesSearch =
-    ride.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ride.hotel_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ride.pickup_location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ride.drop_location.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleCancelRide = async (rideId: number) => {
+    try {
+      await apiClient.put(`/v1/admin/ride/${rideId}`, { status: 'cancelled' });
+      fetchRides();
+    } catch (err) {
+      console.error('Failed to cancel ride:', err);
+    }
+  };
 
-  const matchesStatus = statusFilter === 'all' || statusFilter === '' ? true : ride.status === statusFilter;
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-  const matchesHotel =
-    user?.role !== 'hotel_admin' || ride.hotel_name === user?.hotel_name;
+  const openEditModal = (ride: Ride) => {
+    setSelectedRide(ride);
+    setFormData({
+      customer_name: ride.customer_name,
+      phone: ride.phone,
+      pickup_location: ride.pickup_location,
+      drop_location: ride.drop_location,
+      car_model: ride.car_model,
+      scheduled_time: ride.scheduled_time,
+      ride_type: ride.ride_type,
+      notes: ride.notes || '',
+      fare: ride.fare,
+    });
+    setIsEditModalOpen(true);
+  };
 
-  return matchesSearch && matchesStatus && matchesHotel;
-});
+  const getStatusBadge = (status: string) => {
+    const variants = {
+      'pending': { variant: 'secondary', text: 'Pending' },
+      'accepted': { variant: 'default', text: 'Accepted' },
+      'on-route': { variant: 'default', text: 'On-Route' },
+      'completed': { variant: 'default', text: 'Completed' },
+      'cancelled': { variant: 'secondary', text: 'Cancelled' }
+    };
+    const config = variants[status as keyof typeof variants] || variants.pending;
+    return <Badge variant={config.variant as 'default' | 'secondary' | 'outline'}>{config.text}</Badge>;
+  };
+
+  const filteredRides = rides?.filter(ride => {
+    const matchesSearch =
+      ride.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ride.hotel_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ride.pickup_location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ride.drop_location.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = statusFilter === 'all' || statusFilter === '' ? true : ride.status === statusFilter;
+
+    const matchesHotel =
+      user?.role !== 'hotel_admin' || ride.hotel_name === user?.hotel_name;
+
+    return matchesSearch && matchesStatus && matchesHotel;
+  });
 
   return (
     <div className="space-y-6">
@@ -160,12 +224,115 @@ const getStatusBadge = (status: string) => {
             {user?.role === 'hotel_admin' ? 'Manage your hotel bookings' : 'Monitor and manage all rides'}
           </p>
         </div>
-        {user?.role === 'hotel_admin' && (
-          <Button>
-            <Car className="w-4 h-4 mr-2" />
-            Book New Ride
-          </Button>
-        )}
+        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Car className="w-4 h-4 mr-2" />
+              Create Ride
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Create New Ride</DialogTitle>
+              <DialogDescription>Fill in the details to create a new ride.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right">Customer Name</label>
+                <Input
+                  name="customer_name"
+                  value={formData.customer_name}
+                  onChange={handleFormChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right">Phone</label>
+                <Input
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleFormChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right">Pickup Location</label>
+                <Input
+                  name="pickup_location"
+                  value={formData.pickup_location}
+                  onChange={handleFormChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right">Drop Location</label>
+                <Input
+                  name="drop_location"
+                  value={formData.drop_location}
+                  onChange={handleFormChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right">Car Model</label>
+                <Input
+                  name="car_model"
+                  value={formData.car_model}
+                  onChange={handleFormChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right">Scheduled Time</label>
+                <Input
+                  name="scheduled_time"
+                  type="datetime-local"
+                  value={formData.scheduled_time}
+                  onChange={handleFormChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right">Ride Type</label>
+                <Select
+                  value={formData.ride_type}
+                  onValueChange={(value) => setFormData({ ...formData, ride_type: value as 'scheduled' | 'immediate' })}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select ride type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                    <SelectItem value="immediate">Immediate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right">Fare (AED)</label>
+                <Input
+                  name="fare"
+                  type="number"
+                  value={formData.fare}
+                  onChange={handleFormChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right">Notes</label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleFormChange}
+                  className="col-span-3 border rounded p-2"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleCreateRide}>Create</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -181,7 +348,6 @@ const getStatusBadge = (status: string) => {
 
         <Card><CardContent className="p-4"><div className="flex justify-between items-center">
           <div><p className="text-sm text-muted-foreground">Pending</p>
-          
             <p className="text-2xl font-bold">{ridesCount?.pending}</p></div>
           <AlertCircle className="w-8 h-8 text-yellow-500" /></div></CardContent></Card>
 
@@ -200,7 +366,7 @@ const getStatusBadge = (status: string) => {
               <Input placeholder="Search rides..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
             <div className="flex gap-2">
-              {['all', 'pending','accepted', 'on-route', 'completed'].map(status => (
+              {['all', 'pending', 'accepted', 'on-route', 'completed'].map(status => (
                 <Button key={status} variant={statusFilter === status ? 'default' : 'outline'} onClick={() => setStatusFilter(status)}>
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </Button>
@@ -269,24 +435,23 @@ const getStatusBadge = (status: string) => {
                     )}
                   </TableCell>
                   <TableCell>
-  <Badge
-    variant="outline"
-    className={`text-xs ${
-      ride.status === 'pending'
-        ? ' text-yellow-700'
-        : ride.status === 'accepted'
-        ? ' text-blue-700'
-        : ride.status === 'completed'
-        ? ' text-green-700'
-        : ride.status === 'cancelled'
-        ? ' text-red-400'
-        : ''
-    }`}
-  >
-    {ride.status.charAt(0).toUpperCase() + ride.status.slice(1)}
-  </Badge>
-</TableCell>
-
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        ride.status === 'pending'
+                          ? ' text-yellow-700'
+                          : ride.status === 'accepted'
+                          ? ' text-blue-700'
+                          : ride.status === 'completed'
+                          ? ' text-green-700'
+                          : ride.status === 'cancelled'
+                          ? ' text-red-400'
+                          : ''
+                      }`}
+                    >
+                      {ride.status.charAt(0).toUpperCase() + ride.status.slice(1)}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <span className="font-medium">AED {ride.fare}</span>
                   </TableCell>
@@ -352,10 +517,10 @@ const getStatusBadge = (status: string) => {
                                 )}
                               </TabsContent>
                               <TabsContent value="tracking" className="space-y-4">
-  <div className="h-64 bg-gray-100 rounded-lg overflow-hidden">
-    <MapView lat={25.2048} lng={55.2708} /> 
-  </div>
-</TabsContent>
+                                <div className="h-64 bg-gray-100 rounded-lg overflow-hidden">
+                                  <MapView lat={25.2048} lng={55.2708} />
+                                </div>
+                              </TabsContent>
                               <TabsContent value="history" className="space-y-4">
                                 <div className="space-y-2">
                                   <div className="flex items-center space-x-3">
@@ -380,20 +545,22 @@ const getStatusBadge = (status: string) => {
                           )}
                         </DialogContent>
                       </Dialog>
-                      
-                      {/* {ride.status === 'pending' && user?.role !== 'hotel_admin' && (
-
-                        <Select onValueChange={(value) => handleAssignDriver(ride.id, parseInt(value))}>
-                          <SelectTrigger className="w-32">
-                            <SelectValue placeholder="Assign" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">Ahmed Hassan</SelectItem>
-                            <SelectItem value="2">Mohammed Ali</SelectItem>
-                            <SelectItem value="3">Ravi Kumar</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )} */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditModal(ride)}
+                        disabled={ride.status === 'completed' || ride.status === 'cancelled'}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCancelRide(ride.id)}
+                        disabled={ride.status === 'completed' || ride.status === 'cancelled'}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -402,6 +569,110 @@ const getStatusBadge = (status: string) => {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Ride</DialogTitle>
+            <DialogDescription>Update the details for ride #{selectedRide?.id}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Customer Name</label>
+              <Input
+                name="customer_name"
+                value={formData.customer_name}
+                onChange={handleFormChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Phone</label>
+              <Input
+                name="phone"
+                value={formData.phone}
+                onChange={handleFormChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Pickup Location</label>
+              <Input
+                name="pickup_location"
+                value={formData.pickup_location}
+                onChange={handleFormChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Drop Location</label>
+              <Input
+                name="drop_location"
+                value={formData.drop_location}
+                onChange={handleFormChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Car Model</label>
+              <Input
+                name="car_model"
+                value={formData.car_model}
+                onChange={handleFormChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Scheduled Time</label>
+              <Input
+                name="scheduled_time"
+                type="datetime-local"
+                value={formData.scheduled_time}
+                onChange={handleFormChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Ride Type</label>
+              <Select
+                value={formData.ride_type}
+                onValueChange={(value) => setFormData({ ...formData, ride_type: value as 'scheduled' | 'immediate' })}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select ride type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="immediate">Immediate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Fare (AED)</label>
+              <Input
+                name="fare"
+                type="number"
+                value={formData.fare}
+                onChange={handleFormChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Notes</label>
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleFormChange}
+                className="col-span-3 border rounded p-2"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditRide}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

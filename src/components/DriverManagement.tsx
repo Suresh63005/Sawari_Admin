@@ -6,15 +6,14 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { 
-  Search, Eye, CheckCircle, XCircle, Ban, Unlock, Star, MapPin, Phone, Mail, Calendar, Languages, Car 
-} from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, Ban, Unlock, Star, Calendar, Languages, Phone, Mail, Car } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/ui/use-toast';
-import Swal from 'sweetalert2'; // Import SweetAlert2
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
 
 interface Driver {
   id: string;
@@ -35,8 +34,8 @@ interface Driver {
   license_back: string;
   emirates_doc_front: string;
   emirates_doc_back: string;
-  license_verification_status?: string;
-  emirates_verification_status?: string;
+  license_verification_status?: 'pending' | 'verified' | 'rejected';
+  emirates_verification_status?: 'pending' | 'verified' | 'rejected';
 }
 
 export default function DriverManagement() {
@@ -51,235 +50,129 @@ export default function DriverManagement() {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [driverIdFilter, setDriverIdFilter] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    action: string;
+    driverId: string;
+    reason?: string;
+  }>({ open: false, action: '', driverId: '' });
+  const [rejectReason, setRejectReason] = useState('');
 
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.get('/v1/admin/driver');
+        const normalizedDrivers = response.data.map((driver: Driver) => ({
+          ...driver,
+          languages: Array.isArray(driver.languages) ? driver.languages : [],
+          license_verification_status: driver.license_verification_status || 'pending',
+          emirates_verification_status: driver.emirates_verification_status || 'pending',
+        }));
 
- useEffect(() => {
-  const fetchDrivers = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get('/v1/admin/driver');
-      const normalizedDrivers = response.data.map((driver: Driver) => ({
-        ...driver,
-        languages: Array.isArray(driver.languages) ? driver.languages : [],
-      }));
+        const storedDriverId = localStorage.getItem("selectedDriverId");
 
-      const storedDriverId = localStorage.getItem("selectedDriverId");
+        if (storedDriverId) {
+          setDriverIdFilter(storedDriverId);
+          localStorage.removeItem("selectedDriverId");
+        }
 
-      if (storedDriverId) {
-        setDriverIdFilter(storedDriverId); // store in state
-        localStorage.removeItem("selectedDriverId"); // clear for next time
+        setDrivers(normalizedDrivers);
+      } catch (err: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: err.response?.data?.message || 'Failed to fetch drivers',
+        });
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setDrivers(normalizedDrivers); // always store full list
+    fetchDrivers();
+  }, []);
+
+  const filteredDrivers = drivers.filter(driver => {
+    const matchesDriverId = driverIdFilter ? driver.id === driverIdFilter : true;
+    const matchesSearch =
+      `${driver.first_name} ${driver.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      driver.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      driver.phone.includes(searchTerm);
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'pending' && !driver.is_approved) ||
+      (statusFilter === 'approved' && driver.is_approved && driver.status === 'active') ||
+      (statusFilter === 'blocked' && driver.status === 'blocked');
+    return matchesDriverId && matchesSearch && matchesStatus;
+  });
+
+  const verifiedBy = 'some-user-id'; // Replace with actual user ID from auth context
+
+  const handleConfirmAction = async () => {
+    const { action, driverId, reason } = confirmDialog;
+    try {
+      if (action === 'license-verify') {
+        await apiClient.post(`/v1/admin/driver/${driverId}/verify-license`, { verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'verified' } : d));
+        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, license_verification_status: 'verified' } : prev));
+        toast({ title: 'Success', description: 'License verified' });
+      } else if (action === 'license-reject') {
+        if (!reason) {
+          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the license' });
+          return;
+        }
+        await apiClient.post(`/v1/admin/driver/${driverId}/reject-license`, { reason, verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'rejected' } : d));
+        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, license_verification_status: 'rejected' } : prev));
+        toast({ title: 'Success', description: 'License rejected' });
+      } else if (action === 'emirates-verify') {
+        await apiClient.post(`/v1/admin/driver/${driverId}/verify-emirates`, { verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'verified' } : d));
+        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, emirates_verification_status: 'verified' } : prev));
+        toast({ title: 'Success', description: 'Emirates ID verified' });
+      } else if (action === 'emirates-reject') {
+        if (!reason) {
+          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the emirates ID' });
+          return;
+        }
+        await apiClient.post(`/v1/admin/driver/${driverId}/reject-emirates`, { reason, verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'rejected' } : d));
+        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, emirates_verification_status: 'rejected' } : prev));
+        toast({ title: 'Success', description: 'Emirates ID rejected' });
+      } else if (action === 'approve') {
+        await apiClient.post(`/v1/admin/driver/${driverId}/approve`, { verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: true, status: 'active' } : d));
+        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, is_approved: true, status: 'active' } : prev));
+        toast({ title: 'Success', description: 'Driver approved' });
+      } else if (action === 'reject') {
+        if (!reason) {
+          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the driver' });
+          return;
+        }
+        await apiClient.post(`/v1/admin/driver/${driverId}/reject`, { reason, verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: false, status: 'inactive' } : d));
+        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, is_approved: false, status: 'inactive' } : prev));
+        toast({ title: 'Success', description: 'Driver rejected' });
+      } else if (action === 'block') {
+        await apiClient.post(`/v1/admin/driver/${driverId}/block`, { verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'blocked' } : d));
+        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, status: 'blocked' } : prev));
+        toast({ title: 'Success', description: 'Driver blocked' });
+      } else if (action === 'unblock') {
+        await apiClient.post(`/v1/admin/driver/${driverId}/unblock`, { verified_by: verifiedBy });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'active' } : d));
+        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, status: 'active' } : prev));
+        toast({ title: 'Success', description: 'Driver unblocked' });
+      }
     } catch (err: any) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: err.response?.data?.message || 'Failed to fetch drivers',
+        description: err.response?.data?.message || `Failed to ${action.split('-')[0]} ${action.includes('license') ? 'license' : action.includes('emirates') ? 'emirates ID' : 'driver'}`,
       });
     } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchDrivers();
-}, []);
-
-
-
- const filteredDrivers = drivers.filter(driver => {
-  const matchesDriverId = driverIdFilter ? driver.id === driverIdFilter : true;
-
-  const matchesSearch =
-    `${driver.first_name} ${driver.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    driver.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    driver.phone.includes(searchTerm);
-
-  const matchesStatus = statusFilter === 'all' ||
-    (statusFilter === 'pending' && !driver.is_approved) ||
-    (statusFilter === 'approved' && driver.is_approved && driver.status === 'active') ||
-    (statusFilter === 'blocked' && driver.status === 'blocked');
-
-  return matchesDriverId && matchesSearch && matchesStatus;
-});
-
-
-  const verifiedBy = 'some-user-id'; // Replace with actual user ID from auth context
-
-  const handleLicenseVerify = async (driverId: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to verify the license?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, verify it!',
-    });
-    if (result.isConfirmed) {
-      try {
-        await apiClient.post(`/v1/admin/driver/${driverId}/verify-license`, { verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'verified' } : d));
-        toast({ title: 'Success', description: 'License verified' });
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to verify license' });
-      }
-    }
-  };
-
-  const handleLicenseReject = async (driverId: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to reject the license?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, reject it!',
-      input: 'text',
-      inputPlaceholder: 'Enter rejection reason',
-      inputValidator: (value) => !value && 'You need to provide a reason!',
-    });
-    if (result.isConfirmed && result.value) {
-      try {
-        await apiClient.post(`/v1/admin/driver/${driverId}/reject-license`, { reason: result.value, verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'rejected' } : d));
-        toast({ title: 'Success', description: 'License rejected' });
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to reject license' });
-      }
-    }
-  };
-
-  const handleEmiratesVerify = async (driverId: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to verify the emirates ID?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, verify it!',
-    });
-    if (result.isConfirmed) {
-      try {
-        await apiClient.post(`/v1/admin/driver/${driverId}/verify-emirates`, { verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'verified' } : d));
-        toast({ title: 'Success', description: 'Emirates ID verified' });
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to verify emirates ID' });
-      }
-    }
-  };
-
-  const handleEmiratesReject = async (driverId: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to reject the emirates ID?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, reject it!',
-      input: 'text',
-      inputPlaceholder: 'Enter rejection reason',
-      inputValidator: (value) => !value && 'You need to provide a reason!',
-    });
-    if (result.isConfirmed && result.value) {
-      try {
-        await apiClient.post(`/v1/admin/driver/${driverId}/reject-emirates`, { reason: result.value, verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'rejected' } : d));
-        toast({ title: 'Success', description: 'Emirates ID rejected' });
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to reject emirates ID' });
-      }
-    }
-  };
-
-  const handleApprove = async (driverId: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to approve this driver?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, approve!',
-    });
-    if (result.isConfirmed) {
-      try {
-        await apiClient.post(`/v1/admin/driver/${driverId}/approve`, { verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: true, status: 'active' } : d));
-        toast({ title: 'Success', description: 'Driver approved' });
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to approve driver' });
-      }
-    }
-  };
-
-  const handleReject = async (driverId: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to reject this driver?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, reject!',
-      input: 'text',
-      inputPlaceholder: 'Enter rejection reason',
-      inputValidator: (value) => !value && 'You need to provide a reason!',
-    });
-    if (result.isConfirmed && result.value) {
-      try {
-        await apiClient.post(`/v1/admin/driver/${driverId}/reject`, { reason: result.value, verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: false } : d));
-        toast({ title: 'Success', description: 'Driver rejected' });
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to reject driver' });
-      }
-    }
-  };
-
-  const handleBlock = async (driverId: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to block this driver?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, block!',
-    });
-    if (result.isConfirmed) {
-      try {
-        await apiClient.post(`/v1/admin/driver/${driverId}/block`, { verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'blocked' } : d));
-        toast({ title: 'Success', description: 'Driver blocked' });
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to block driver' });
-      }
-    }
-  };
-
-  const handleUnblock = async (driverId: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to unblock this driver?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, unblock!',
-    });
-    if (result.isConfirmed) {
-      try {
-        await apiClient.post(`/v1/admin/driver/${driverId}/unblock`, { verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'active' } : d));
-        toast({ title: 'Success', description: 'Driver unblocked' });
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to unblock driver' });
-      }
+      setConfirmDialog({ open: false, action: '', driverId: '' });
+      setRejectReason('');
     }
   };
 
@@ -287,6 +180,12 @@ export default function DriverManagement() {
     if (!driver.is_approved) return <Badge variant="secondary">Pending</Badge>;
     if (driver.status === 'blocked') return <Badge variant="destructive">Blocked</Badge>;
     return <Badge variant="default">Active</Badge>;
+  };
+
+  const getDocStatusBadge = (status: 'pending' | 'verified' | 'rejected' | undefined) => {
+    if (!status || status === 'pending') return <Badge variant="secondary">Pending</Badge>;
+    if (status === 'rejected') return <Badge variant="destructive">Rejected</Badge>;
+    return <Badge variant="default">Verified</Badge>;
   };
 
   const handleImageClick = (imageUrl: string) => {
@@ -413,89 +312,99 @@ export default function DriverManagement() {
                                   <div className="space-y-2">
                                     <label className="text-sm font-medium">Required Documents</label>
                                     <div className="space-y-4">
-                                      <Button variant="outline" size="sm" onClick={() => setLicenseModalOpen(true)}>
-                                        View License Documents
-                                      </Button>
+                                      <div className="flex items-center space-x-2">
+                                        <Button variant="outline" size="sm" onClick={() => setLicenseModalOpen(true)}>
+                                          View License Documents
+                                        </Button>
+                                        {getDocStatusBadge(selectedDriver.license_verification_status)}
+                                      </div>
                                       <Dialog open={licenseModalOpen} onOpenChange={setLicenseModalOpen}>
                                         <DialogContent className="max-w-4xl">
                                           <DialogHeader>
                                             <DialogTitle>License Documents</DialogTitle>
                                           </DialogHeader>
                                           <div className="flex space-x-4">
-                                            <img 
-                                              src={selectedDriver.license_front} 
-                                              alt="License Front" 
-                                              className="w-1/2 h-auto rounded cursor-pointer" 
+                                            <img
+                                              src={selectedDriver.license_front}
+                                              alt="License Front"
+                                              className="w-1/2 h-auto rounded cursor-pointer"
                                               onClick={() => handleImageClick(selectedDriver.license_front)}
                                             />
-                                            <img 
-                                              src={selectedDriver.license_back} 
-                                              alt="License Back" 
-                                              className="w-1/2 h-auto rounded cursor-pointer" 
+                                            <img
+                                              src={selectedDriver.license_back}
+                                              alt="License Back"
+                                              className="w-1/2 h-auto rounded cursor-pointer"
                                               onClick={() => handleImageClick(selectedDriver.license_back)}
                                             />
                                           </div>
-                                          <div className="flex justify-end space-x-2 mt-4">
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => handleLicenseVerify(selectedDriver.id)}
-                                              className="text-green-600 hover:text-green-700"
-                                            >
-                                              Verify
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => handleLicenseReject(selectedDriver.id)}
-                                              className="text-red-600 hover:text-red-700"
-                                            >
-                                              Reject
-                                            </Button>
-                                          </div>
+                                          {selectedDriver.license_verification_status === 'pending' && (
+                                            <div className="flex justify-end space-x-2 mt-4">
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setConfirmDialog({ open: true, action: 'license-verify', driverId: selectedDriver.id })}
+                                                className="text-green-600 hover:text-green-700"
+                                              >
+                                                Verify
+                                              </Button>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setConfirmDialog({ open: true, action: 'license-reject', driverId: selectedDriver.id })}
+                                                className="text-red-600 hover:text-red-700"
+                                              >
+                                                Reject
+                                              </Button>
+                                            </div>
+                                          )}
                                         </DialogContent>
                                       </Dialog>
 
-                                      <Button variant="outline" size="sm" onClick={() => setEmiratesModalOpen(true)}>
-                                        View Emirates Documents
-                                      </Button>
+                                      <div className="flex items-center space-x-2">
+                                        <Button variant="outline" size="sm" onClick={() => setEmiratesModalOpen(true)}>
+                                          View Emirates Documents
+                                        </Button>
+                                        {getDocStatusBadge(selectedDriver.emirates_verification_status)}
+                                      </div>
                                       <Dialog open={emiratesModalOpen} onOpenChange={setEmiratesModalOpen}>
                                         <DialogContent className="max-w-4xl">
                                           <DialogHeader>
                                             <DialogTitle>Emirates Documents</DialogTitle>
                                           </DialogHeader>
                                           <div className="flex space-x-4">
-                                            <img 
-                                              src={selectedDriver.emirates_doc_front} 
-                                              alt="Emirates Front" 
-                                              className="w-1/2 h-auto rounded cursor-pointer" 
+                                            <img
+                                              src={selectedDriver.emirates_doc_front}
+                                              alt="Emirates Front"
+                                              className="w-1/2 h-auto rounded cursor-pointer"
                                               onClick={() => handleImageClick(selectedDriver.emirates_doc_front)}
                                             />
-                                            <img 
-                                              src={selectedDriver.emirates_doc_back} 
-                                              alt="Emirates Back" 
-                                              className="w-1/2 h-auto rounded cursor-pointer" 
+                                            <img
+                                              src={selectedDriver.emirates_doc_back}
+                                              alt="Emirates Back"
+                                              className="w-1/2 h-auto rounded cursor-pointer"
                                               onClick={() => handleImageClick(selectedDriver.emirates_doc_back)}
                                             />
                                           </div>
-                                          <div className="flex justify-end space-x-2 mt-4">
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => handleEmiratesVerify(selectedDriver.id)}
-                                              className="text-green-600 hover:text-green-700"
-                                            >
-                                              Verify
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => handleEmiratesReject(selectedDriver.id)}
-                                              className="text-red-600 hover:text-red-700"
-                                            >
-                                              Reject
-                                            </Button>
-                                          </div>
+                                          {selectedDriver.emirates_verification_status === 'pending' && (
+                                            <div className="flex justify-end space-x-2 mt-4">
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setConfirmDialog({ open: true, action: 'emirates-verify', driverId: selectedDriver.id })}
+                                                className="text-green-600 hover:text-green-700"
+                                              >
+                                                Verify
+                                              </Button>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setConfirmDialog({ open: true, action: 'emirates-reject', driverId: selectedDriver.id })}
+                                                className="text-red-600 hover:text-red-700"
+                                              >
+                                                Reject
+                                              </Button>
+                                            </div>
+                                          )}
                                         </DialogContent>
                                       </Dialog>
                                     </div>
@@ -548,7 +457,7 @@ export default function DriverManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleApprove(driver.id)}
+                            onClick={() => setConfirmDialog({ open: true, action: 'approve', driverId: driver.id })}
                             className="text-green-600 hover:text-green-700"
                           >
                             <CheckCircle className="w-4 h-4" />
@@ -556,7 +465,7 @@ export default function DriverManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleReject(driver.id)}
+                            onClick={() => setConfirmDialog({ open: true, action: 'reject', driverId: driver.id })}
                             className="text-red-600 hover:text-red-700"
                           >
                             <XCircle className="w-4 h-4" />
@@ -569,7 +478,7 @@ export default function DriverManagement() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleUnblock(driver.id)}
+                              onClick={() => setConfirmDialog({ open: true, action: 'unblock', driverId: driver.id })}
                               className="text-green-600 hover:text-green-700"
                             >
                               <Unlock className="w-4 h-4" />
@@ -578,7 +487,7 @@ export default function DriverManagement() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleBlock(driver.id)}
+                              onClick={() => setConfirmDialog({ open: true, action: 'block', driverId: driver.id })}
                               className="text-red-600 hover:text-red-700"
                             >
                               <Ban className="w-4 h-4" />
@@ -586,17 +495,16 @@ export default function DriverManagement() {
                           )}
                         </>
                       )}
-<Button
-  variant="outline"
-  size="sm"
-  onClick={() => {
-    localStorage.setItem("selectedDriverId", driver.id);
-    window.location.href = "/vehicles"; // or use router.push("/vehicles") in Next.js
-  }}
->
-  <Car className="w-4 h-4" />
-</Button>
-
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          localStorage.setItem("selectedDriverId", driver.id);
+                          window.location.href = "/vehicles"; // or use router.push("/vehicles") in Next.js
+                        }}
+                      >
+                        <Car className="w-4 h-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -605,6 +513,64 @@ export default function DriverManagement() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialog.open} onOpenChange={() => setConfirmDialog({ open: false, action: '', driverId: '' })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmDialog.action.includes('verify') ? 'Confirm Verification' : 
+               confirmDialog.action.includes('reject') ? 'Confirm Rejection' : 
+               confirmDialog.action === 'approve' ? 'Confirm Approval' : 
+               confirmDialog.action === 'block' ? 'Confirm Block' : 'Confirm Unblock'}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmDialog.action.includes('verify')
+                ? `Are you sure you want to verify the ${confirmDialog.action.includes('license') ? 'license' : 'emirates ID'}?`
+                : confirmDialog.action.includes('reject')
+                ? `Please provide a reason for rejecting the ${confirmDialog.action.includes('license') ? 'license' : 'emirates ID'}.`
+                : confirmDialog.action === 'approve'
+                ? 'Are you sure you want to approve this driver?'
+                : confirmDialog.action === 'block'
+                ? 'Are you sure you want to block this driver?'
+                : 'Are you sure you want to unblock this driver?'}
+            </DialogDescription>
+          </DialogHeader>
+          {confirmDialog.action.includes('reject') && (
+            <div className="space-y-2">
+              <Label htmlFor="reject-reason">Rejection Reason</Label>
+              <Textarea
+                id="reject-reason"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Enter reason for rejection"
+                className="w-full"
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDialog({ open: false, action: '', driverId: '' })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={confirmDialog.action.includes('verify') || confirmDialog.action === 'approve' || confirmDialog.action === 'unblock' ? 'default' : 'destructive'}
+              onClick={() => {
+                setConfirmDialog(prev => ({ ...prev, reason: rejectReason }));
+                handleConfirmAction();
+              }}
+              disabled={confirmDialog.action.includes('reject') && !rejectReason}
+            >
+              {confirmDialog.action.includes('verify') ? 'Verify' : 
+               confirmDialog.action.includes('reject') ? 'Reject' : 
+               confirmDialog.action === 'approve' ? 'Approve' : 
+               confirmDialog.action === 'block' ? 'Block' : 'Unblock'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Image Modal */}
       <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>

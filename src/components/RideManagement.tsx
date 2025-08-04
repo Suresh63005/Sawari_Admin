@@ -59,7 +59,7 @@ export interface AssignedDriver {
   Vehicles: Vehicle[];
 }
 
-export const RideManagement: React.FC<{ user: any }> = ({ user }) => {
+export const RideManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [rides, setRides] = useState<Ride[]>([]);
@@ -123,7 +123,7 @@ export const RideManagement: React.FC<{ user: any }> = ({ user }) => {
     try {
       await apiClient.post('/v1/admin/ride', {
         ...formData,
-        hotel_name: user?.role === 'hotel_admin' ? user?.hotel_name : formData.customer_name,
+        
         status: 'pending',
         actual_cost: formData.fare,
       });
@@ -209,10 +209,9 @@ export const RideManagement: React.FC<{ user: any }> = ({ user }) => {
 
     const matchesStatus = statusFilter === 'all' || statusFilter === '' ? true : ride.status === statusFilter;
 
-    const matchesHotel =
-      user?.role !== 'hotel_admin' || ride.hotel_name === user?.hotel_name;
+    
 
-    return matchesSearch && matchesStatus && matchesHotel;
+    return matchesSearch && matchesStatus ;
   });
 
   return (
@@ -221,7 +220,7 @@ export const RideManagement: React.FC<{ user: any }> = ({ user }) => {
         <div>
           <h2 className="text-2xl font-bold">Ride Management</h2>
           <p className="text-muted-foreground">
-            {user?.role === 'hotel_admin' ? 'Manage your hotel bookings' : 'Monitor and manage all rides'}
+            
           </p>
         </div>
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>

@@ -1,22 +1,20 @@
+// app/dashboard/page.tsx
 "use client";
 
 import { Dashboard } from "@/components/Dashboard";
 
-// Define the props interface for DashboardPage
-interface DashboardPageProps {
-  user: {
-    name: string;
-    role: string;
-    permissions: Record<string, boolean>;
+export default function DashboardPage() {
+  const user = {
+    name: "Suresh",
+    role: "admin", 
+    permissions: {
+      rides: true,
+      earnings: true,
+      drivers: true,
+      vehicles: true,
+      hotels: true
+    }
   };
-}
 
-export default function DashboardPage({ user }: DashboardPageProps) {
-  
-
-  return (
-        
-      <Dashboard user={user} />
-
-  );
+  return <Dashboard user={user} />;
 }

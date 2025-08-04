@@ -68,15 +68,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     return labels[role as keyof typeof labels] || role;
   };
 
-  const getRoleBadgeVariant = (role: string) => {
-    const variants = {
-      'super_admin': 'destructive',
-      'admin': 'default',
-      'executive_admin': 'secondary',
-      'ride_manager': 'outline'
-    };
-    return variants[role as keyof typeof variants] || 'default';
-  };
+const getRoleBadgeVariant = (
+  role: string
+): "default" | "destructive" | "outline" | "secondary" => {
+  const variants = {
+    super_admin: "destructive",
+    admin: "default",
+    executive_admin: "secondary",
+    ride_manager: "outline",
+  } as const;
+
+  return variants[role as keyof typeof variants] ?? "default";
+};
+
 
   const handleLogout = () => {
     Cookies.remove('token');

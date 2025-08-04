@@ -11,6 +11,7 @@ export default function EarningsManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  
 
   useEffect(() => {
     const fetchCurrentUser = async () => {

@@ -18,11 +18,13 @@ import {
 
 interface MenuProps {
   isOpen: boolean | undefined;
+  userPermissions: { [key: string]: boolean }; // ✅ add this
 }
 
-export function Menu({ isOpen }: MenuProps) {
+
+export function Menu({ isOpen,userPermissions  }: MenuProps) {
   const pathname = usePathname();
-  const menuList = getMenuList(pathname);
+const menuList = getMenuList(pathname, userPermissions);
 
   return (
     <ScrollArea className="[&>div>div[style]]:!block">

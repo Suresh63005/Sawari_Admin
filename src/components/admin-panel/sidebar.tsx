@@ -48,7 +48,20 @@ export function Sidebar() {
             </h1>
           </Link>
         </Button>
-        <Menu isOpen={getOpenState()} />
+        <Menu
+  isOpen={getOpenState()}
+  userPermissions={{
+    dashboard: true,
+    drivers: true,
+    vehicles: true,
+    rides: true,
+    earnings: false,
+    support: true,
+    notifications: false,
+    admin_management: true
+  }}
+/>
+
       </div>
     </aside>
   );

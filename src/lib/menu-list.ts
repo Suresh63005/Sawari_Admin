@@ -100,6 +100,12 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           active: pathname === "/subpackages",
           icon: Package,
         },
+        {
+          href: "/packageprice",
+          label: "Package Price",
+          active: pathname === "/packageprice",
+          icon: Package,
+        },
       ],
     },
     {

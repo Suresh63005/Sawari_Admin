@@ -1,7 +1,7 @@
 'use client';
 
-import { RideManagement } from "@/components/RideManagement";
+import Rides  from "@/components/RideManagement";
 
 export default function RidesPage() {
-  return <RideManagement  />;
+  return <Rides />;
 }

@@ -1,43 +1,77 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Input } from './ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import {
-  Search, MapPin, Clock, User, Car, Phone, Eye, Navigation,
-  Calendar, DollarSign, AlertCircle, Edit, X
-} from 'lucide-react';
+'use client';
+
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Search, MapPin, Clock, Car, Phone, Edit, X, DollarSign, AlertCircle, User, Calendar, Eye } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import apiClient from '@/lib/apiClient';
+import Swal from 'sweetalert2';
+import { debounce } from 'lodash';
 import MapView from './MapView';
 
-interface Ride {
-  id: number;
-  hotel_name: string;
-  customer_name: string;
-  phone: string;
-  pickup_location: string;
-  drop_location: string;
-  car_model: string;
-  scheduled_time: string;
-  driver_name?: string;
-  driver_id?: number;
-  status: 'pending' | 'accepted' | 'on-route' | 'completed' | 'cancelled';
-  ride_type: 'scheduled' | 'immediate';
-  fare: number;
-  distance: string;
-  duration: string;
-  notes?: string;
+interface Package {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
   createdAt: string;
-  AssignedDriver: AssignedDriver | null;
-  actual_cost: number; 
+  updatedAt: string;
 }
 
-export interface RideSummary {
+interface SubPackage {
+  id: string;
+  name: string;
+  package_id: string;
+}
+
+interface Car {
+  id: string;
+  name: string;
+}
+
+interface AvailableCar {
+  car_id: string;
+  car_model: string;
+  base_fare: string;
+}
+
+interface Ride {
+  id: string;
+  customer_name: string;
+  phone: string;
+  email: string | null;
+  pickup_address: string | null;
+  pickup_location: string;
+  drop_location: string;
+  ride_date: string | null;
+  car_id: string;
+  package_id: string;
+  subpackage_id: string;
+  scheduled_time: string | null;
+  driver_id: string | null;
+  status: 'pending' | 'accepted' | 'on-route' | 'completed' | 'cancelled';
+  notes: string | null;
+  Price: number;
+  Total: number;
+  payment_status: 'pending' | 'completed' | 'failed' | null;
+  accept_time: string;
+  pickup_time: string | null;
+  dropoff_time: string | null;
+  rider_hours: number;
+  createdAt: string;
+  package_name: string | null;
+  subpackage_name: string | null;
+  car_name: string | null;
+}
+
+interface RideSummary {
   totalRides: number;
   pending: number;
   accepted: number;
@@ -47,28 +81,27 @@ export interface RideSummary {
   totalRevenue: number;
 }
 
-export interface Vehicle {
-  car_brand: string;
-  car_model: string;
+interface FormData {
+  customer_name: string;
+  phone: string;
+  email: string;
+  pickup_address: string;
+  pickup_location: string;
+  drop_location: string;
+  ride_date: string;
+  package_id: string;
+  subpackage_id: string;
+  car_id: string;
+  scheduled_time: string;
+  notes: string;
+  Price: number;
+  Total: number;
+  rider_hours: number;
 }
 
-export interface AssignedDriver {
-  id: string;
-  first_name: string;
-  last_name: string;
-  Vehicles: Vehicle[];
-}
-
-export const RideManagement = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+const Rides: React.FC = () => {
   const [rides, setRides] = useState<Ride[]>([]);
-  const [driver, setDriver] = useState<AssignedDriver[]>([]);
-  const [riderVehicle, setRiderVehicle] = useState<Vehicle>({
-    car_brand: '',
-    car_model: ''
-  });
-  const [ridesCount, setRiderCount] = useState<RideSummary>({
+  const [rideSummary, setRideSummary] = useState<RideSummary>({
     totalRides: 0,
     pending: 0,
     accepted: 0,
@@ -77,295 +110,805 @@ export const RideManagement = () => {
     cancelled: 0,
     totalRevenue: 0,
   });
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [subPackages, setSubPackages] = useState<SubPackage[]>([]);
+  const [modalCars, setModalCars] = useState<Car[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     customer_name: '',
     phone: '',
+    email: '',
+    pickup_address: '',
     pickup_location: '',
     drop_location: '',
-    car_model: '',
+    ride_date: '',
+    package_id: '',
+    subpackage_id: '',
+    car_id: '',
     scheduled_time: '',
-    ride_type: 'scheduled' as 'scheduled' | 'immediate',
     notes: '',
-    fare: 0,
+    Price: 0,
+    Total: 0,
+    rider_hours: 3,
   });
+  const [isLoading, setIsLoading] = useState<{
+    packages: boolean;
+    subPackages: boolean;
+    cars: boolean;
+    baseFare: boolean;
+  }>({
+    packages: false,
+    subPackages: false,
+    cars: false,
+    baseFare: false,
+  });
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [errors, setErrors] = useState<Partial<FormData>>({});
 
-  const fetchRides = async () => {
-    try {
-      const url = statusFilter === 'all' || statusFilter === ''
-        ? `/v1/admin/ride/all?search=${searchTerm}`
-        : `/v1/admin/ride/all?search=${searchTerm}&status=${statusFilter}`;
-      const res = await apiClient.get(url);
-      const data = res.data.data;
-      setRides(data.rides || []);
-      setDriver(data.rides);
-      setRiderCount({
-        totalRides: data.counts.totalRides || 0,
-        pending: data.counts.pending || 0,
-        accepted: data.counts.accepted || 0,
-        onRoute: data.counts.onRoute || 0,
-        completed: data.counts.completed || 0,
-        cancelled: data.counts.cancelled || 0,
-        totalRevenue: data.totalRevenue || 0
-      });
-    } catch (err) {
-      console.error('Failed to fetch rides:', err);
-    }
-  };
+  // Check if selected sub-package is 1-hour
+  const isOneHourSubPackage = useMemo(() => {
+    const subPackage = subPackages.find(sp => sp.id === formData.subpackage_id);
+    return subPackage?.name.toLowerCase().includes('1 hour') || false;
+  }, [subPackages, formData.subpackage_id]);
+
+  const validateForm = useCallback(() => {
+    const newErrors: Partial<FormData> = {};
+    if (!formData.customer_name) newErrors.customer_name = 'Customer name is required';
+    // if (!formData.phone || formData.phone.length !== 9) newErrors.phone = 'Phone number must be exactly 9 digits'; // Dubai validation
+    if (!formData.phone || formData.phone.length !== 10) newErrors.phone = 'Phone number must be exactly 10 digits'; // India validation
+    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Valid email is required';
+    if (!formData.pickup_location) newErrors.pickup_location = 'Pickup location is required';
+    if (!formData.drop_location) newErrors.drop_location = 'Drop location is required';
+    if (!formData.ride_date) newErrors.ride_date = 'Ride date is required';
+    if (!formData.package_id) newErrors.package_id = 'Package is required';
+    if (!formData.subpackage_id) newErrors.subpackage_id = 'Sub-package is required';
+    if (!formData.car_id) newErrors.car_id = 'Car is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData]);
 
   useEffect(() => {
-    fetchRides();
-  }, [searchTerm, statusFilter]);
+    const fetchPackages = async () => {
+      if (isLoading.packages) return;
+      setIsLoading((prev) => ({ ...prev, packages: true }));
+      try {
+        console.log('Fetching packages...');
+        const response = await apiClient.get('/v1/admin/package');
+        console.log('Packages fetched:', response.data.result?.data);
+        setPackages(response.data.result?.data || []);
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { error?: string } } };
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.response?.data?.error || 'Failed to fetch packages',
+        });
+        setPackages([]);
+      } finally {
+        setIsLoading((prev) => ({ ...prev, packages: false }));
+      }
+    };
+    fetchPackages();
+  }, []);
 
-  const handleCreateRide = async () => {
-    try {
-      await apiClient.post('/v1/admin/ride', {
-        ...formData,
+  useEffect(() => {
+    const fetchSubPackages = async () => {
+      if (!formData.package_id || isLoading.subPackages) return;
+      setIsLoading((prev) => ({ ...prev, subPackages: true }));
+      try {
+        console.log('Fetching sub-packages for package_id:', formData.package_id);
+        const response = await apiClient.get(`/v1/admin/packageprice/sub-packages/${formData.package_id}`);
+        console.log('Sub-packages fetched:', response.data.result?.data);
+        setSubPackages(response.data.result?.data || []);
+        if (!response.data.result?.data.some((sp: SubPackage) => sp.id === formData.subpackage_id)) {
+          setFormData((prev) => ({ ...prev, subpackage_id: '', car_id: '', Price: 0, Total: 0 }));
+          setModalCars([]);
+        }
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { error?: string } } };
         
-        status: 'pending',
-        actual_cost: formData.fare,
-      });
-      setIsCreateModalOpen(false);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.response?.data?.error || 'Failed to fetch sub-packages',
+        });
+        setSubPackages([]);
+        setFormData((prev) => ({ ...prev, subpackage_id: '', car_id: '', Price: 0, Total: 0 }));
+        setModalCars([]);
+      } finally {
+        setIsLoading((prev) => ({ ...prev, subPackages: false }));
+      }
+    };
+    fetchSubPackages();
+    if (!formData.package_id) {
+      setSubPackages([]);
+      setModalCars([]);
+      setFormData((prev) => ({ ...prev, subpackage_id: '', car_id: '', Price: 0, Total: 0 }));
+    }
+  }, [formData.package_id]);
+
+  useEffect(() => {
+    const fetchModalCarsAndPrice = async () => {
+      if (!formData.subpackage_id || !formData.package_id || isLoading.cars) return;
+      setIsLoading((prev) => ({ ...prev, cars: true, baseFare: true }));
+      try {
+        console.log('Fetching available cars for package_id:', formData.package_id, 'sub_package_id:', formData.subpackage_id);
+        const response = await apiClient.get(
+          `/v1/admin/ride/available-cars/${formData.package_id}/${formData.subpackage_id}`
+        );
+        console.log('Available cars response:', response.data);
+        const availableCars: AvailableCar[] = response.data.data || [];
+        console.log('Parsed availableCars:', availableCars);
+        const mappedCars = availableCars.map((item: AvailableCar) => ({
+          id: item.car_id,
+          name: item.car_model || `${item.car_id} (Unknown)`,
+        }));
+        console.log('Mapped modalCars:', mappedCars);
+        setModalCars(mappedCars);
+        if (formData.car_id) {
+          const packagePrice = availableCars.find((item: AvailableCar) => item.car_id === formData.car_id);
+          if (packagePrice) {
+            const baseFare = parseFloat(packagePrice.base_fare) || 0;
+            const total = isOneHourSubPackage ? baseFare * formData.rider_hours : baseFare;
+            console.log(total, 'Total calculated for car:', formData.car_id);
+            setFormData((prev) => ({ ...prev, Price: baseFare, Total: total }));
+          } else if (!isEditModalOpen) {
+            setFormData((prev) => ({ ...prev, car_id: '', Price: 0, Total: 0 }));
+            
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'No price found for this sub-package and car combination',
+            });
+          }
+        } else if (!isEditModalOpen) {
+          setFormData((prev) => ({ ...prev, car_id: '', Price: 0, Total: 0 }));
+        }
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { error?: string } } };
+        console.error('Fetch cars error:', err);
+        
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.response?.data?.error || 'Failed to fetch cars and prices',
+        });
+        setModalCars([]);
+        if (!isEditModalOpen) {
+          setFormData((prev) => ({ ...prev, car_id: '', Price: 0, Total: 0 }));
+        }
+      } finally {
+        setIsLoading((prev) => ({ ...prev, cars: false, baseFare: false }));
+      }
+    };
+    fetchModalCarsAndPrice();
+    if (!formData.subpackage_id && !isEditModalOpen) {
+      setModalCars([]);
+      setFormData((prev) => ({ ...prev, car_id: '', Price: 0, Total: 0 }));
+    }
+  }, [formData.subpackage_id, formData.package_id, formData.car_id, formData.rider_hours, isOneHourSubPackage, isEditModalOpen]);
+
+  const debouncedFetchRides = useMemo(
+    () =>
+      debounce(async (search: string, status: string) => {
+        try {
+          console.log('Fetching rides with search:', search, 'status:', status);
+          const url =
+            status === 'all' || status === ''
+              ? `/v1/admin/ride/all?search=${encodeURIComponent(search)}`
+              : `/v1/admin/ride/all?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`;
+          const response = await apiClient.get(url);
+          console.log('Rides response:', response.data);
+          const data = response.data.data || { rides: [], counts: {} };
+          setRides(data.rides || []);
+          setRideSummary({
+            totalRides: data.counts.totalRides || 0,
+            pending: data.counts.pending || 0,
+            accepted: data.counts.accepted || 0,
+            onRoute: data.counts.onRoute || 0,
+            completed: data.counts.completed || 0,
+            cancelled: data.counts.cancelled || 0,
+            totalRevenue: data.counts.totalRevenue || 0,
+          });
+        } catch (error: unknown) {
+          const err = error as { response?: { data?: { error?: string } } };
+          console.error('Fetch rides error:', err);
+          
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: err.response?.data?.error || 'Failed to fetch rides',
+          });
+          setRides([]);
+          setRideSummary({
+            totalRides: 0,
+            pending: 0,
+            accepted: 0,
+            onRoute: 0,
+            completed: 0,
+            cancelled: 0,
+            totalRevenue: 0,
+          });
+        }
+      }, 500),
+    []
+  );
+
+  useEffect(() => {
+    debouncedFetchRides(searchTerm, statusFilter);
+    return () => debouncedFetchRides.cancel();
+  }, [searchTerm, statusFilter, debouncedFetchRides]);
+
+  const handleCreateModalOpenChange = useCallback((open: boolean) => {
+    setIsCreateModalOpen(open);
+    if (!open) {
       setFormData({
         customer_name: '',
         phone: '',
+        email: '',
+        pickup_address: '',
         pickup_location: '',
         drop_location: '',
-        car_model: '',
+        ride_date: '',
+        package_id: '',
+        subpackage_id: '',
+        car_id: '',
         scheduled_time: '',
-        ride_type: 'scheduled',
         notes: '',
-        fare: 0,
+        Price: 0,
+        Total: 0,
+        rider_hours: 3,
       });
-      fetchRides();
-    } catch (err) {
-      console.error('Failed to create ride:', err);
+      setSubPackages([]);
+      setModalCars([]);
+      setErrors({});
     }
-  };
+  }, []);
 
-  const handleEditRide = async () => {
-    if (!selectedRide) return;
+  const handleEditModalOpenChange = useCallback((open: boolean) => {
+    setIsEditModalOpen(open);
+    if (!open) {
+      setSelectedRide(null);
+      setFormData({
+        customer_name: '',
+        phone: '',
+        email: '',
+        pickup_address: '',
+        pickup_location: '',
+        drop_location: '',
+        ride_date: '',
+        package_id: '',
+        subpackage_id: '',
+        car_id: '',
+        scheduled_time: '',
+        notes: '',
+        Price: 0,
+        Total: 0,
+        rider_hours: 3,
+      });
+      setSubPackages([]);
+      setModalCars([]);
+      setErrors({});
+    }
+  }, []);
+
+  const handleCreateRide = useCallback(async () => {
+    console.log('handleCreateRide triggered with formData:', formData);
+    setIsSubmitting(true);
+
+    if (!validateForm()) {
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please fill all required fields correctly',
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const rideDate = new Date(formData.ride_date);
+    if (isNaN(rideDate.getTime())) {
+      console.log('Invalid ride_date:', formData.ride_date);
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Invalid ride date',
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    let scheduledTime = null;
+    if (formData.scheduled_time) {
+      scheduledTime = new Date(formData.scheduled_time);
+      if (isNaN(scheduledTime.getTime())) {
+        console.log('Invalid scheduled_time:', formData.scheduled_time);
+        
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Invalid scheduled time',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     try {
-      await apiClient.put(`/v1/admin/ride/${selectedRide.id}`, {
+      console.log('Sending create ride request:', {
         ...formData,
-        actual_cost: formData.fare,
+        status: 'pending',
+        payment_status: 'pending',
+        accept_time: new Date().toISOString(),
+        ride_date: rideDate.toISOString(),
+        scheduled_time: scheduledTime ? scheduledTime.toISOString() : null,
       });
-      setIsEditModalOpen(false);
-      fetchRides();
-    } catch (err) {
-      console.error('Failed to edit ride:', err);
+      const response = await apiClient.post('/v1/admin/ride', {
+        ...formData,
+        status: 'pending',
+        payment_status: 'pending',
+        accept_time: new Date().toISOString(),
+        ride_date: rideDate.toISOString(),
+        scheduled_time: scheduledTime ? scheduledTime.toISOString() : null,
+      });
+      console.log('Ride created:', response.data);
+      handleCreateModalOpenChange(false);
+      debouncedFetchRides(searchTerm, statusFilter);
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: 'Ride created successfully',
+      });
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      console.error('Create ride error:', err);
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: err.response?.data?.error || 'Failed to create ride',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }, [formData, searchTerm, statusFilter, handleCreateModalOpenChange, debouncedFetchRides, validateForm]);
 
-  const handleCancelRide = async (rideId: number) => {
+  const handleEditRide = useCallback(async () => {
+    if (!selectedRide) return;
+
+    if (!validateForm()) {
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please fill all required fields correctly',
+      });
+      return;
+    }
+
+    const rideDate = new Date(formData.ride_date);
+    if (isNaN(rideDate.getTime())) {
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Invalid ride date',
+      });
+      return;
+    }
+
+    let scheduledTime = null;
+    if (formData.scheduled_time) {
+      scheduledTime = new Date(formData.scheduled_time);
+      if (isNaN(scheduledTime.getTime())) {
+        
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Invalid scheduled time',
+        });
+        return;
+      }
+    }
+
     try {
-      await apiClient.put(`/v1/admin/ride/${rideId}`, { status: 'cancelled' });
-      fetchRides();
-    } catch (err) {
-      console.error('Failed to cancel ride:', err);
+      const response = await apiClient.put(`/v1/admin/ride/${selectedRide.id}`, {
+        ...formData,
+        accept_time: selectedRide.accept_time,
+        ride_date: rideDate.toISOString(),
+        scheduled_time: scheduledTime ? scheduledTime.toISOString() : null,
+      });
+      console.log('Ride updated:', response.data);
+      handleEditModalOpenChange(false);
+      debouncedFetchRides(searchTerm, statusFilter);
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: 'Ride updated successfully',
+      });
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      console.error('Update ride error:', err);
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: err.response?.data?.error || 'Failed to update ride',
+      });
     }
-  };
+  }, [selectedRide, formData, searchTerm, statusFilter, handleEditModalOpenChange, debouncedFetchRides, validateForm]);
 
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const openEditModal = (ride: Ride) => {
+  const openEditModal = useCallback((ride: Ride) => {
     setSelectedRide(ride);
     setFormData({
       customer_name: ride.customer_name,
       phone: ride.phone,
+      email: ride.email || '',
+      pickup_address: ride.pickup_address || '',
       pickup_location: ride.pickup_location,
       drop_location: ride.drop_location,
-      car_model: ride.car_model,
-      scheduled_time: ride.scheduled_time,
-      ride_type: ride.ride_type,
+      ride_date: ride.ride_date ? new Date(ride.ride_date).toISOString().slice(0, 16) : '',
+      package_id: ride.package_id,
+      subpackage_id: ride.subpackage_id,
+      car_id: ride.car_id,
+      scheduled_time: ride.scheduled_time ? new Date(ride.scheduled_time).toISOString().slice(0, 16) : '',
       notes: ride.notes || '',
-      fare: ride.fare,
+      Price: ride.Price,
+      Total: ride.Total,
+      rider_hours: ride.rider_hours,
     });
     setIsEditModalOpen(true);
-  };
+  }, []);
 
-  const getStatusBadge = (status: string) => {
+  const handleCancelRide = useCallback(
+    async (rideId: string) => {
+      try {
+        const response = await apiClient.put(`/v1/admin/ride/${rideId}`, { status: 'cancelled' });
+        console.log('Ride cancelled:', response.data);
+        debouncedFetchRides(searchTerm, statusFilter);
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: 'Ride cancelled successfully',
+        });
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { error?: string } } };
+        console.error('Cancel ride error:', err);
+        
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.response?.data?.error || 'Failed to cancel ride',
+        });
+      }
+    },
+    [searchTerm, statusFilter, debouncedFetchRides]
+  );
+
+  const getStatusBadge = useCallback((status: string) => {
     const variants = {
-      'pending': { variant: 'secondary', text: 'Pending' },
-      'accepted': { variant: 'default', text: 'Accepted' },
-      'on-route': { variant: 'default', text: 'On-Route' },
-      'completed': { variant: 'default', text: 'Completed' },
-      'cancelled': { variant: 'secondary', text: 'Cancelled' }
+      pending: { variant: 'secondary' as const, text: 'Pending' },
+      accepted: { variant: 'default' as const, text: 'Accepted' },
+      'on-route': { variant: 'default' as const, text: 'On-Route' },
+      completed: { variant: 'default' as const, text: 'Completed' },
+      cancelled: { variant: 'secondary' as const, text: 'Cancelled' },
     };
     const config = variants[status as keyof typeof variants] || variants.pending;
-    return <Badge variant={config.variant as 'default' | 'secondary' | 'outline'}>{config.text}</Badge>;
-  };
+    return <Badge variant={config.variant}>{config.text}</Badge>;
+  }, []);
 
-  const filteredRides = rides?.filter(ride => {
-    const matchesSearch =
-      ride.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ride.hotel_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ride.pickup_location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ride.drop_location.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = statusFilter === 'all' || statusFilter === '' ? true : ride.status === statusFilter;
-
-    
-
-    return matchesSearch && matchesStatus ;
-  });
+  const renderModalContent = (isEdit: boolean) => (
+    <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>{isEdit ? `Edit Ride #${selectedRide?.id || ''}` : 'Create New Ride'}</DialogTitle>
+        <DialogDescription>{isEdit ? 'Update the details for this ride.' : 'Fill in the details to create a new ride.'}</DialogDescription>
+      </DialogHeader>
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Ride Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label>Package <span className="text-red-500">*</span></Label>
+              <Select
+                value={formData.package_id}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    package_id: value,
+                    subpackage_id: '',
+                    car_id: '',
+                    Price: 0,
+                    Total: 0,
+                  }))
+                }
+                disabled={isLoading.packages}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoading.packages ? 'Loading packages...' : 'Select package first'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {packages.length > 0 ? (
+                    packages.map((pkg) => (
+                      <SelectItem key={pkg.id} value={pkg.id}>
+                        {pkg.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem disabled value="no-packages">
+                      No packages found
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.package_id && <p className="text-red-500 text-sm mt-1">{errors.package_id}</p>}
+            </div>
+            <div>
+              <Label>Sub-Package <span className="text-red-500">*</span></Label>
+              <Select
+                value={formData.subpackage_id}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, subpackage_id: value, car_id: '', Price: 0, Total: 0 }))}
+                disabled={!formData.package_id || isLoading.subPackages}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={isLoading.subPackages ? 'Loading sub-packages...' : formData.package_id ? 'Select sub-package' : 'Select a package first'}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {subPackages.length > 0 ? (
+                    subPackages.map((sp) => <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>)
+                  ) : (
+                    <SelectItem disabled value="no-subpackages">
+                      No sub-packages available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.subpackage_id && <p className="text-red-500 text-sm mt-1">{errors.subpackage_id}</p>}
+            </div>
+            <div>
+              <Label>Car <span className="text-red-500">*</span></Label>
+              <Select
+                value={formData.car_id}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, car_id: value }))}
+                disabled={!formData.subpackage_id || isLoading.cars}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoading.cars ? 'Loading cars...' : formData.subpackage_id ? 'Select car' : 'Select a sub-package first'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {modalCars.length > 0 ? (
+                    modalCars.map((car) => <SelectItem key={car.id} value={car.id}>{car.name}</SelectItem>)
+                  ) : (
+                    <SelectItem disabled value="no-cars">
+                      No cars available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.car_id && <p className="text-red-500 text-sm mt-1">{errors.car_id}</p>}
+            </div>
+            <div>
+              <Label>Pickup Location <span className="text-red-500">*</span></Label>
+              <Input
+                value={formData.pickup_location}
+                onChange={(e) => setFormData((prev) => ({ ...prev, pickup_location: e.target.value }))}
+              />
+              {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
+            </div>
+            <div>
+              <Label>Drop Location <span className="text-red-500">*</span></Label>
+              <Input
+                value={formData.drop_location}
+                onChange={(e) => setFormData((prev) => ({ ...prev, drop_location: e.target.value }))}
+              />
+              {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
+            </div>
+            <div>
+              <Label>Pickup Address</Label>
+              <Input
+                value={formData.pickup_address}
+                onChange={(e) => setFormData((prev) => ({ ...prev, pickup_address: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Ride Date and Time <span className="text-red-500">*</span></Label>
+              <input
+                type="datetime-local"
+                className="w-full border rounded p-2"
+                value={formData.ride_date}
+                onChange={(e) => setFormData((prev) => ({ ...prev, ride_date: e.target.value }))}
+                min={new Date().toISOString().slice(0, 16)}
+                required
+              />
+              {errors.ride_date && <p className="text-red-500 text-sm mt-1">{errors.ride_date}</p>}
+            </div>
+            <div>
+              <Label>Scheduled Time</Label>
+              <input
+                type="datetime-local"
+                className="w-full border rounded p-2"
+                value={formData.scheduled_time}
+                onChange={(e) => setFormData((prev) => ({ ...prev, scheduled_time: e.target.value }))}
+                min={new Date().toISOString().slice(0, 16)}
+              />
+            </div>
+            <div>
+              <Label>Price (AED)</Label>
+              <Input type="number" value={Number(formData.Price).toFixed(2)} disabled />
+            </div>
+            {isOneHourSubPackage && (
+              <div>
+                <Label>Rider Hours</Label>
+                <Input
+                  type="number"
+                  value={formData.rider_hours}
+                  onChange={(e) => {
+                    const hours = parseInt(e.target.value) || 1;
+                    const total = formData.Price * hours;
+                    setFormData((prev) => ({ ...prev, rider_hours: hours, Total: total }));
+                  }}
+                  min="1"
+                />
+              </div>
+            )}
+            <div>
+              <Label>Total (AED)</Label>
+              <Input
+                type="number"
+                value={Number(isOneHourSubPackage ? formData.Price * formData.rider_hours : formData.Total).toFixed(2)}
+                disabled
+              />
+            </div>
+            <div className="md:col-span-3">
+              <Label>Notes</Label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                className="w-full border rounded p-2"
+              />
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Customer Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label>Customer Name <span className="text-red-500">*</span></Label>
+              <Input
+                value={formData.customer_name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, customer_name: e.target.value }))}
+                required
+              />
+              {errors.customer_name && <p className="text-red-500 text-sm mt-1">{errors.customer_name}</p>}
+            </div>
+            <div>
+              <Label>Phone <span className="text-red-500">*</span></Label>
+              <Input
+                value={formData.phone}
+                onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                required
+              />
+              {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+            </div>
+            <div>
+              <Label>Email <span className="text-red-500">*</span></Label>
+              <Input
+                value={formData.email}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                required
+              />
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+      <DialogFooter className="mt-4">
+        <Button variant="outline" onClick={() => (isEdit ? handleEditModalOpenChange(false) : handleCreateModalOpenChange(false))}>
+          Cancel
+        </Button>
+        <Button
+          disabled={isSubmitting}
+          onClick={() => {
+            console.log('Create/Save button clicked, isEdit:', isEdit);
+            isEdit ? handleEditRide() : handleCreateRide();
+          }}
+        >
+          {isSubmitting ? 'Creating...' : (isEdit ? 'Save Changes' : 'Create')}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Ride Management</h2>
-          <p className="text-muted-foreground">
-            
-          </p>
+          <p className="text-muted-foreground">Manage all ride bookings</p>
         </div>
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Car className="w-4 h-4 mr-2" />
-              Create Ride
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Create New Ride</DialogTitle>
-              <DialogDescription>Fill in the details to create a new ride.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right">Customer Name</label>
-                <Input
-                  name="customer_name"
-                  value={formData.customer_name}
-                  onChange={handleFormChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right">Phone</label>
-                <Input
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleFormChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right">Pickup Location</label>
-                <Input
-                  name="pickup_location"
-                  value={formData.pickup_location}
-                  onChange={handleFormChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right">Drop Location</label>
-                <Input
-                  name="drop_location"
-                  value={formData.drop_location}
-                  onChange={handleFormChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right">Car Model</label>
-                <Input
-                  name="car_model"
-                  value={formData.car_model}
-                  onChange={handleFormChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right">Scheduled Time</label>
-                <Input
-                  name="scheduled_time"
-                  type="datetime-local"
-                  value={formData.scheduled_time}
-                  onChange={handleFormChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right">Ride Type</label>
-                <Select
-                  value={formData.ride_type}
-                  onValueChange={(value) => setFormData({ ...formData, ride_type: value as 'scheduled' | 'immediate' })}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select ride type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="immediate">Immediate</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right">Fare (AED)</label>
-                <Input
-                  name="fare"
-                  type="number"
-                  value={formData.fare}
-                  onChange={handleFormChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right">Notes</label>
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleFormChange}
-                  className="col-span-3 border rounded p-2"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
-              <Button onClick={handleCreateRide}>Create</Button>
-            </DialogFooter>
-          </DialogContent>
+        <Dialog open={isCreateModalOpen} onOpenChange={handleCreateModalOpenChange}>
+          <Button onClick={() => handleCreateModalOpenChange(true)}>
+            <Car className="w-4 h-4 mr-2" />
+            Create Ride
+          </Button>
+          {renderModalContent(false)}
         </Dialog>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card><CardContent className="p-4"><div className="flex justify-between items-center">
-          <div><p className="text-sm text-muted-foreground">Total Rides</p>
-            <p className="text-2xl font-bold">{ridesCount?.totalRides}</p></div>
-          <MapPin className="w-8 h-8 text-blue-500" /></div></CardContent></Card>
-
-        <Card><CardContent className="p-4"><div className="flex justify-between items-center">
-          <div><p className="text-sm text-muted-foreground">Ongoing</p>
-            <p className="text-2xl font-bold">{ridesCount?.onRoute}</p></div>
-          <Clock className="w-8 h-8 text-green-500" /></div></CardContent></Card>
-
-        <Card><CardContent className="p-4"><div className="flex justify-between items-center">
-          <div><p className="text-sm text-muted-foreground">Pending</p>
-            <p className="text-2xl font-bold">{ridesCount?.pending}</p></div>
-          <AlertCircle className="w-8 h-8 text-yellow-500" /></div></CardContent></Card>
-
-        <Card><CardContent className="p-4"><div className="flex justify-between items-center">
-          <div><p className="text-sm text-muted-foreground">Revenue</p>
-            <p className="text-2xl font-bold">AED {ridesCount?.totalRevenue}</p></div>
-          <DollarSign className="w-8 h-8 text-purple-500" /></div></CardContent></Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Rides</p>
+                <p className="text-2xl font-bold">{rideSummary.totalRides}</p>
+              </div>
+              <MapPin className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Ongoing</p>
+                <p className="text-2xl font-bold">{rideSummary.onRoute}</p>
+              </div>
+              <Clock className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-2xl font-bold">{rideSummary.pending}</p>
+              </div>
+              <AlertCircle className="w-8 h-8 text-yellow-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Revenue</p>
+                <p className="text-2xl font-bold">AED {rideSummary.totalRevenue.toFixed(2)}</p>
+              </div>
+              <DollarSign className="w-8 h-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+        </CardHeader>
         <CardContent>
           <div className="flex gap-4 items-center">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input placeholder="Search rides..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+              <Input
+                placeholder="Search by customer, location..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
             <div className="flex gap-2">
-              {['all', 'pending', 'accepted', 'on-route', 'completed'].map(status => (
+              {['all', 'pending', 'accepted', 'on-route', 'completed', 'cancelled'].map((status) => (
                 <Button key={status} variant={statusFilter === status ? 'default' : 'outline'} onClick={() => setStatusFilter(status)}>
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </Button>
@@ -377,7 +920,7 @@ export const RideManagement = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Rides ({filteredRides.length})</CardTitle>
+          <CardTitle>Rides ({rides.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -386,292 +929,220 @@ export const RideManagement = () => {
                 <TableHead>Customer</TableHead>
                 <TableHead>Route</TableHead>
                 <TableHead>Schedule</TableHead>
-                <TableHead>Driver</TableHead>
+                <TableHead>Car</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Fare</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Total</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRides.map((ride) => (
-                <TableRow key={ride.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{ride.customer_name}</p>
-                      <p className="text-sm text-muted-foreground">{ride.hotel_name}</p>
-                      <p className="text-sm text-muted-foreground">{ride.phone}</p>
-                    </div>
+              {rides.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center">
+                    No rides found
                   </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center text-sm">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                        {ride.pickup_location}
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                        {ride.drop_location}
-                      </div>
-                      <p className="text-xs text-muted-foreground">{ride.distance} • {ride.duration}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="text-sm">{new Date(ride.scheduled_time).toLocaleString()}</p>
-                      <Badge variant="outline" className="text-xs">
-                        {ride.ride_type}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {ride.AssignedDriver ? (
+                </TableRow>
+              ) : (
+                rides.map((ride) => (
+                  <TableRow key={ride.id}>
+                    <TableCell>
                       <div>
-                        <p className="text-sm font-medium">{`${ride?.AssignedDriver.first_name} ${ride?.AssignedDriver.last_name}`}</p>
-                        <p className="text-sm text-muted-foreground">{`${ride?.AssignedDriver.Vehicles[0].car_brand} ${ride?.AssignedDriver.Vehicles[0].car_model}`}</p>
+                        <p className="font-medium">{ride.customer_name}</p>
+                        <p className="text-sm text-muted-foreground">{ride.phone}</p>
+                        <p className="text-sm text-muted-foreground">{ride.email || '-'}</p>
                       </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">Unassigned</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${
-                        ride.status === 'pending'
-                          ? ' text-yellow-700'
-                          : ride.status === 'accepted'
-                          ? ' text-blue-700'
-                          : ride.status === 'completed'
-                          ? ' text-green-700'
-                          : ride.status === 'cancelled'
-                          ? ' text-red-400'
-                          : ''
-                      }`}
-                    >
-                      {ride.status.charAt(0).toUpperCase() + ride.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium">AED {ride.fare}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => setSelectedRide(ride)}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Ride Details</DialogTitle>
-                            <DialogDescription>
-                              Complete information about ride #{ride.id}
-                            </DialogDescription>
-                          </DialogHeader>
-                          {selectedRide && (
-                            <Tabs defaultValue="details" className="w-full">
-                              <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="details">Details</TabsTrigger>
-                                <TabsTrigger value="tracking">Tracking</TabsTrigger>
-                                <TabsTrigger value="history">History</TabsTrigger>
-                              </TabsList>
-                              <TabsContent value="details" className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                                    <label className="text-sm font-medium">Customer Information</label>
-                                    <div className="space-y-1">
-                                      <p className="flex items-center text-sm"><User className="w-4 h-4 mr-2" />{selectedRide.customer_name}</p>
-                                      <p className="flex items-center text-sm"><Phone className="w-4 h-4 mr-2" />{selectedRide.phone}</p>
-                                      <p className="flex items-center text-sm"><MapPin className="w-4 h-4 mr-2" />{selectedRide.pickup_location}</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-sm">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                          {ride.pickup_location}
+                        </div>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                          {ride.drop_location}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-sm">{ride.scheduled_time ? new Date(ride.scheduled_time).toLocaleString() : '-'}</p>
+                        <p className="text-sm text-muted-foreground">{ride.ride_date ? new Date(ride.ride_date).toLocaleDateString() : '-'}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <p className="text-sm">{ride.car_name || '-'}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {ride.package_name || '-'} - {ride.subpackage_name || '-'}
+                      </p>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(ride.status)}</TableCell>
+                    <TableCell>
+                      <span className="font-medium">
+                        AED {ride.Price != null ? Number(ride.Price).toFixed(2) : 'N/A'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium">
+                        AED {ride.Total != null ? Number(ride.Total).toFixed(2) : 'N/A'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={() => setSelectedRide(ride)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Ride Details</DialogTitle>
+                              <DialogDescription>
+                                Complete information about ride #{ride.id}
+                              </DialogDescription>
+                            </DialogHeader>
+                            {selectedRide && (
+                              <Tabs defaultValue="details" className="w-full">
+                                <TabsList className="grid w-full grid-cols-3">
+                                  <TabsTrigger value="details">Details</TabsTrigger>
+                                  <TabsTrigger value="tracking">Tracking</TabsTrigger>
+                                  <TabsTrigger value="history">History</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="details" className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Customer Information</label>
+                                      <div className="space-y-1">
+                                        <p className="flex items-center text-sm"><User className="w-4 h-4 mr-2" />{selectedRide.customer_name}</p>
+                                        <p className="flex items-center text-sm"><Phone className="w-4 h-4 mr-2" />{selectedRide.phone}</p>
+                                        <p className="flex items-center text-sm"><MapPin className="w-4 h-4 mr-2" />{selectedRide.pickup_location}</p>
+                                        <p className="flex items-center text-sm"><MapPin className="w-4 h-4 mr-2" />{selectedRide.pickup_address || '-'}</p>
+                                        <p className="flex items-center text-sm"><Phone className="w-4 h-4 mr-2" />{selectedRide.email || '-'}</p>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Ride Information</label>
+                                      <div className="space-y-1">
+                                        <p className="flex items-center text-sm"><Calendar className="w-4 h-4 mr-2" />{selectedRide.ride_date ? new Date(selectedRide.ride_date).toLocaleString() : '-'}</p>
+                                        <p className="flex items-center text-sm"><Calendar className="w-4 h-4 mr-2" />{selectedRide.scheduled_time ? new Date(selectedRide.scheduled_time).toLocaleString() : '-'}</p>
+                                        <p className="flex items-center text-sm"><Car className="w-4 h-4 mr-2" />{selectedRide.car_name || '-'}</p>
+                                        <p className="flex items-center text-sm"><Car className="w-4 h-4 mr-2" />{selectedRide.package_name || '-'} - {selectedRide.subpackage_name || '-'}</p>
+                                        <p className="flex items-center text-sm"><DollarSign className="w-4 h-4 mr-2" />AED {Number(selectedRide.Price) ? Number(selectedRide.Price).toFixed(2) : '0.00'}</p>
+                                        <p className="flex items-center text-sm"><DollarSign className="w-4 h-4 mr-2" />Total: AED {Number(selectedRide.Total) ? Number(selectedRide.Total).toFixed(2) : '0.00'}</p>
+                                        {selectedRide.subpackage_name?.toLowerCase().includes('1 hour') && (
+                                          <p className="flex items-center text-sm"><Clock className="w-4 h-4 mr-2" />{selectedRide.rider_hours} hours</p>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                   <div className="space-y-2">
-                                    <label className="text-sm font-medium">Ride Information</label>
-                                    <div className="space-y-1">
-                                      <p className="flex items-center text-sm"><Calendar className="w-4 h-4 mr-2" />{new Date(selectedRide.scheduled_time).toLocaleString()}</p>
-                                      <p className="flex items-center text-sm"><Car className="w-4 h-4 mr-2" />{selectedRide.car_model}</p>
-                                      <p className="flex items-center text-sm"><DollarSign className="w-4 h-4 mr-2" />AED {selectedRide.fare}</p>
+                                    <label className="text-sm font-medium">Route</label>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center text-sm">
+                                        <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                                        <span>Pickup: {selectedRide.pickup_location}</span>
+                                      </div>
+                                      <div className="flex items-center text-sm">
+                                        <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
+                                        <span>Drop: {selectedRide.drop_location}</span>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <label className="text-sm font-medium">Route</label>
-                                  <div className="space-y-2">
-                                    <div className="flex items-center text-sm">
-                                      <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                                      <span>Pickup: {selectedRide.pickup_location}</span>
+                                  {selectedRide.notes && (
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Special Notes</label>
+                                      <p className="text-sm text-muted-foreground">{selectedRide.notes}</p>
                                     </div>
-                                    <div className="flex items-center text-sm">
-                                      <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
-                                      <span>Drop: {selectedRide.drop_location}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                                {selectedRide.notes && (
-                                  <div className="space-y-2">
-                                    <label className="text-sm font-medium">Special Notes</label>
-                                    <p className="text-sm text-muted-foreground">{selectedRide.notes}</p>
-                                  </div>
-                                )}
-                              </TabsContent>
-                              <TabsContent value="tracking" className="space-y-4">
-                                <div className="h-64 bg-gray-100 rounded-lg overflow-hidden">
-                                  <MapView lat={25.2048} lng={55.2708} />
-                                </div>
-                              </TabsContent>
-                              <TabsContent value="history" className="space-y-4">
-                                <div className="space-y-2">
-                                  <div className="flex items-center space-x-3">
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                    <div>
-                                      <p className="text-sm">Ride created</p>
-                                      <p className="text-xs text-muted-foreground">{new Date(selectedRide?.createdAt).toLocaleString()}</p>
-                                    </div>
-                                  </div>
-                                  {selectedRide.AssignedDriver?.first_name && (
-                                    <div className="flex items-center space-x-3">
-                                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                      <div>
-                                        <p className="text-sm">Driver assigned</p>
-                                        <p className="text-xs text-muted-foreground">2 hours ago</p>
+                                  )}
+                                  {selectedRide.driver_id && (
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Driver Information</label>
+                                      <div className="space-y-1">
+                                        <p className="flex items-center text-sm"><User className="w-4 h-4 mr-2" />Driver ID: {selectedRide.driver_id}</p>
                                       </div>
                                     </div>
                                   )}
-                                </div>
-                              </TabsContent>
-                            </Tabs>
-                          )}
-                        </DialogContent>
-                      </Dialog>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditModal(ride)}
-                        disabled={ride.status === 'completed' || ride.status === 'cancelled'}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleCancelRide(ride.id)}
-                        disabled={ride.status === 'completed' || ride.status === 'cancelled'}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                                </TabsContent>
+                                <TabsContent value="tracking" className="space-y-4">
+                                  <div className="h-64 bg-gray-100 rounded-lg overflow-hidden">
+                                    <MapView lat={25.2048} lng={55.2708} />
+                                  </div>
+                                </TabsContent>
+                                <TabsContent value="history" className="space-y-4">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                      <div>
+                                        <p className="text-sm">Ride created</p>
+                                        <p className="text-xs text-muted-foreground">{new Date(selectedRide.createdAt).toLocaleString()}</p>
+                                      </div>
+                                    </div>
+                                    {selectedRide.accept_time && (
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                        <div>
+                                          <p className="text-sm">Ride accepted</p>
+                                          <p className="text-xs text-muted-foreground">{new Date(selectedRide.accept_time).toLocaleString()}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {selectedRide.pickup_time && (
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                        <div>
+                                          <p className="text-sm">Pickup started</p>
+                                          <p className="text-xs text-muted-foreground">{new Date(selectedRide.pickup_time).toLocaleString()}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {selectedRide.dropoff_time && (
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                        <div>
+                                          <p className="text-sm">Drop-off completed</p>
+                                          <p className="text-xs text-muted-foreground">{new Date(selectedRide.dropoff_time).toLocaleString()}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </TabsContent>
+                              </Tabs>
+                            )}
+                          </DialogContent>
+                        </Dialog>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditModal(ride)}
+                          disabled={ride.status === 'completed' || ride.status === 'cancelled'}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCancelRide(ride.id)}
+                          disabled={ride.status === 'completed' || ride.status === 'cancelled'}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Ride</DialogTitle>
-            <DialogDescription>Update the details for ride #{selectedRide?.id}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right">Customer Name</label>
-              <Input
-                name="customer_name"
-                value={formData.customer_name}
-                onChange={handleFormChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right">Phone</label>
-              <Input
-                name="phone"
-                value={formData.phone}
-                onChange={handleFormChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right">Pickup Location</label>
-              <Input
-                name="pickup_location"
-                value={formData.pickup_location}
-                onChange={handleFormChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right">Drop Location</label>
-              <Input
-                name="drop_location"
-                value={formData.drop_location}
-                onChange={handleFormChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right">Car Model</label>
-              <Input
-                name="car_model"
-                value={formData.car_model}
-                onChange={handleFormChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right">Scheduled Time</label>
-              <Input
-                name="scheduled_time"
-                type="datetime-local"
-                value={formData.scheduled_time}
-                onChange={handleFormChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right">Ride Type</label>
-              <Select
-                value={formData.ride_type}
-                onValueChange={(value) => setFormData({ ...formData, ride_type: value as 'scheduled' | 'immediate' })}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select ride type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="immediate">Immediate</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right">Fare (AED)</label>
-              <Input
-                name="fare"
-                type="number"
-                value={formData.fare}
-                onChange={handleFormChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right">Notes</label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleFormChange}
-                className="col-span-3 border rounded p-2"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleEditRide}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
+      <Dialog open={isEditModalOpen} onOpenChange={handleEditModalOpenChange}>
+        {renderModalContent(true)}
       </Dialog>
     </div>
   );
 };
+
+export default Rides;

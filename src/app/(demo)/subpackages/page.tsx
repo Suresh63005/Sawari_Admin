@@ -14,7 +14,7 @@ import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/ui/use-toast';
 import { debounce } from 'lodash';
-
+import Loader from '@/components/ui/Loader';
 interface Package {
   id: string;
   name: string;
@@ -227,6 +227,10 @@ const SubPackages: React.FC = () => {
       <Badge variant="secondary">Inactive</Badge>
     );
   };
+
+if(loading){
+  return <Loader />;
+}
 
   if (error) {
     return (

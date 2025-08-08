@@ -13,6 +13,7 @@ import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import Loader from '@/components/ui/Loader';
 
 interface Vehicle {
   id: string;
@@ -174,7 +175,9 @@ export default function VehicleApproval() {
     setSelectedImage(imageUrl);
     setImageModalOpen(true);
   };
-
+  if (loading) {
+    return <Loader />;
+  }
   return (
     <div className="space-y-6">
       <Card>

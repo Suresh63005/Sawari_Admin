@@ -13,6 +13,7 @@ import { Plus, Edit, Trash2, Car, Search } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/ui/use-toast';
 import { debounce } from 'lodash';
+import Loader from '@/components/ui/Loader';
 
 interface Car {
   id: string;
@@ -43,59 +44,61 @@ const Cars: React.FC = () => {
 
   // Memoize the debounced fetchCars function
   const debouncedFetchCars = useCallback(
-    debounce(async (query: string) => {
-      try {
-        setIsSearching(true);
-        const response = await apiClient.get('/v1/admin/car', {
-          params: { search: query },
-        });
-        setCars(response.data.result.data);
-      } catch (err: any) {
-        console.error('Fetch cars error:', err);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.error || 'Failed to fetch cars',
-        });
-      } finally {
-        setIsSearching(false);
-      }
-    }, 500),
-    [] // Empty dependency array to prevent recreation
-  );
+  debounce(async (query: string) => {
+    try {
+      setIsSearching(true);
+      const response = await apiClient.get('/v1/admin/car', {
+        params: { search: query },
+      });
+      setCars(response.data.result.data || []);
+    } catch (err: any) {
+      console.error('Fetch cars error:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err.response?.data?.error || 'Failed to fetch cars',
+      });
+      setCars([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, 500),
+  [toast] // Add toast to dependencies to avoid stale closures
+);
 
   // Initial fetch and search updates
-  useEffect(() => {
-    const fetchInitialCars = async () => {
-      try {
-        setLoading(true);
-        const response = await apiClient.get('/v1/admin/car', {
-          params: { search: searchQuery },
-        });
-        setCars(response.data.result.data);
-      } catch (err: any) {
-        console.error('Fetch cars error:', err);
-        setError(err.response?.data?.error || 'Failed to fetch cars');
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.error || 'Failed to fetch cars',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (loading) {
-      fetchInitialCars();
-    } else {
-      debouncedFetchCars(searchQuery);
+useEffect(() => {
+  const fetchInitialCars = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/v1/admin/car', {
+        params: { search: searchQuery },
+      });
+      setCars(response.data.result.data || []);
+    } catch (err: any) {
+      console.error('Fetch cars error:', err);
+      setError(err.response?.data?.error || 'Failed to fetch cars');
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err.response?.data?.error || 'Failed to fetch cars',
+      });
+      setCars([]);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    return () => {
-      debouncedFetchCars.cancel(); // Prevent memory leaks
-    };
-  }, [searchQuery, debouncedFetchCars, loading]);
+  if (loading) {
+    fetchInitialCars();
+  } else {
+    debouncedFetchCars(searchQuery);
+  }
+
+  return () => {
+    debouncedFetchCars.cancel(); // Ensure proper cleanup
+  };
+}, [searchQuery, debouncedFetchCars, loading, toast]);
 
   const handleUpsertCar = async () => {
     if (!newCar.brand || !newCar.model) {
@@ -281,11 +284,11 @@ const Cars: React.FC = () => {
           <CardTitle>Cars ({cars.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {isSearching && (
+          {/* {isSearching && (
             <div className="flex justify-center items-center mb-4">
               <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-900"></div>
             </div>
-          )}
+          )} */}
           <Table>
             <TableHeader>
               <TableRow>

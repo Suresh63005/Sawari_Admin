@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/apiClient';
 import { Admin } from '@/components/AdminManagement';
+import Loader from '@/components/ui/Loader'; // Assuming you have a Loader componenta
 
 export default function AdminManagementPage() {
   const [currentUser, setCurrentUser] = useState<Admin | null>(null);
@@ -44,7 +45,7 @@ export default function AdminManagementPage() {
   }, [router]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loader />;
   }
 
   if (error || !currentUser) {

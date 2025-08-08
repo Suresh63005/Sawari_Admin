@@ -16,7 +16,7 @@ import { Plus, Eye, UserPlus, Shield, Users, Car, MapPin, Lock, Unlock } from 'l
 import apiClient from '@/lib/apiClient';
 import { DEFAULT_PERMISSIONS, getAdminHierarchy, canCreateAdmin, Role } from './utils/permissions';
 import { useToast } from './ui/use-toast';
-
+import Loader from '@/components/ui/Loader';
 interface Admin {
   id: string;
   name: string;
@@ -201,8 +201,8 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
     }
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
+  if (loading ) {
+    return <Loader />;
   }
 
   if (error) {

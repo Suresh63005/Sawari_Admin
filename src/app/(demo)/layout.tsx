@@ -1,4 +1,3 @@
-
 'use client';
 
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -26,27 +25,61 @@ export default function DashboardRootLayout({
       try {
         const token = localStorage.getItem('token');
         console.log('Fetching user with token:', token); // Debug log
-        if (token) {
-          const response = await apiClient.get('/v1/admin/auth/me');
-          console.log('User data fetched:', response.data); // Debug log
-          setUser({
-            name: response.data.name,
-            role: response.data.role,
-            permissions: response.data.permissions
-          });
-          console.log(Object.keys(response.data.permissions),"perrrrrrmissionsssssssssssss"); // Debug log
-        } else {
+        if (!token) {
           console.log('No token found, redirecting to login'); // Debug log
-          router.push('/login');
+          router.push('/');
+          return;
         }
+
+        const response = await apiClient.get('/v1/admin/auth/me');
+        console.log('User data fetched:', response.data); // Debug log
+        const permissions = response.data.permissions || {};
+        console.log('Permissions received:', permissions); // Debug log
+        console.log('Permission keys:', Object.keys(permissions)); // Debug log
+
+        // Validate required permissions
+        const expectedPermissions = [
+          'dashboard',
+          'drivers',
+          'vehicles',
+          'rides',
+          'earnings',
+          'support',
+          'push_notifications',
+          'admin_management',
+          'fleet',
+        ];
+        const missingPermissions = expectedPermissions.filter(
+          (perm) => !(perm in permissions)
+        );
+        if (missingPermissions.length > 0) {
+          console.warn('Missing permissions:', missingPermissions); // Debug log
+        }
+
+        setUser({
+          name: response.data.name,
+          role: response.data.role,
+          permissions: {
+            dashboard: !!permissions.dashboard,
+            drivers: !!permissions.drivers,
+            vehicles: !!permissions.vehicles,
+            rides: !!permissions.rides,
+            earnings: !!permissions.earnings,
+            support: !!permissions.support,
+            push_notifications: !!permissions.push_notifications,
+            admin_management: !!permissions.admin_management,
+            fleet: !!permissions.fleet,
+          },
+        });
       } catch (error: any) {
         console.error('Failed to fetch user:', error); // Debug log
         console.error('Error details:', {
           message: error.message,
           response: error.response?.data,
-          status: error.response?.status
+          status: error.response?.status,
         }); // Detailed error log
         setError(error.response?.data?.message || 'Failed to fetch user data. Please try again.');
+        router.push('/login');
       } finally {
         setLoading(false);
       }
@@ -58,8 +91,9 @@ export default function DashboardRootLayout({
     return <Loader />;
   }
 
-  if (!user) {
-    console.log('No user data, redirecting to login'); // Debug log
+  if (error || !user) {
+    console.log('Error or no user data:', { error, user }); // Debug log
+    router.push('/login');
     return null;
   }
 
@@ -70,10 +104,10 @@ export default function DashboardRootLayout({
         currentPage={pathname}
         onLogout={() => {
           localStorage.removeItem('token');
-          console.log("Logout clicked"); // Debug log
+          console.log('Logout clicked'); // Debug log
           window.location.href = '/';
         }}
-      > 
+      >
         <Suspense fallback={<Loader />}>
           {children}
         </Suspense>

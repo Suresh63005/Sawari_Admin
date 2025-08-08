@@ -32,6 +32,7 @@ type Group = {
   menus: Menu[];
 };
 
+// getMenuList
 export function getMenuList(pathname: string, userPermissions: { [key: string]: boolean }): Group[] {
   const allMenus: Group[] = [
     {
@@ -87,24 +88,28 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           label: "Cars",
           active: pathname === "/cars",
           icon: Car,
+          permission: "fleet", // Updated
         },
         {
           href: "/packages",
           label: "Packages",
           active: pathname === "/packages",
           icon: Package,
+          permission: "fleet", // Updated
         },
         {
           href: "/subpackages",
           label: "Subpackages",
           active: pathname === "/subpackages",
           icon: Package,
+          permission: "fleet", // Updated
         },
         {
           href: "/packageprice",
           label: "Package Price",
           active: pathname === "/packageprice",
           icon: Package,
+          permission: "fleet", // Updated
         },
       ],
     },
@@ -123,7 +128,7 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           label: "Push Notifications",
           active: pathname === "/notifications",
           icon: Bell,
-          permission: "notifications",
+          permission: "push_notifications", // Renamed
         },
         {
           href: "/admin-management",
@@ -137,7 +142,7 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           label: "Logout",
           active: pathname === "/logout",
           icon: LogOut,
-          permission: "admin_management",
+          // No permission required for logout
         },
       ],
     },

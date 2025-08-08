@@ -12,7 +12,6 @@ import {
   LogOut,
   Menu,
   X,
-  Loader
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -24,6 +23,8 @@ import { getToken } from '@/lib/getToken';
 import Cookies from 'js-cookie';
 import logo from '../../public/logo.png';
 import Image from 'next/image';
+import Loader from '@/components/ui/Loader';
+
 export interface User {
   name: string;
   role: string;

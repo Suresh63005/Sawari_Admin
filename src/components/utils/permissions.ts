@@ -1,5 +1,6 @@
 export type Role = 'super_admin' | 'admin' | 'executive_admin' | 'ride_manager';
 
+// permissions.ts
 export const DEFAULT_PERMISSIONS: Record<Role, {
   dashboard: boolean;
   drivers: boolean;
@@ -7,8 +8,9 @@ export const DEFAULT_PERMISSIONS: Record<Role, {
   rides: boolean;
   earnings: boolean;
   support: boolean;
-  notifications: boolean;
+  push_notifications: boolean; // Renamed
   admin_management: boolean;
+  fleet: boolean; // New
 }> = {
   super_admin: {
     dashboard: true,
@@ -17,8 +19,9 @@ export const DEFAULT_PERMISSIONS: Record<Role, {
     rides: true,
     earnings: true,
     support: true,
-    notifications: true,
+    push_notifications: true, // Renamed
     admin_management: true,
+    fleet: true, // New
   },
   admin: {
     dashboard: true,
@@ -27,8 +30,9 @@ export const DEFAULT_PERMISSIONS: Record<Role, {
     rides: true,
     earnings: false,
     support: true,
-    notifications: true,
+    push_notifications: true, // Renamed
     admin_management: true,
+    fleet: true, // New
   },
   executive_admin: {
     dashboard: true,
@@ -37,8 +41,9 @@ export const DEFAULT_PERMISSIONS: Record<Role, {
     rides: true,
     earnings: false,
     support: true,
-    notifications: true,
+    push_notifications: true, // Renamed
     admin_management: false,
+    fleet: true, // New
   },
   ride_manager: {
     dashboard: true,
@@ -47,8 +52,9 @@ export const DEFAULT_PERMISSIONS: Record<Role, {
     rides: true,
     earnings: false,
     support: false,
-    notifications: false,
+    push_notifications: false, // Renamed
     admin_management: false,
+    fleet: false, // New
   },
 };
 

@@ -22,7 +22,8 @@ import { getMenuList } from '../lib/menu-list';
 import { useRouter } from 'next/navigation';
 import { getToken } from '@/lib/getToken';
 import Cookies from 'js-cookie';
-
+import logo from '../../public/logo.png';
+import Image from 'next/image';
 export interface User {
   name: string;
   role: string;
@@ -108,7 +109,7 @@ const getRoleBadgeVariant = (
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center space-x-2">
               <div className="bg-primary text-primary-foreground p-2 rounded-lg">
-                <Car className="w-5 h-5" />
+                <Image src={logo} alt="Logo" className="w-5 h-5" />
               </div>
               <span className="text-xl font-semibold">Sawari</span>
             </div>

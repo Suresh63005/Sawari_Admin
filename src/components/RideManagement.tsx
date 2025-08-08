@@ -729,7 +729,7 @@ if (isLoading.packages || isLoading.subPackages || isLoading.cars || isLoading.b
               <Label>Ride Date and Time <span className="text-red-500">*</span></Label>
               <input
                 type="datetime-local"
-                className="w-full border rounded p-2"
+                className="w-full border rounded p-2 bg-[#FFF8EC]"
                 value={formData.ride_date}
                 onChange={(e) => setFormData((prev) => ({ ...prev, ride_date: e.target.value }))}
                 min={new Date().toISOString().slice(0, 16)}
@@ -741,7 +741,7 @@ if (isLoading.packages || isLoading.subPackages || isLoading.cars || isLoading.b
               <Label>Scheduled Time</Label>
               <input
                 type="datetime-local"
-                className="w-full border rounded p-2"
+                className="w-full border rounded p-2 bg-[#FFF8EC]"
                 value={formData.scheduled_time}
                 onChange={(e) => setFormData((prev) => ({ ...prev, scheduled_time: e.target.value }))}
                 min={new Date().toISOString().slice(0, 16)}
@@ -779,7 +779,7 @@ if (isLoading.packages || isLoading.subPackages || isLoading.cars || isLoading.b
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                className="w-full border rounded p-2"
+                className="w-full border rounded p-2 bg-[#FFF8EC]"
               />
             </div>
           </div>

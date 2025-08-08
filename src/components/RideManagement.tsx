@@ -15,7 +15,7 @@ import apiClient from '@/lib/apiClient';
 import Swal from 'sweetalert2';
 import { debounce } from 'lodash';
 import MapView from './MapView';
-
+import Loader from '@/components/ui/Loader';
 interface Package {
   id: string;
   name: string;
@@ -605,6 +605,11 @@ const Rides: React.FC = () => {
     const config = variants[status as keyof typeof variants] || variants.pending;
     return <Badge variant={config.variant}>{config.text}</Badge>;
   }, []);
+
+ 
+if (isLoading.packages || isLoading.subPackages || isLoading.cars || isLoading.baseFare) {
+  return <Loader />;
+}
 
   const renderModalContent = (isEdit: boolean) => (
     <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">

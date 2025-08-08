@@ -1,3 +1,4 @@
+
 'use client';
 
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -6,6 +7,8 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/apiClient';
 import { User } from '@/components/DashboardLayout';
+import Loader from '@/components/ui/Loader';
+import { Suspense } from 'react';
 
 export default function DashboardRootLayout({
   children
@@ -15,7 +18,7 @@ export default function DashboardRootLayout({
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -52,7 +55,7 @@ const [error, setError] = useState<string | null>(null);
   }, [router]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loader />;
   }
 
   if (!user) {
@@ -71,7 +74,9 @@ const [error, setError] = useState<string | null>(null);
           window.location.href = '/';
         }}
       > 
-        {children}
+        <Suspense fallback={<Loader />}>
+          {children}
+        </Suspense>
       </DashboardLayout>
     </ProtectedRoute>
   );

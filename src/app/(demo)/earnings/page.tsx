@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { EarningsManagement } from '@/components/EarningsManagement';
 import apiClient from '@/lib/apiClient';
 import { Admin } from '@/components/AdminManagement'; // Reusing Admin type for consistency
+import Loader  from '@/components/ui/Loader'; // Assuming you have a Loader component
 
 export default function EarningsManagementPage() {
   const [currentUser, setCurrentUser] = useState<Admin | null>(null);
@@ -44,9 +45,9 @@ export default function EarningsManagementPage() {
     fetchCurrentUser();
   }, [router]);
 
-  // if (loading) {
-  //   return <div>Loading...</div>;
-  // }
+  if (loading) {
+    return <Loader />;
+  }
 
   if (error || !currentUser) {
     return (

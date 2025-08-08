@@ -10,6 +10,7 @@ import { Shield, Download } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from './ui/use-toast';
 import { Admin } from './AdminManagement';
+import Loader from './ui/Loader';
 
 interface Earning {
   id: string;
@@ -187,9 +188,6 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
     );
   }
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
 
   if (error) {
     return (
@@ -212,6 +210,10 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
         return <Badge variant="secondary">Pending</Badge>;
     }
   };
+
+  // if (loading) {
+  //   return <Loader />;
+  // }
 
   return (
     <div className="space-y-6">

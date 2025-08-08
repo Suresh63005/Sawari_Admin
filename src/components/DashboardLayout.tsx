@@ -11,7 +11,8 @@ import {
   Settings, 
   LogOut,
   Menu,
-  X
+  X,
+  Loader
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -90,7 +91,7 @@ const getRoleBadgeVariant = (
   };
 
   if (isAuthenticated === null) {
-    return <div>Loading...</div>;
+    return <Loader />; // or a loading spinner
   }
 
   if (!isAuthenticated) {
@@ -100,7 +101,7 @@ const getRoleBadgeVariant = (
   return (
     <div className="flex h-screen bg-gray-100">
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-card shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
@@ -173,7 +174,7 @@ const getRoleBadgeVariant = (
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
+        <div className="bg-card border-b px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Button
               variant="ghost"
@@ -208,7 +209,7 @@ const getRoleBadgeVariant = (
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-6 bg-[#FFF8EC]">
           {children}
         </div>
       </div>

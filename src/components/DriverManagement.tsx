@@ -14,6 +14,7 @@ import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import  Loader from '@/components/ui/Loader';
 
 interface Driver {
   id: string;
@@ -44,7 +45,8 @@ export default function DriverManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  console.log(loading, "loadingggggggggggggggggggg");
   const [licenseModalOpen, setLicenseModalOpen] = useState(false);
   const [emiratesModalOpen, setEmiratesModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -57,6 +59,8 @@ export default function DriverManagement() {
     reason?: string;
   }>({ open: false, action: '', driverId: '' });
   const [rejectReason, setRejectReason] = useState('');
+
+  
 
   useEffect(() => {
     const fetchDrivers = async () => {
@@ -192,7 +196,9 @@ export default function DriverManagement() {
     setSelectedImage(imageUrl);
     setImageModalOpen(true);
   };
-
+if (loading) {
+    return <Loader />;
+  }
   return (
     <div className="space-y-6">
       <Card>

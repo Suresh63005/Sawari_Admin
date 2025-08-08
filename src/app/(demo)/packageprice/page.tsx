@@ -14,6 +14,7 @@ import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/ui/use-toast';
 import { debounce } from 'lodash';
+import Loader from '@/components/ui/Loader';
 
 interface Package {
   id: string;
@@ -385,6 +386,10 @@ const handleEditPackagePrice = async (pp: PackagePrice) => {
         </div>
       </div>
     );
+  }
+
+if (loading) {
+    return <Loader />;
   }
 
   return (

@@ -13,7 +13,7 @@ import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/components/ui/use-toast';
 import { debounce } from 'lodash';
-
+import Loader from '@/components/ui/Loader'; // Assuming you have a Loader component
 interface Package {
   id: string;
   name: string;
@@ -166,6 +166,9 @@ const Packages: React.FC = () => {
     }
   };
 
+if (loading) {
+    return <Loader />;
+  }
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -178,6 +181,7 @@ const Packages: React.FC = () => {
   }
 
   return (
+    
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center w-1/3">
@@ -252,11 +256,11 @@ const Packages: React.FC = () => {
           <CardTitle>Packages ({packages.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {isSearching && (
+          {/* {isSearching && (
             <div className="flex justify-center items-center mb-4">
               <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-900"></div>
             </div>
-          )}
+          )} */}
           <Table>
             <TableHeader>
               <TableRow>

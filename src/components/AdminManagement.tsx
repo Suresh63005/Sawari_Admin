@@ -17,6 +17,7 @@ import apiClient from '@/lib/apiClient';
 import { DEFAULT_PERMISSIONS, getAdminHierarchy, canCreateAdmin, Role } from './utils/permissions';
 import { useToast } from './ui/use-toast';
 import Loader from '@/components/ui/Loader';
+
 interface Admin {
   id: string;
   name: string;
@@ -33,8 +34,9 @@ interface Admin {
     rides: boolean;
     earnings: boolean;
     support: boolean;
-    notifications: boolean;
+    push_notifications: boolean; // Renamed
     admin_management: boolean;
+    fleet: boolean; // New
   };
 }
 
@@ -560,24 +562,42 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({ currentUser })
                                       />
                                     </div>
                                   ) : null}
-                                  {currentUser.role === 'super_admin' || currentUser.permissions.notifications ? (
-                                    <div className="flex items-center justify-between">
-                                      <div>
-                                        <Label>Notifications</Label>
-                                        <p className="text-sm text-muted-foreground">Send notifications and alerts</p>
-                                      </div>
-                                      <Switch
-                                        checked={selectedAdmin.permissions.notifications}
-                                        onCheckedChange={(checked) => {
-                                          const newPermissions = { ...selectedAdmin.permissions, notifications: checked };
-                                          console.log('Updating notifications permission:', newPermissions); // Debug log
-                                          setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
-                                          handleUpdatePermissions(selectedAdmin.id, newPermissions);
-                                        }}
-                                        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
-                                      />
-                                    </div>
-                                  ) : null}
+                                  {currentUser.role === 'super_admin' || currentUser.permissions.push_notifications ? (
+  <div className="flex items-center justify-between">
+    <div>
+      <Label>Push Notifications</Label> {/* Renamed */}
+      <p className="text-sm text-muted-foreground">Send notifications and alerts</p>
+    </div>
+    <Switch
+      checked={selectedAdmin.permissions.push_notifications} // Renamed
+      onCheckedChange={(checked) => {
+        const newPermissions = { ...selectedAdmin.permissions, push_notifications: checked }; // Renamed
+        console.log('Updating push_notifications permission:', newPermissions); // Debug log
+        setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
+        handleUpdatePermissions(selectedAdmin.id, newPermissions);
+      }}
+      disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+    />
+  </div>
+) : null}
+{currentUser.role === 'super_admin' || currentUser.permissions.fleet ? (
+  <div className="flex items-center justify-between">
+    <div>
+      <Label>Fleet Management</Label>
+      <p className="text-sm text-muted-foreground">Manage cars, packages, subpackages, and pricing</p>
+    </div>
+    <Switch
+      checked={selectedAdmin.permissions.fleet}
+      onCheckedChange={(checked) => {
+        const newPermissions = { ...selectedAdmin.permissions, fleet: checked };
+        console.log('Updating fleet permission:', newPermissions); // Debug log
+        setSelectedAdmin(prev => prev ? { ...prev, permissions: newPermissions } : null);
+        handleUpdatePermissions(selectedAdmin.id, newPermissions);
+      }}
+      disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === 'blocked'}
+    />
+  </div>
+) : null}
                                   {currentUser.role === 'super_admin' || currentUser.permissions.admin_management ? (
                                     <div className="flex items-center justify-between">
                                       <div>

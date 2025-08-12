@@ -32,12 +32,12 @@ export default function EarningsManagementPage() {
             permissions: response.data.permissions,
           });
         } else {
-          router.push('/login');
+          router.push('/');
         }
       } catch (err: any) {
         console.error('Fetch current user error:', err);
         setError(err.response?.data?.message || 'Failed to fetch user data');
-        router.push('/login');
+        router.push('/');
       } finally {
         setLoading(false);
       }
@@ -57,7 +57,7 @@ export default function EarningsManagementPage() {
           <p className="text-gray-700 mt-2">{error || 'User not authenticated'}</p>
           <button
             className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            onClick={() => router.push('/login')}
+            onClick={() => router.push('/')}
           >
             Go to Login
           </button>

@@ -858,7 +858,7 @@ if (isLoading.packages || isLoading.subPackages || isLoading.cars || isLoading.b
                 <p className="text-sm text-muted-foreground">Total Rides</p>
                 <p className="text-2xl font-bold">{rideSummary.totalRides}</p>
               </div>
-              <MapPin className="w-8 h-8 text-blue-500" />
+              <MapPin className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -869,7 +869,7 @@ if (isLoading.packages || isLoading.subPackages || isLoading.cars || isLoading.b
                 <p className="text-sm text-muted-foreground">Ongoing</p>
                 <p className="text-2xl font-bold">{rideSummary.onRoute}</p>
               </div>
-              <Clock className="w-8 h-8 text-green-500" />
+              <Clock className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -880,7 +880,7 @@ if (isLoading.packages || isLoading.subPackages || isLoading.cars || isLoading.b
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-2xl font-bold">{rideSummary.pending}</p>
               </div>
-              <AlertCircle className="w-8 h-8 text-yellow-500" />
+              <AlertCircle className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -891,7 +891,7 @@ if (isLoading.packages || isLoading.subPackages || isLoading.cars || isLoading.b
                 <p className="text-sm text-muted-foreground">Revenue</p>
                 <p className="text-2xl font-bold">AED {rideSummary.totalRevenue.toFixed(2)}</p>
               </div>
-              <DollarSign className="w-8 h-8 text-purple-500" />
+              <DollarSign className="w-8 h-8 text-primaryd" />
             </div>
           </CardContent>
         </Card>

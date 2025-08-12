@@ -110,9 +110,9 @@ const getRoleBadgeVariant = (
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center space-x-2">
               <div className="bg-primary text-primary-foreground p-2 rounded-lg">
-                <Image src={logo} alt="Logo" className="w-5 h-5" />
+                <Image src={logo} alt="Logo" className="w-7 h-7" />
               </div>
-              <span className="text-xl font-semibold">Sawari</span>
+              <span className="text-xl font-semibold text-primary">Sawari</span>
             </div>
             <Button
               variant="ghost"
@@ -124,20 +124,22 @@ const getRoleBadgeVariant = (
             </Button>
           </div>
 
-          <div className="p-4 border-b">
+          <div className="p-4 border-b bg-primary">
             <div className="flex items-center space-x-3">
-              <Avatar>
+             <div className='bg-card rounded-full text-primary'>
+               <Avatar>
                 <AvatarFallback>
                   {user?.name
                     ? user.name.split(' ').map((n: string) => n[0]).join('')
                     : 'U'}
                 </AvatarFallback>
               </Avatar>
+             </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
+                <p className="text-sm font-medium truncate text-card">
                   {user?.name ?? 'Unknown User'}
                 </p>
-                <Badge variant={getRoleBadgeVariant(user?.role ?? '')} className="text-xs">
+                <Badge variant={getRoleBadgeVariant(user?.role ?? '')} className="text-xs bg-card text-primary hover:bg-primary">
                   {getRoleLabel(user?.role ?? '')}
                 </Badge>
               </div>

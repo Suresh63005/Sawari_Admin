@@ -112,73 +112,76 @@ export default function DriverManagement() {
 
   const verifiedBy = 'some-user-id'; // Replace with actual user ID from auth context
 
-  const handleConfirmAction = async () => {
-    const { action, driverId, reason } = confirmDialog;
-    try {
-      if (action === 'license-verify') {
-        await apiClient.post(`/v1/admin/driver/${driverId}/verify-license`, { verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'verified' } : d));
-        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, license_verification_status: 'verified' } : prev));
-        toast({ title: 'Success', description: 'License verified' });
-      } else if (action === 'license-reject') {
-        if (!reason) {
-          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the license' });
-          return;
-        }
-        await apiClient.post(`/v1/admin/driver/${driverId}/reject-license`, { reason, verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'rejected' } : d));
-        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, license_verification_status: 'rejected' } : prev));
-        toast({ title: 'Success', description: 'License rejected' });
-      } else if (action === 'emirates-verify') {
-        await apiClient.post(`/v1/admin/driver/${driverId}/verify-emirates`, { verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'verified' } : d));
-        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, emirates_verification_status: 'verified' } : prev));
-        toast({ title: 'Success', description: 'Emirates ID verified' });
-      } else if (action === 'emirates-reject') {
-        if (!reason) {
-          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the emirates ID' });
-          return;
-        }
-        await apiClient.post(`/v1/admin/driver/${driverId}/reject-emirates`, { reason, verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'rejected' } : d));
-        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, emirates_verification_status: 'rejected' } : prev));
-        toast({ title: 'Success', description: 'Emirates ID rejected' });
-      } else if (action === 'approve') {
-        await apiClient.post(`/v1/admin/driver/${driverId}/approve`, { verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: true, status: 'active' } : d));
-        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, is_approved: true, status: 'active' } : prev));
-        toast({ title: 'Success', description: 'Driver approved' });
-      } else if (action === 'reject') {
-        if (!reason) {
-          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the driver' });
-          return;
-        }
-        await apiClient.post(`/v1/admin/driver/${driverId}/reject`, { reason, verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: false, status: 'inactive' } : d));
-        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, is_approved: false, status: 'inactive' } : prev));
-        toast({ title: 'Success', description: 'Driver rejected' });
-      } else if (action === 'block') {
-        await apiClient.post(`/v1/admin/driver/${driverId}/block`, { verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'blocked' } : d));
-        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, status: 'blocked' } : prev));
-        toast({ title: 'Success', description: 'Driver blocked' });
-      } else if (action === 'unblock') {
-        await apiClient.post(`/v1/admin/driver/${driverId}/unblock`, { verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'active' } : d));
-        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, status: 'active' } : prev));
-        toast({ title: 'Success', description: 'Driver unblocked' });
+ 
+const handleConfirmAction = async (providedReason?: string) => {
+  const { action, driverId } = confirmDialog;
+  const reason = providedReason?.trim(); // Trim for safety
+
+  try {
+    if (action === 'license-verify') {
+      await apiClient.post(`/v1/admin/driver/${driverId}/verify-license`, { verified_by: verifiedBy });
+      setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'verified' } : d));
+      setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, license_verification_status: 'verified' } : prev));
+      toast({ title: 'Success', description: 'License verified' });
+    } else if (action === 'license-reject') {
+      if (!reason) {
+        toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the license' });
+        return;
       }
-    } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.message || `Failed to ${action.split('-')[0]} ${action.includes('license') ? 'license' : action.includes('emirates') ? 'emirates ID' : 'driver'}`,
-      });
-    } finally {
-      setConfirmDialog({ open: false, action: '', driverId: '' });
-      setRejectReason('');
+      await apiClient.post(`/v1/admin/driver/${driverId}/reject-license`, { reason, verified_by: verifiedBy });
+      setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'rejected' } : d));
+      setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, license_verification_status: 'rejected' } : prev));
+      toast({ title: 'Success', description: 'License rejected' });
+    } else if (action === 'emirates-verify') {
+      await apiClient.post(`/v1/admin/driver/${driverId}/verify-emirates`, { verified_by: verifiedBy });
+      setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'verified' } : d));
+      setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, emirates_verification_status: 'verified' } : prev));
+      toast({ title: 'Success', description: 'Emirates ID verified' });
+    } else if (action === 'emirates-reject') {
+      if (!reason) {
+        toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the emirates ID' });
+        return;
+      }
+      await apiClient.post(`/v1/admin/driver/${driverId}/reject-emirates`, { reason, verified_by: verifiedBy });
+      setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'rejected' } : d));
+      setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, emirates_verification_status: 'rejected' } : prev));
+      toast({ title: 'Success', description: 'Emirates ID rejected' });
+    } else if (action === 'approve') {
+      await apiClient.post(`/v1/admin/driver/${driverId}/approve`, { verified_by: verifiedBy });
+      setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: true, status: 'active' } : d));
+      setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, is_approved: true, status: 'active' } : prev));
+      toast({ title: 'Success', description: 'Driver approved' });
+    } else if (action === 'reject') {
+      if (!reason) {
+        toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the driver' });
+        return;
+      }
+      await apiClient.post(`/v1/admin/driver/${driverId}/reject`, { reason, verified_by: verifiedBy });
+      setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: false, status: 'inactive', reason } : d));
+      setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, is_approved: false, status: 'inactive', reason } : prev));
+      toast({ title: 'Success', description: 'Driver rejected' });
+    } else if (action === 'block') {
+      await apiClient.post(`/v1/admin/driver/${driverId}/block`, { verified_by: verifiedBy });
+      setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'blocked' } : d));
+      setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, status: 'blocked' } : prev));
+      toast({ title: 'Success', description: 'Driver blocked' });
+    } else if (action === 'unblock') {
+      await apiClient.post(`/v1/admin/driver/${driverId}/unblock`, { verified_by: verifiedBy });
+      setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'active' } : d));
+      setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, status: 'active' } : prev));
+      toast({ title: 'Success', description: 'Driver unblocked' });
     }
-  };
+  } catch (err: any) {
+    toast({
+      variant: 'destructive',
+      title: 'Error',
+      description: err.response?.data?.message || `Failed to ${action.split('-')[0]} ${action.includes('license') ? 'license' : action.includes('emirates') ? 'emirates ID' : 'driver'}`,
+    });
+  } finally {
+    setConfirmDialog({ open: false, action: '', driverId: '' });
+    setRejectReason('');
+  }
+};
 
   const getStatusBadge = (driver: Driver) => {
     if (!driver.is_approved) return <Badge variant="secondary">Pending</Badge>;
@@ -522,61 +525,58 @@ if (loading) {
 
       {/* Confirmation Dialog */}
       <Dialog open={confirmDialog.open} onOpenChange={() => setConfirmDialog({ open: false, action: '', driverId: '' })}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {confirmDialog.action.includes('verify') ? 'Confirm Verification' : 
-               confirmDialog.action.includes('reject') ? 'Confirm Rejection' : 
-               confirmDialog.action === 'approve' ? 'Confirm Approval' : 
-               confirmDialog.action === 'block' ? 'Confirm Block' : 'Confirm Unblock'}
-            </DialogTitle>
-            <DialogDescription>
-              {confirmDialog.action.includes('verify')
-                ? `Are you sure you want to verify the ${confirmDialog.action.includes('license') ? 'license' : 'emirates ID'}?`
-                : confirmDialog.action.includes('reject')
-                ? `Please provide a reason for rejecting the ${confirmDialog.action.includes('license') ? 'license' : 'emirates ID'}.`
-                : confirmDialog.action === 'approve'
-                ? 'Are you sure you want to approve this driver?'
-                : confirmDialog.action === 'block'
-                ? 'Are you sure you want to block this driver?'
-                : 'Are you sure you want to unblock this driver?'}
-            </DialogDescription>
-          </DialogHeader>
-          {confirmDialog.action.includes('reject') && (
-            <div className="space-y-2">
-              <Label htmlFor="reject-reason">Rejection Reason</Label>
-              <Textarea
-                id="reject-reason"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Enter reason for rejection"
-                className="w-full"
-              />
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDialog({ open: false, action: '', driverId: '' })}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant={confirmDialog.action.includes('verify') || confirmDialog.action === 'approve' || confirmDialog.action === 'unblock' ? 'default' : 'destructive'}
-              onClick={() => {
-                setConfirmDialog(prev => ({ ...prev, reason: rejectReason }));
-                handleConfirmAction();
-              }}
-              disabled={confirmDialog.action.includes('reject') && !rejectReason}
-            >
-              {confirmDialog.action.includes('verify') ? 'Verify' : 
-               confirmDialog.action.includes('reject') ? 'Reject' : 
-               confirmDialog.action === 'approve' ? 'Approve' : 
-               confirmDialog.action === 'block' ? 'Block' : 'Unblock'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>
+        {confirmDialog.action.includes('verify') ? 'Confirm Verification' : 
+         confirmDialog.action.includes('reject') ? 'Confirm Rejection' : 
+         confirmDialog.action === 'approve' ? 'Confirm Approval' : 
+         confirmDialog.action === 'block' ? 'Confirm Block' : 'Confirm Unblock'}
+      </DialogTitle>
+      <DialogDescription>
+        {confirmDialog.action.includes('verify')
+          ? `Are you sure you want to verify the ${confirmDialog.action.includes('license') ? 'license' : 'emirates ID'}?`
+          : confirmDialog.action.includes('reject')
+          ? `Please provide a reason for rejecting the ${confirmDialog.action.includes('license') ? 'license' : confirmDialog.action.includes('emirates') ? 'emirates ID' : 'driver'}.`
+          : confirmDialog.action === 'approve'
+          ? 'Are you sure you want to approve this driver?'
+          : confirmDialog.action === 'block'
+          ? 'Are you sure you want to block this driver?'
+          : 'Are you sure you want to unblock this driver?'}
+      </DialogDescription>
+    </DialogHeader>
+    {confirmDialog.action.includes('reject') && (
+      <div className="space-y-2">
+        <Label htmlFor="reject-reason">Rejection Reason</Label>
+        <Textarea
+          id="reject-reason"
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          placeholder="Enter reason for rejection"
+          className="w-full"
+        />
+      </div>
+    )}
+    <DialogFooter>
+      <Button
+        variant="outline"
+        onClick={() => setConfirmDialog({ open: false, action: '', driverId: '' })}
+      >
+        Cancel
+      </Button>
+      <Button
+        variant={confirmDialog.action.includes('verify') || confirmDialog.action === 'approve' || confirmDialog.action === 'unblock' ? 'default' : 'destructive'}
+        onClick={() => handleConfirmAction(rejectReason)} // Pass rejectReason directly
+        disabled={confirmDialog.action.includes('reject') && !rejectReason}
+      >
+        {confirmDialog.action.includes('verify') ? 'Verify' : 
+         confirmDialog.action.includes('reject') ? 'Reject' : 
+         confirmDialog.action === 'approve' ? 'Approve' : 
+         confirmDialog.action === 'block' ? 'Block' : 'Unblock'}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
       {/* Image Modal */}
       <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>

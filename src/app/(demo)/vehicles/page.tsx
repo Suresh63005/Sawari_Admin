@@ -101,63 +101,65 @@ export default function VehicleApproval() {
 
   const verifiedBy = 'some-user-id'; // Replace with actual user ID from auth context
 
-  const handleConfirmAction = async () => {
-    const { action, vehicleId, reason } = confirmDialog;
-    try {
-      if (action === 'rc-verify') {
-        await apiClient.post(`/v1/admin/vehicles/${vehicleId}/verify-rc`, { verified_by: verifiedBy });
-        setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, rc_doc_status: 'verified' } : v));
-        setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, rc_doc_status: 'verified' } : prev));
-        toast({ title: 'Success', description: 'RC document verified' });
-      } else if (action === 'rc-reject') {
-        if (!reason) {
-          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the RC document' });
-          return;
-        }
-        await apiClient.post(`/v1/admin/vehicles/${vehicleId}/reject-rc`, { reason, verified_by: verifiedBy });
-        setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, rc_doc_status: 'rejected' } : v));
-        setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, rc_doc_status: 'rejected' } : prev));
-        toast({ title: 'Success', description: 'RC document rejected' });
-      } else if (action === 'insurance-verify') {
-        await apiClient.post(`/v1/admin/vehicles/${vehicleId}/verify-insurance`, { verified_by: verifiedBy });
-        setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, insurance_doc_status: 'verified' } : v));
-        setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, insurance_doc_status: 'verified' } : prev));
-        toast({ title: 'Success', description: 'Insurance document verified' });
-      } else if (action === 'insurance-reject') {
-        if (!reason) {
-          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the insurance document' });
-          return;
-        }
-        await apiClient.post(`/v1/admin/vehicles/${vehicleId}/reject-insurance`, { reason, verified_by: verifiedBy });
-        setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, insurance_doc_status: 'rejected' } : v));
-        setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, insurance_doc_status: 'rejected' } : prev));
-        toast({ title: 'Success', description: 'Insurance document rejected' });
-      } else if (action === 'approve') {
-        await apiClient.post(`/v1/admin/vehicles/${vehicleId}/approve`, { verified_by: verifiedBy });
-        setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, is_approved: true, status: 'active' } : v));
-        setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, is_approved: true, status: 'active' } : prev));
-        toast({ title: 'Success', description: 'Vehicle approved' });
-      } else if (action === 'reject') {
-        if (!reason) {
-          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the vehicle' });
-          return;
-        }
-        await apiClient.post(`/v1/admin/vehicles/${vehicleId}/reject`, { reason, verified_by: verifiedBy });
-        setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, is_approved: false, status: 'rejected' } : v));
-        setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, is_approved: false, status: 'rejected' } : prev));
-        toast({ title: 'Success', description: 'Vehicle rejected' });
+  const handleConfirmAction = async (providedReason?: string) => {
+  const { action, vehicleId } = confirmDialog; // No need for stateReason
+  const reason = providedReason?.trim(); // Use provided, trim for safety
+
+  try {
+    if (action === 'rc-verify') {
+      await apiClient.post(`/v1/admin/vehicles/${vehicleId}/verify-rc`, { verified_by: verifiedBy });
+      setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, rc_doc_status: 'verified' } : v));
+      setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, rc_doc_status: 'verified' } : prev));
+      toast({ title: 'Success', description: 'RC document verified' });
+    } else if (action === 'rc-reject') {
+      if (!reason) {
+        toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the RC document' });
+        return;
       }
-    } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.message || `Failed to ${action.split('-')[0]} ${action.includes('rc') ? 'RC document' : action.includes('insurance') ? 'insurance document' : 'vehicle'}`,
-      });
-    } finally {
-      setConfirmDialog({ open: false, action: '', vehicleId: '' });
-      setRejectReason('');
+      await apiClient.post(`/v1/admin/vehicles/${vehicleId}/reject-rc`, { reason, verified_by: verifiedBy });
+      setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, rc_doc_status: 'rejected' } : v));
+      setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, rc_doc_status: 'rejected' } : prev));
+      toast({ title: 'Success', description: 'RC document rejected' });
+    } else if (action === 'insurance-verify') {
+      await apiClient.post(`/v1/admin/vehicles/${vehicleId}/verify-insurance`, { verified_by: verifiedBy });
+      setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, insurance_doc_status: 'verified' } : v));
+      setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, insurance_doc_status: 'verified' } : prev));
+      toast({ title: 'Success', description: 'Insurance document verified' });
+    } else if (action === 'insurance-reject') {
+      if (!reason) {
+        toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the insurance document' });
+        return;
+      }
+      await apiClient.post(`/v1/admin/vehicles/${vehicleId}/reject-insurance`, { reason, verified_by: verifiedBy });
+      setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, insurance_doc_status: 'rejected' } : v));
+      setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, insurance_doc_status: 'rejected' } : prev));
+      toast({ title: 'Success', description: 'Insurance document rejected' });
+    } else if (action === 'approve') {
+      await apiClient.post(`/v1/admin/vehicles/${vehicleId}/approve`, { verified_by: verifiedBy });
+      setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, is_approved: true, status: 'active' } : v));
+      setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, is_approved: true, status: 'active' } : prev));
+      toast({ title: 'Success', description: 'Vehicle approved' });
+    } else if (action === 'reject') {
+      if (!reason) {
+        toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the vehicle' });
+        return;
+      }
+      await apiClient.post(`/v1/admin/vehicles/${vehicleId}/reject`, { reason, verified_by: verifiedBy });
+      setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, is_approved: false, status: 'rejected' } : v));
+      setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, is_approved: false, status: 'rejected' } : prev));
+      toast({ title: 'Success', description: 'Vehicle rejected' });
     }
-  };
+  } catch (err: any) {
+    toast({
+      variant: 'destructive',
+      title: 'Error',
+      description: err.response?.data?.message || `Failed to ${action.split('-')[0]} ${action.includes('rc') ? 'RC document' : action.includes('insurance') ? 'insurance document' : 'vehicle'}`,
+    });
+  } finally {
+    setConfirmDialog({ open: false, action: '', vehicleId: '' });
+    setRejectReason('');
+  }
+};
 
   const getStatusBadge = (vehicle: Vehicle) => {
     if (!vehicle.is_approved) return <Badge variant="secondary">Pending</Badge>;
@@ -476,17 +478,14 @@ export default function VehicleApproval() {
               Cancel
             </Button>
             <Button
-              variant={confirmDialog.action.includes('verify') || confirmDialog.action === 'approve' ? 'default' : 'destructive'}
-              onClick={() => {
-                setConfirmDialog(prev => ({ ...prev, reason: rejectReason }));
-                handleConfirmAction();
-              }}
-              disabled={confirmDialog.action.includes('reject') && !rejectReason}
-            >
-              {confirmDialog.action.includes('verify') ? 'Verify' : 
-               confirmDialog.action.includes('reject') ? 'Reject' : 
-               confirmDialog.action === 'approve' ? 'Approve' : 'Reject'}
-            </Button>
+  variant={confirmDialog.action.includes('verify') || confirmDialog.action === 'approve' ? 'default' : 'destructive'}
+  onClick={() => handleConfirmAction(rejectReason)} // Pass rejectReason directly
+  disabled={confirmDialog.action.includes('reject') && !rejectReason}
+>
+  {confirmDialog.action.includes('verify') ? 'Verify' : 
+   confirmDialog.action.includes('reject') ? 'Reject' : 
+   confirmDialog.action === 'approve' ? 'Approve' : 'Reject'}
+</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

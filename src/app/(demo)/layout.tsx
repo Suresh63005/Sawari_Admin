@@ -79,7 +79,7 @@ export default function DashboardRootLayout({
           status: error.response?.status,
         }); // Detailed error log
         setError(error.response?.data?.message || 'Failed to fetch user data. Please try again.');
-        router.push('/login');
+        router.push('/');
       } finally {
         setLoading(false);
       }
@@ -93,7 +93,7 @@ export default function DashboardRootLayout({
 
   if (error || !user) {
     console.log('Error or no user data:', { error, user }); // Debug log
-    router.push('/login');
+    router.push('/');
     return null;
   }
 

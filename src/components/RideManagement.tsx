@@ -16,6 +16,7 @@ import Swal from 'sweetalert2';
 import { debounce } from 'lodash';
 import MapView from './MapView';
 import Loader from '@/components/ui/Loader';
+import { DebouncedFunc } from 'lodash';
 interface Package {
   id: string;
   name: string;
@@ -148,6 +149,10 @@ const Rides: React.FC = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errors, setErrors] = useState<Partial<FormData>>({});
+const [currentPage, setCurrentPage] = useState(1);
+const [itemsPerPage, setItemsPerPage] = useState(5);
+const [totalItems, setTotalItems] = useState(0);
+
 
   // Check if selected sub-package is 1-hour
   const isOneHourSubPackage = useMemo(() => {
@@ -292,56 +297,66 @@ const Rides: React.FC = () => {
     }
   }, [formData.subpackage_id, formData.package_id, formData.car_id, formData.rider_hours, isOneHourSubPackage, isEditModalOpen]);
 
-  const debouncedFetchRides = useMemo(
-    () =>
-      debounce(async (search: string, status: string) => {
-        try {
-          console.log('Fetching rides with search:', search, 'status:', status);
-          const url =
-            status === 'all' || status === ''
-              ? `/v1/admin/ride/all?search=${encodeURIComponent(search)}`
-              : `/v1/admin/ride/all?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`;
-          const response = await apiClient.get(url);
-          console.log('Rides response:', response.data);
-          const data = response.data.data || { rides: [], counts: {} };
-          setRides(data.rides || []);
-          setRideSummary({
-            totalRides: data.counts.totalRides || 0,
-            pending: data.counts.pending || 0,
-            accepted: data.counts.accepted || 0,
-            onRoute: data.counts.onRoute || 0,
-            completed: data.counts.completed || 0,
-            cancelled: data.counts.cancelled || 0,
-            totalRevenue: data.counts.totalRevenue || 0,
-          });
-        } catch (error: unknown) {
-          const err = error as { response?: { data?: { error?: string } } };
-          console.error('Fetch rides error:', err);
-          
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: err.response?.data?.error || 'Failed to fetch rides',
-          });
-          setRides([]);
-          setRideSummary({
-            totalRides: 0,
-            pending: 0,
-            accepted: 0,
-            onRoute: 0,
-            completed: 0,
-            cancelled: 0,
-            totalRevenue: 0,
-          });
-        }
-      }, 500),
-    []
-  );
+ const debouncedFetchRides: DebouncedFunc<(search: string, status: string, page: number, limit: number) => Promise<void>> = useMemo(
+  () =>
+    debounce(async (search: string, status: string, page: number, limit: number) => {
+      try {
+        console.log('Fetching rides with search:', search, 'status:', status, 'page:', page, 'limit:', limit);
+        const url =
+          status === 'all' || status === ''
+            ? `/v1/admin/ride/all?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`
+            : `/v1/admin/ride/all?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}&page=${page}&limit=${limit}`;
+        const response = await apiClient.get(url);
+        console.log('Rides response:', response.data);
+        const data = response.data.data || { rides: [], counts: {} };
+        setRides(data.rides || []);
+        setTotalItems(data.counts.totalRides || 0);
+        setRideSummary({
+          totalRides: data.counts.totalRides || 0,
+          pending: data.counts.pending || 0,
+          accepted: data.counts.accepted || 0,
+          onRoute: data.counts.onRoute || 0,
+          completed: data.counts.completed || 0,
+          cancelled: data.counts.cancelled || 0,
+          totalRevenue: data.counts.totalRevenue || 0,
+        });
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { error?: string } } };
+        console.error('Fetch rides error:', err);
+        
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.response?.data?.error || 'Failed to fetch rides',
+        });
+        setRides([]);
+        setTotalItems(0);
+        setRideSummary({
+          totalRides: 0,
+          pending: 0,
+          accepted: 0,
+          onRoute: 0,
+          completed: 0,
+          cancelled: 0,
+          totalRevenue: 0,
+        });
+      }
+    }, 500),
+  []
+);
 
-  useEffect(() => {
-    debouncedFetchRides(searchTerm, statusFilter);
-    return () => debouncedFetchRides.cancel();
-  }, [searchTerm, statusFilter, debouncedFetchRides]);
+ useEffect(() => {
+  debouncedFetchRides(searchTerm, statusFilter, currentPage, itemsPerPage);
+  return () => debouncedFetchRides.cancel();
+}, [searchTerm, statusFilter, currentPage, itemsPerPage, debouncedFetchRides]);
+
+// Pagination calculations
+const totalPages = Math.ceil(totalItems / itemsPerPage);
+const paginate = (pageNumber: number) => {
+  if (pageNumber >= 1 && pageNumber <= totalPages) {
+    setCurrentPage(pageNumber);
+  }
+};
 
   const handleCreateModalOpenChange = useCallback((open: boolean) => {
     setIsCreateModalOpen(open);
@@ -459,7 +474,7 @@ const Rides: React.FC = () => {
       });
       console.log('Ride created:', response.data);
       handleCreateModalOpenChange(false);
-      debouncedFetchRides(searchTerm, statusFilter);
+      debouncedFetchRides(searchTerm, statusFilter, currentPage, itemsPerPage);
       
       Swal.fire({
         icon: 'success',
@@ -527,7 +542,7 @@ const Rides: React.FC = () => {
       });
       console.log('Ride updated:', response.data);
       handleEditModalOpenChange(false);
-      debouncedFetchRides(searchTerm, statusFilter);
+     debouncedFetchRides(searchTerm, statusFilter, currentPage, itemsPerPage);
       
       Swal.fire({
         icon: 'success',
@@ -573,7 +588,7 @@ const Rides: React.FC = () => {
       try {
         const response = await apiClient.put(`/v1/admin/ride/${rideId}`, { status: 'cancelled' });
         console.log('Ride cancelled:', response.data);
-        debouncedFetchRides(searchTerm, statusFilter);
+        debouncedFetchRides(searchTerm, statusFilter, currentPage, itemsPerPage);
         
         Swal.fire({
           icon: 'success',
@@ -897,31 +912,35 @@ if (isLoading.packages || isLoading.subPackages || isLoading.cars || isLoading.b
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 items-center">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search by customer, location..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              {['all', 'pending', 'accepted', 'on-route', 'completed', 'cancelled'].map((status) => (
-                <Button key={status} variant={statusFilter === status ? 'default' : 'outline'} onClick={() => setStatusFilter(status)}>
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+     <div className="bg-card p-4 rounded-lg border border-primary">
+  <div className="flex items-center space-x-4">
+    <div className="flex-1">
+      <label className="block text-sm font-medium text-primary">Filters</label>
+      <input
+        type="text"
+        placeholder="Search by customer, location..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="mt-1 block w-full p-2 border border-primary rounded-md bg-card"
+      />
+    </div>
+    <div className="flex gap-2">
+      {['all', 'pending', 'accepted', 'on-route', 'completed', 'cancelled'].map((status) => (
+        <Button
+          key={status}
+          variant={statusFilter === status ? 'default' : 'outline'}
+          className={statusFilter === status ? 'bg-primary text-card mt-5' : 'bg-card text-primary mt-5'}
+          onClick={() => {
+            setStatusFilter(status);
+            setCurrentPage(1);
+          }}
+        >
+          {status.charAt(0).toUpperCase() + status.slice(1)}
+        </Button>
+      ))}
+    </div>
+  </div>
+</div>
 
       <Card>
         <CardHeader>
@@ -1140,6 +1159,56 @@ if (isLoading.packages || isLoading.subPackages || isLoading.cars || isLoading.b
               )}
             </TableBody>
           </Table>
+          {!isLoading.packages && !isLoading.subPackages && !isLoading.cars && !isLoading.baseFare && rides.length > 0 && (
+  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+    <div className="mb-2 md:mb-0">
+      <label className="mr-2 text-sm text-primary">Items per page:</label>
+      <select
+        value={itemsPerPage}
+        onChange={(e) => {
+          setItemsPerPage(Number(e.target.value));
+          setCurrentPage(1);
+        }}
+        className="p-2 border border-primary rounded-md bg-card"
+      >
+        <option value={5}>5</option>
+        <option value={10}>10</option>
+        <option value={20}>20</option>
+      </select>
+    </div>
+    <div className="flex space-x-2">
+      <Button
+        onClick={() => paginate(currentPage - 1)}
+        disabled={currentPage === 1}
+        variant="outline"
+        className="text-primary"
+      >
+        Previous
+      </Button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        <Button
+          key={page}
+          onClick={() => paginate(page)}
+          variant={currentPage === page ? 'default' : 'outline'}
+          className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
+        >
+          {page}
+        </Button>
+      ))}
+      <Button
+        onClick={() => paginate(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        variant="outline"
+        className="text-primary"
+      >
+        Next
+      </Button>
+    </div>
+    <span className="text-sm text-primary mt-2 md:mt-0">
+      Page {currentPage} of {totalPages}
+    </span>
+  </div>
+)}
         </CardContent>
       </Card>
 

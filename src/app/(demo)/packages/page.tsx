@@ -25,11 +25,14 @@ interface Package {
 const Packages: React.FC = () => {
   const { toast } = useToast();
   const [packages, setPackages] = useState<Package[]>([]);
-  const [showPackageForm, setShowPackageForm] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+const [showPackageForm, setShowPackageForm] = useState(false);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
+const [searchQuery, setSearchQuery] = useState<string>(''); // For wild search
+const [isSearching, setIsSearching] = useState(false);
+const [currentPage, setCurrentPage] = useState<number>(1); // Pagination: current page
+const [itemsPerPage, setItemsPerPage] = useState<number>(10); // Pagination: items per page
+const [totalItems, setTotalItems] = useState<number>(0); // Pagination: total items
 
   const [newPackage, setNewPackage] = useState({
     id: '',
@@ -39,60 +42,62 @@ const Packages: React.FC = () => {
   });
 
   // Memoize the debounced fetchPackages function
-  const debouncedFetchPackages = useCallback(
-    debounce(async (query: string) => {
-      try {
-        setIsSearching(true);
-        const response = await apiClient.get('/v1/admin/package', {
-          params: { search: query },
-        });
-        setPackages(response.data.result.data);
-      } catch (err: any) {
-        console.error('Fetch packages error:', err);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.error || 'Failed to fetch packages',
-        });
-      } finally {
-        setIsSearching(false);
-      }
-    }, 500),
-    [] // Empty dependency array to prevent recreation
-  );
+ const debouncedFetchPackages = useCallback(
+  debounce(async (query: string, page: number, limit: number) => {
+    try {
+      setIsSearching(true);
+      const response = await apiClient.get('/v1/admin/package', {
+        params: { search: query, page, limit },
+      });
+      setPackages(response.data.result.data);
+      setTotalItems(response.data.result.total); // Set total items from API response
+    } catch (err: any) {
+      console.error('Fetch packages error:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err.response?.data?.error || 'Failed to fetch packages',
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  }, 500),
+  []
+);
 
   // Initial fetch and search updates
   useEffect(() => {
-    const fetchInitialPackages = async () => {
-      try {
-        setLoading(true);
-        const response = await apiClient.get('/v1/admin/package', {
-          params: { search: searchQuery },
-        });
-        setPackages(response.data.result.data);
-      } catch (err: any) {
-        console.error('Fetch packages error:', err);
-        setError(err.response?.data?.error || 'Failed to fetch packages');
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.error || 'Failed to fetch packages',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (loading) {
-      fetchInitialPackages();
-    } else {
-      debouncedFetchPackages(searchQuery);
+  const fetchInitialPackages = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/v1/admin/package', {
+        params: { search: searchQuery, page: currentPage, limit: itemsPerPage },
+      });
+      setPackages(response.data.result.data);
+      setTotalItems(response.data.result.total);
+    } catch (err: any) {
+      console.error('Fetch packages error:', err);
+      setError(err.response?.data?.error || 'Failed to fetch packages');
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err.response?.data?.error || 'Failed to fetch packages',
+      });
+    } finally {
+      setLoading(false);
     }
+  };
 
-    return () => {
-      debouncedFetchPackages.cancel(); // Prevent memory leaks
-    };
-  }, [searchQuery, debouncedFetchPackages, loading]);
+  if (loading) {
+    fetchInitialPackages();
+  } else {
+    debouncedFetchPackages(searchQuery, currentPage, itemsPerPage);
+  }
+
+  return () => {
+    debouncedFetchPackages.cancel(); // Prevent memory leaks
+  };
+}, [searchQuery, currentPage, itemsPerPage, debouncedFetchPackages, loading]);
 
   const handleUpsertPackage = async () => {
     if (!newPackage.name || !newPackage.description) {
@@ -256,63 +261,125 @@ if (loading) {
           <CardTitle>Packages ({packages.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* {isSearching && (
-            <div className="flex justify-center items-center mb-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-900"></div>
-            </div>
-          )} */}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {packages.map((pkg: Package) => (
-                <TableRow key={pkg.id}>
-                  <TableCell>
-                    <div className="font-medium">{pkg.name}</div>
-                  </TableCell>
-                  <TableCell>{pkg.description}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      {getStatusBadge(pkg.status)}
-                      <Switch
-                        checked={pkg.status === 'active'}
-                        onCheckedChange={(checked) => handleStatusSwitch(pkg.id, checked)}
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell>{new Date(pkg.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditPackage(pkg)}
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeletePackage(pkg.id)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-1 text-red-500" />
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
+  {isSearching && (
+    <div className="flex justify-center items-center mb-4">
+      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-900"></div>
+    </div>
+  )}
+  <Table>
+    <TableHeader>
+      <TableRow>
+        <TableHead>Name</TableHead>
+        <TableHead>Description</TableHead>
+        <TableHead>Status</TableHead>
+        <TableHead>Created</TableHead>
+        <TableHead>Actions</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {loading ? (
+        <TableRow>
+          <TableCell colSpan={5} className="text-center">Loading...</TableCell>
+        </TableRow>
+      ) : packages.length === 0 ? (
+        <TableRow>
+          <TableCell colSpan={5} className="text-center">No packages found</TableCell>
+        </TableRow>
+      ) : (
+        packages.map((pkg: Package) => (
+          <TableRow key={pkg.id}>
+            <TableCell>
+              <div className="font-medium">{pkg.name}</div>
+            </TableCell>
+            <TableCell>{pkg.description}</TableCell>
+            <TableCell>
+              <div className="flex items-center space-x-2">
+                {getStatusBadge(pkg.status)}
+                <Switch
+                  checked={pkg.status === 'active'}
+                  onCheckedChange={(checked) => handleStatusSwitch(pkg.id, checked)}
+                />
+              </div>
+            </TableCell>
+            <TableCell>{new Date(pkg.createdAt).toLocaleDateString()}</TableCell>
+            <TableCell>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEditPackage(pkg)}
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeletePackage(pkg.id)}
+                >
+                  <Trash2 className="w-4 h-4 mr-1 text-red-500" />
+                  Delete
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))
+      )}
+    </TableBody>
+  </Table>
+
+  {/* Pagination Controls */}
+  {!loading && totalItems > 0 && (
+    <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+      <div className="mb-2 md:mb-0">
+        <label className="mr-2 text-sm text-primary">Items per page:</label>
+        <select
+          value={itemsPerPage}
+          onChange={(e) => {
+            setItemsPerPage(Number(e.target.value));
+            setCurrentPage(1); // Reset to first page when items per page changes
+          }}
+          className="p-2 border border-primary rounded-md bg-card"
+        >
+          <option value={5}>5</option>
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+        </select>
+      </div>
+      <div className="flex space-x-2">
+        <Button
+          onClick={() => setCurrentPage(currentPage - 1)}
+          disabled={currentPage === 1}
+          variant="outline"
+          className="text-primary"
+        >
+          Previous
+        </Button>
+        {Array.from({ length: Math.ceil(totalItems / itemsPerPage) }, (_, i) => i + 1).map((page) => (
+          <Button
+            key={page}
+            onClick={() => setCurrentPage(page)}
+            variant={currentPage === page ? 'default' : 'outline'}
+            className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
+          >
+            {page}
+          </Button>
+        ))}
+        <Button
+          onClick={() => setCurrentPage(currentPage + 1)}
+          disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
+          variant="outline"
+          className="text-primary"
+        >
+          Next
+        </Button>
+      </div>
+      <span className="text-sm text-primary mt-2 md:mt-0">
+        Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
+      </span>
+    </div>
+  )}
+</CardContent>
       </Card>
     </div>
   );

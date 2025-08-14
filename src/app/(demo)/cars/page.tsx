@@ -32,7 +32,9 @@ const Cars: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+  const [totalItems, setTotalItems] = useState<number>(0);
   const [newCar, setNewCar] = useState({
     id: '',
     brand: '',
@@ -44,37 +46,41 @@ const Cars: React.FC = () => {
 
   // Memoize the debounced fetchCars function
   const debouncedFetchCars = useCallback(
-  debounce(async (query: string) => {
-    try {
-      setIsSearching(true);
-      const response = await apiClient.get('/v1/admin/car', {
-        params: { search: query },
-      });
-      setCars(response.data.result.data || []);
-    } catch (err: any) {
-      console.error('Fetch cars error:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.error || 'Failed to fetch cars',
-      });
-      setCars([]);
-    } finally {
-      setIsSearching(false);
-    }
-  }, 500),
-  [toast] // Add toast to dependencies to avoid stale closures
-);
+    debounce(async (query: string) => {
+      try {
+        setIsSearching(true);
+        const response = await apiClient.get('/v1/admin/car', {
+          params: { search: query, page: currentPage, limit: itemsPerPage },
+        });
+        setCars(response.data.result.data || []);
+        setTotalItems(response.data.result.total || 0);
+      } catch (err: any) {
+        console.error('Fetch cars error:', err);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: err.response?.data?.error || 'Failed to fetch cars',
+        });
+        setCars([]);
+        setTotalItems(0);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500),
+    [toast, currentPage, itemsPerPage] // Add pagination dependencies
+  );
 
   // Initial fetch and search updates
 useEffect(() => {
-  const fetchInitialCars = async () => {
+  // Initial fetch on component mount
+    const fetchInitialCars = async () => {
     try {
       setLoading(true);
       const response = await apiClient.get('/v1/admin/car', {
-        params: { search: searchQuery },
+        params: { search: '', page: currentPage, limit: itemsPerPage },
       });
       setCars(response.data.result.data || []);
+      setTotalItems(response.data.result.total || 0);
     } catch (err: any) {
       console.error('Fetch cars error:', err);
       setError(err.response?.data?.error || 'Failed to fetch cars');
@@ -84,21 +90,51 @@ useEffect(() => {
         description: err.response?.data?.error || 'Failed to fetch cars',
       });
       setCars([]);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    fetchInitialCars();
-  } else {
+  fetchInitialCars();
+
+  // No cleanup needed for initial fetch
+}, []); // Empty dependency array for initial fetch only
+
+useEffect(() => {
+  if (searchQuery.trim() !== '') {
+    // Run debounced search if query has text
     debouncedFetchCars(searchQuery);
+  } else {
+    // Fetch all cars when search is cleared
+    (async () => {
+      try {
+        setIsSearching(true);
+        const response = await apiClient.get('/v1/admin/car', {
+          params: { search: '', page: currentPage, limit: itemsPerPage },
+        });
+        setCars(response.data.result.data || []);
+        setTotalItems(response.data.result.total || 0);
+      } catch (err: any) {
+        console.error('Fetch cars error:', err);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: err.response?.data?.error || 'Failed to fetch cars',
+        });
+        setCars([]);
+        setTotalItems(0);
+      } finally {
+        setIsSearching(false);
+      }
+    })();
   }
 
   return () => {
-    debouncedFetchCars.cancel(); // Ensure proper cleanup
+    debouncedFetchCars.cancel();
   };
-}, [searchQuery, debouncedFetchCars, loading, toast]);
+}, [searchQuery, currentPage, itemsPerPage, debouncedFetchCars]);
+ // Only depends on searchQuery and debouncedFetchCars
 
   const handleUpsertCar = async () => {
     if (!newCar.brand || !newCar.model) {
@@ -351,6 +387,56 @@ useEffect(() => {
               ))}
             </TableBody>
           </Table>
+                    {!loading && totalItems > 0 && (
+            <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+              <div className="mb-2 md:mb-0">
+                <label className="mr-2 text-sm text-primary">Items per page:</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1); // Reset to first page
+                  }}
+                  className="p-2 border border-primary rounded-md bg-card"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  className="text-primary"
+                >
+                  Previous
+                </Button>
+                {Array.from({ length: Math.ceil(totalItems / itemsPerPage) }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
+                  variant="outline"
+                  className="text-primary"
+                >
+                  Next
+                </Button>
+              </div>
+              <span className="text-sm text-primary mt-2 md:mt-0">
+                Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

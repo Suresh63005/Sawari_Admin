@@ -55,6 +55,10 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+const [currentPage, setCurrentPage] = useState<number>(1);
+const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+const [totalItems, setTotalItems] = useState<number>(0);
 
   // Generate month options for the last 12 months
   const getMonthOptions = () => {
@@ -73,14 +77,15 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
     const fetchEarnings = async () => {
       try {
         setLoading(true);
-        const endpoint =
-          selectedMonth === 'all'
-            ? '/v1/admin/earning/get-all-earnings-history'
-            : `/v1/admin/earning/get-all-earnings-history?month=${selectedMonth}`;
-        const response = await apiClient.get(endpoint);
-        console.log('Fetched earnings:', response.data);
-        setEarnings(response.data.data);
-        setSummary(response.data.summary);
+       const endpoint =
+  selectedMonth === 'all'
+    ? `/v1/admin/earning/get-all-earnings-history?search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`
+    : `/v1/admin/earning/get-all-earnings-history?month=${selectedMonth}&search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`;
+const response = await apiClient.get(endpoint);
+console.log('Fetched earnings:', response.data);
+setEarnings(response.data.data);
+setTotalItems(response.data.total || 0);
+setSummary(response.data.summary);
       } catch (err: any) {
         console.error('Fetch earnings error:', err);
         setError(err.response?.data?.message || 'Failed to fetch earnings data');
@@ -94,7 +99,7 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
       }
     };
     fetchEarnings();
-  }, [selectedMonth]);
+  }, [selectedMonth, searchTerm, currentPage, itemsPerPage]);
 
   const downloadCSV = (data: Earning[], filename: string) => {
     const headers = [
@@ -174,7 +179,12 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
       description: 'Earning record downloaded successfully',
     });
   };
-
+const totalPages = Math.ceil(totalItems / itemsPerPage);
+const paginate = (pageNumber: number) => {
+  if (pageNumber >= 1 && pageNumber <= totalPages) {
+    setCurrentPage(pageNumber);
+  }
+};
   // Permission check
   if (!currentUser.permissions?.earnings) {
     return (
@@ -217,30 +227,41 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Earnings & Commissions</h2>
-          <p className="text-muted-foreground">Track revenue and manage payouts</p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select month" />
-            </SelectTrigger>
-            <SelectContent>
-              {getMonthOptions().map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={handleDownloadAll} variant="outline">
-            <Download className="w-4 h-4 mr-2" />
-            Download All
-          </Button>
-        </div>
-      </div>
+      <div className="bg-card p-4 rounded-lg border border-primary">
+  <div className="flex items-center space-x-4">
+    <div className="flex-1">
+      <label className="block text-sm font-medium text-primary">Search</label>
+      <input
+        type="text"
+        placeholder="Search by customer, ride ID..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="mt-1 block w-full p-2 border border-primary rounded-md bg-card"
+      />
+    </div>
+    <div className="flex items-center space-x-4 mt-5">
+      <Select value={selectedMonth} onValueChange={(value) => {
+        setSelectedMonth(value);
+        setCurrentPage(1);
+      }}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Select month" />
+        </SelectTrigger>
+        <SelectContent>
+          {getMonthOptions().map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button onClick={handleDownloadAll} variant="outline">
+        <Download className="w-4 h-4 mr-2" />
+        Download All
+      </Button>
+    </div>
+  </div>
+</div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -294,35 +315,93 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
               </TableRow>
             </TableHeader>
             <TableBody>
-              {earnings.map((earning) => (
-                <TableRow key={earning.id}>
-                  <TableCell>{earning.ride_id.slice(0,8)}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{earning.Ride.customer_name}</p>
-                      <p className="text-sm text-muted-foreground">{earning.Ride.email}</p>
-                      <p className="text-sm text-muted-foreground">{earning.Ride.phone}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{parseFloat(earning.amount).toLocaleString()}</TableCell>
-                  <TableCell>{parseFloat(earning.commission).toLocaleString()}</TableCell>
-                  <TableCell>{earning.percentage}%</TableCell>
-                  <TableCell>{earning.payment_method.replace('_', ' ').toUpperCase()}</TableCell>
-                  <TableCell>{getStatusBadge(earning.status)}</TableCell>
-                  <TableCell>{new Date(earning.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDownloadSingle(earning)}
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {earnings.length === 0 ? (
+  <TableRow>
+    <TableCell colSpan={9} className="text-center">
+      No earnings found
+    </TableCell>
+  </TableRow>
+) : (
+  earnings.map((earning) => (
+    <TableRow key={earning.id}>
+      <TableCell>{earning.ride_id.slice(0,8)}</TableCell>
+      <TableCell>
+        <div>
+          <p className="font-medium">{earning.Ride.customer_name}</p>
+          <p className="text-sm text-muted-foreground">{earning.Ride.email}</p>
+          <p className="text-sm text-muted-foreground">{earning.Ride.phone}</p>
+        </div>
+      </TableCell>
+      <TableCell>{parseFloat(earning.amount).toLocaleString()}</TableCell>
+      <TableCell>{parseFloat(earning.commission).toLocaleString()}</TableCell>
+      <TableCell>{earning.percentage}%</TableCell>
+      <TableCell>{earning.payment_method.replace('_', ' ').toUpperCase()}</TableCell>
+      <TableCell>{getStatusBadge(earning.status)}</TableCell>
+      <TableCell>{new Date(earning.createdAt).toLocaleDateString()}</TableCell>
+      <TableCell>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleDownloadSingle(earning)}
+        >
+          <Download className="w-4 h-4" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  ))
+)}
             </TableBody>
           </Table>
+          {!loading && earnings.length > 0 && (
+  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+    <div className="mb-2 md:mb-0">
+      <label className="mr-2 text-sm text-primary">Items per page:</label>
+      <select
+        value={itemsPerPage}
+        onChange={(e) => {
+          setItemsPerPage(Number(e.target.value));
+          setCurrentPage(1);
+        }}
+        className="p-2 border border-primary rounded-md bg-card"
+      >
+        <option value={5}>5</option>
+        <option value={10}>10</option>
+        <option value={20}>20</option>
+      </select>
+    </div>
+    <div className="flex space-x-2">
+      <Button
+        onClick={() => paginate(currentPage - 1)}
+        disabled={currentPage === 1}
+        variant="outline"
+        className="text-primary"
+      >
+        Previous
+      </Button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        <Button
+          key={page}
+          onClick={() => paginate(page)}
+          variant={currentPage === page ? 'default' : 'outline'}
+          className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
+        >
+          {page}
+        </Button>
+      ))}
+      <Button
+        onClick={() => paginate(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        variant="outline"
+        className="text-primary"
+      >
+        Next
+      </Button>
+    </div>
+    <span className="text-sm text-primary mt-2 md:mt-0">
+      Page {currentPage} of {totalPages}
+    </span>
+  </div>
+)}
         </CardContent>
       </Card>
     </div>

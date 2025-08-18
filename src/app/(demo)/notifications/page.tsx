@@ -21,6 +21,10 @@ export default function Notifications() {
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null); // Track loading state for delete
+  const [searchQuery, setSearchQuery] = useState('');
+const [currentPage, setCurrentPage] = useState(1);
+const [itemsPerPage, setItemsPerPage] = useState(10);
+const [totalItems, setTotalItems] = useState(0);
 
   // Fetch users from /v1/admin/auth/admins endpoint
   useEffect(() => {
@@ -39,17 +43,25 @@ export default function Notifications() {
 
   // Fetch notifications from /v1/admin/notifications/all endpoint
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await apiClient.get("/v1/admin/notifications/all");
-        console.log("Notifications API Response:", response.data.data);
-        setNotifications(response.data.data || []);
-      } catch (error) {
-        console.error("Error fetching notifications:", error);
-      }
-    };
-    fetchNotifications();
-  }, []);
+  const fetchNotifications = async () => {
+    try {
+      const response = await apiClient.get("/v1/admin/notifications/all", {
+        params: {
+          search: searchQuery,
+          page: currentPage,
+          limit: itemsPerPage,
+        },
+      });
+      setNotifications(response.data.data || []);
+      setTotalItems(response.data.pagination?.total || 0);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
+  fetchNotifications();
+}, [searchQuery, currentPage, itemsPerPage]);
+
 
   const handleUserSelect = (id: string) => {
     setSelectedUserIds((prev) =>
@@ -290,11 +302,20 @@ export default function Notifications() {
           </CardContent>
         </Card>
       </div>
-
+      <Input
+  placeholder="Search notifications..."
+  value={searchQuery}
+  onChange={(e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1);// reset to page 1 when searching
+  }}
+  className="w-[300px]"
+/>
       <Card>
         <CardHeader>
           <CardTitle>Notifications</CardTitle>
         </CardHeader>
+        
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
@@ -349,9 +370,37 @@ export default function Notifications() {
               </TableBody>
             </Table>
           </div>
-          <div className="text-sm text-gray-500 mt-2">
-            Showing {notifications.length} of {notifications.length} rows
-          </div>
+          <div className="mt-4 flex justify-between items-center">
+  <div>
+    <label>Items per page:</label>
+    <select
+      value={itemsPerPage}
+      onChange={(e) => {
+        setItemsPerPage(Number(e.target.value));
+        setCurrentPage(1);
+      }}
+    >
+      <option value={5}>5</option>
+      <option value={10}>10</option>
+      <option value={20}>20</option>
+    </select>
+  </div>
+  <div>
+    <Button
+      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+      disabled={currentPage === 1}
+    >
+      Previous
+    </Button>
+    <span> Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)} </span>
+    <Button
+      onClick={() => setCurrentPage((p) => Math.min(Math.ceil(totalItems / itemsPerPage), p + 1))}
+      disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
+    >
+      Next
+    </Button>
+  </div>
+</div>
         </CardContent>
       </Card>
     </div>

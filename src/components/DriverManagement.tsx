@@ -26,7 +26,7 @@ interface Driver {
   dob: string;
   experience: number;
   languages: string[];
-  status: 'active' | 'inactive' | 'blocked';
+  status: 'active' | 'inactive' | 'blocked' | 'rejected';
   is_approved: boolean;
   rating: number;
   ride_count: number;
@@ -202,11 +202,14 @@ export default function DriverManagement() {
     }
   };
 
-  const getStatusBadge = (driver: Driver) => {
-    if (!driver.is_approved) return <Badge variant="secondary">Pending</Badge>;
-    if (driver.status === 'blocked') return <Badge variant="destructive">Blocked</Badge>;
-    return <Badge variant="default">Active</Badge>;
-  };
+const getStatusBadge = (driver: Driver) => {
+  if (driver.status === 'rejected') return <Badge variant="destructive">Rejected</Badge>;
+  if (driver.status === 'blocked') return <Badge variant="destructive">Blocked</Badge>;
+  if (driver.status === 'inactive' && !driver.is_approved) return <Badge variant="secondary">Pending</Badge>;
+  if (driver.status === 'inactive' && driver.is_approved) return <Badge variant="outline">Inactive</Badge>;
+  if (driver.status === 'active') return <Badge variant="default">Active</Badge>;
+  return <Badge variant="outline">{driver.status}</Badge>; // fallback
+};
 
   const getDocStatusBadge = (status: 'pending' | 'verified' | 'rejected' | undefined) => {
     if (!status || status === 'pending') return <Badge variant="secondary">Pending</Badge>;

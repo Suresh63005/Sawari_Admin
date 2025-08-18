@@ -64,7 +64,9 @@ const PackagePrices: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-
+const [currentPage, setCurrentPage] = useState<number>(1);
+const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+const [totalItems, setTotalItems] = useState<number>(0);
   const [newPackagePrice, setNewPackagePrice] = useState<NewPackagePrice>({
     id: '',
     package_id: '',
@@ -142,55 +144,57 @@ useEffect(() => {
 }, [newPackagePrice.package_id]);
 
   // Memoize the debounced fetchPackagePrices function
-  const debouncedFetchPackagePrices = useCallback(
-    debounce(async (query: string) => {
-      try {
-        console.log('Fetching package prices with search query:', query); // Debug log
-        const response = await apiClient.get('/v1/admin/packageprice', {
-          params: { search: query },
-        });
-        setPackagePrices(response.data.result.data.map(parsePackagePrice)); // Parse base_fare
-      } catch (err: any) {
-        console.error('Fetch package prices error:', err);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.error || 'Failed to fetch package prices',
-        });
-      }
-    }, 500),
-    []
-  );
+ const debouncedFetchPackagePrices = useCallback(
+  debounce(async (query: string, page: number, limit: number) => {
+    try {
+      const response = await apiClient.get('/v1/admin/packageprice', {
+        params: { search: query, page, limit },
+      });
+      setPackagePrices(response.data.result.data.map(parsePackagePrice));
+      setTotalItems(response.data.result.total);
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err.response?.data?.error || 'Failed to fetch package prices',
+      });
+    }
+  }, 500),
+  []
+);
 
-  // Initial fetch and search updates
-  useEffect(() => {
-    const fetchInitialPackagePrices = async () => {
-      try {
-        setLoading(true);
-        const response = await apiClient.get('/v1/admin/packageprice', {
-          params: { search: searchQuery },
-        });
-        setPackagePrices(response.data.result.data.map(parsePackagePrice)); // Parse base_fare
-      } catch (err: any) {
-        console.error('Fetch package prices error:', err);
-        setError(err.response?.data?.error || 'Failed to fetch package prices');
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.error || 'Failed to fetch package prices',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+// Initial fetch
+// Initial load only once
+useEffect(() => {
+  const fetchInitialPackagePrices = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/v1/admin/packageprice', {
+        params: { search: '', page: currentPage, limit: itemsPerPage },
+      });
+      setPackagePrices(response.data.result.data.map(parsePackagePrice));
+      setTotalItems(response.data.result.total);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to fetch package prices');
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err.response?.data?.error || 'Failed to fetch package prices',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchInitialPackagePrices();
-    debouncedFetchPackagePrices(searchQuery);
+  fetchInitialPackagePrices();
+}, []);
 
-    return () => {
-      debouncedFetchPackagePrices.cancel();
-    };
-  }, [searchQuery, debouncedFetchPackagePrices]);
+// Debounced fetch for search + pagination
+useEffect(() => {
+  debouncedFetchPackagePrices(searchQuery, currentPage, itemsPerPage);
+  return () => debouncedFetchPackagePrices.cancel();
+}, [searchQuery, currentPage, itemsPerPage, debouncedFetchPackagePrices]);
+
 
   const handleUpsertPackagePrice = async () => {
     if (!newPackagePrice.package_id || !newPackagePrice.sub_package_id || !newPackagePrice.car_id || !newPackagePrice.base_fare) {
@@ -585,6 +589,58 @@ if (loading) {
     ))}
 </TableBody>
           </Table>
+          {/* Pagination Controls */}
+{!loading && totalItems > 0 && (
+  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+    <div className="mb-2 md:mb-0">
+      <label className="mr-2 text-sm text-primary">Items per page:</label>
+      <select
+        value={itemsPerPage}
+        onChange={(e) => {
+          setItemsPerPage(Number(e.target.value));
+          setCurrentPage(1);
+        }}
+        className="p-2 border border-primary rounded-md bg-card"
+      >
+        <option value={5}>5</option>
+        <option value={10}>10</option>
+        <option value={20}>20</option>
+      </select>
+    </div>
+    <div className="flex space-x-2">
+      <Button
+        onClick={() => setCurrentPage(currentPage - 1)}
+        disabled={currentPage === 1}
+        variant="outline"
+        className="text-primary"
+      >
+        Previous
+      </Button>
+      {Array.from({ length: Math.ceil(totalItems / itemsPerPage) }, (_, i) => i + 1).map((page) => (
+        <Button
+          key={page}
+          onClick={() => setCurrentPage(page)}
+          variant={currentPage === page ? 'default' : 'outline'}
+          className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
+        >
+          {page}
+        </Button>
+      ))}
+      <Button
+        onClick={() => setCurrentPage(currentPage + 1)}
+        disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
+        variant="outline"
+        className="text-primary"
+      >
+        Next
+      </Button>
+    </div>
+    <span className="text-sm text-primary mt-2 md:mt-0">
+      Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
+    </span>
+  </div>
+)}
+
         </CardContent>
       </Card>
     </div>

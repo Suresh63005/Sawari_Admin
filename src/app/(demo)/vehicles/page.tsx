@@ -82,6 +82,7 @@ export default function VehicleApproval() {
     setLoading(true);
     const response = await apiClient.get(`/v1/admin/vehicles?page=${currentPage}&limit=${itemsPerPage}&search=${encodeURIComponent(searchTerm)}&status=${statusFilter}`);
     let data = response.data.data;
+    console.log(response,"Fetched vehicles:"); // Debug log
 
     // Normalize car_photos to ensure it's always an array
     data = data.map((vehicle: any) => ({
@@ -302,12 +303,14 @@ export default function VehicleApproval() {
     }
   };
 
-  const getStatusBadge = (vehicle: Vehicle) => {
-    if (!vehicle.is_approved) return <Badge variant="secondary">Pending</Badge>;
-    if (vehicle.status === "rejected")
-      return <Badge variant="destructive">Rejected</Badge>;
-    return <Badge variant="default">Active</Badge>;
-  };
+const getStatusBadge = (vehicle: Vehicle) => {
+  if (!vehicle.is_approved) return <Badge variant="secondary">Pending</Badge>;
+  if (vehicle.status === "rejected")
+    return <Badge variant="destructive">Rejected</Badge>;
+  if (vehicle.status === "inactive")
+    return <Badge variant="outline">Inactive</Badge>; // you can pick another variant/color
+  return <Badge variant="default">Active</Badge>;
+};
 
   const getDocStatusBadge = (status: "pending" | "verified" | "rejected") => {
     if (status === "pending") return <Badge variant="secondary">Pending</Badge>;

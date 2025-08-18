@@ -235,7 +235,9 @@ useEffect(() => {
       </div>
     );
   }
-
+if(loading) {
+  return <Loader/>
+}
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">

@@ -4,10 +4,17 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import apiClient from "@/lib/apiClient";
-import { Trash2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 import Swal from "sweetalert2";
 
 export default function Notifications() {
@@ -18,13 +25,15 @@ export default function Notifications() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
+  const [selectedNotifications, setSelectedNotifications] = useState<string[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null); // Track loading state for delete
-  const [searchQuery, setSearchQuery] = useState('');
-const [currentPage, setCurrentPage] = useState(1);
-const [itemsPerPage, setItemsPerPage] = useState(10);
-const [totalItems, setTotalItems] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Fetch users from /v1/admin/auth/admins endpoint
   useEffect(() => {
@@ -43,25 +52,24 @@ const [totalItems, setTotalItems] = useState(0);
 
   // Fetch notifications from /v1/admin/notifications/all endpoint
   useEffect(() => {
-  const fetchNotifications = async () => {
-    try {
-      const response = await apiClient.get("/v1/admin/notifications/all", {
-        params: {
-          search: searchQuery,
-          page: currentPage,
-          limit: itemsPerPage,
-        },
-      });
-      setNotifications(response.data.data || []);
-      setTotalItems(response.data.pagination?.total || 0);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    }
-  };
+    const fetchNotifications = async () => {
+      try {
+        const response = await apiClient.get("/v1/admin/notifications/all", {
+          params: {
+            search: searchQuery,
+            page: currentPage,
+            limit: itemsPerPage
+          }
+        });
+        setNotifications(response.data.data || []);
+        setTotalItems(response.data.pagination?.total || 0);
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+      }
+    };
 
-  fetchNotifications();
-}, [searchQuery, currentPage, itemsPerPage]);
-
+    fetchNotifications();
+  }, [searchQuery, currentPage, itemsPerPage]);
 
   const handleUserSelect = (id: string) => {
     setSelectedUserIds((prev) =>
@@ -71,63 +79,67 @@ const [totalItems, setTotalItems] = useState(0);
 
   const handleNotificationSelect = (id: string) => {
     setSelectedNotifications((prev) =>
-      prev.includes(id) ? prev.filter((notifId) => notifId !== id) : [...prev, id]
+      prev.includes(id)
+        ? prev.filter((notifId) => notifId !== id)
+        : [...prev, id]
     );
   };
 
- const handleDeleteNotification = async (id: string) => {
-  const result = await Swal.fire({
-    title: "Are you sure?",
-    text: "You won't be able to revert this!",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#3085d6",
-    confirmButtonText: "Yes, delete it!",
-  });
-
-  if (!result.isConfirmed) return;
-
-  setDeleteLoading(id); // Start loading indicator
-
-  try {
-    console.log("Attempting to delete notification ID:", id);
-    
-    const response = await apiClient.delete(`/v1/admin/notifications/delete/${id}`);
-    
-    console.log("Delete response:", response.data);
-
-    Swal.fire({
-      title: "Deleted!",
-      text: response.data?.message || "Notification deleted successfully.",
-      icon: "success",
-      timer: 2000,
-      showConfirmButton: false,
+  const handleDeleteNotification = async (id: string) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!"
     });
 
-    // Refresh the list
-    const refreshed = await apiClient.get("/v1/admin/notifications/all");
-    setNotifications(refreshed.data.data || []);
-    
-  } catch (error: any) {
-    console.error("Error deleting notification:", error);
+    if (!result.isConfirmed) return;
 
-    const errorMessage =
-      error?.response?.data?.message || error?.message || "Unknown error occurred";
+    setDeleteLoading(id); // Start loading indicator
 
-    Swal.fire({
-      title: "Error!",
-      text: errorMessage,
-      icon: "error",
-      confirmButtonColor: "#dc3545",
-      timer: 2000,
-      showConfirmButton: false,
-    });
-  } finally {
-    setDeleteLoading(null);
-  }
-};
+    try {
+      console.log("Attempting to delete notification ID:", id);
 
+      const response = await apiClient.delete(
+        `/v1/admin/notifications/delete/${id}`
+      );
+
+      console.log("Delete response:", response.data);
+
+      Swal.fire({
+        title: "Deleted!",
+        text: response.data?.message || "Notification deleted successfully.",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false
+      });
+
+      // Refresh the list
+      const refreshed = await apiClient.get("/v1/admin/notifications/all");
+      setNotifications(refreshed.data.data || []);
+    } catch (error: any) {
+      console.error("Error deleting notification:", error);
+
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unknown error occurred";
+
+      Swal.fire({
+        title: "Error!",
+        text: errorMessage,
+        icon: "error",
+        confirmButtonColor: "#dc3545",
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
 
   const handleSendNotification = async () => {
     if (!title || !message) {
@@ -137,7 +149,7 @@ const [totalItems, setTotalItems] = useState(0);
         icon: "error",
         confirmButtonColor: "#dc3545", // Red color for error button
         timer: 2000,
-        showConfirmButton: false,
+        showConfirmButton: false
       });
       return;
     }
@@ -150,18 +162,22 @@ const [totalItems, setTotalItems] = useState(0);
     }
 
     try {
-      const response = await apiClient.post("/v1/admin/notifications/sent", formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const response = await apiClient.post(
+        "/v1/admin/notifications/sent",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "multipart/form-data"
+          }
+        }
+      );
       Swal.fire({
         title: "Success!",
         text: response.data.message,
         icon: "success",
         timer: 2000,
-        showConfirmButton: false,
+        showConfirmButton: false
       });
       setTitle("");
       setMessage("");
@@ -174,32 +190,32 @@ const [totalItems, setTotalItems] = useState(0);
       };
       fetchNotifications();
     } catch (error) {
-  setDeleteLoading(null);
+      setDeleteLoading(null);
 
-  let errorMessage = "Unknown error occurred";
+      let errorMessage = "Unknown error occurred";
 
-  if (error instanceof Error) {
-    // This covers network errors, etc.
-    errorMessage = error.message;
-  }
+      if (error instanceof Error) {
+        // This covers network errors, etc.
+        errorMessage = error.message;
+      }
 
-  // Check for AxiosError with a response
-  if (typeof error === "object" && error !== null && "response" in error) {
-    const axiosError = error as any;
-    errorMessage = axiosError.response?.data?.message || errorMessage;
-  }
+      // Check for AxiosError with a response
+      if (typeof error === "object" && error !== null && "response" in error) {
+        const axiosError = error as any;
+        errorMessage = axiosError.response?.data?.message || errorMessage;
+      }
 
-  console.error("Error deleting notification:", error);
+      console.error("Error deleting notification:", error);
 
-  Swal.fire({
-    title: "Error!",
-    text: errorMessage,
-    icon: "error",
-    confirmButtonColor: "#dc3545",
-    timer: 2000,
-    showConfirmButton: false,
-  });
-}
+      Swal.fire({
+        title: "Error!",
+        text: errorMessage,
+        icon: "error",
+        confirmButtonColor: "#dc3545",
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }
   };
 
   return (
@@ -212,11 +228,17 @@ const [totalItems, setTotalItems] = useState(0);
           <CardContent>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Selected Users</label>
-                <p className="text-sm text-gray-500">{selectedUserIds.length} user(s) selected</p>
+                <label className="block text-sm font-medium text-gray-700">
+                  Selected Users
+                </label>
+                <p className="text-sm text-gray-500">
+                  {selectedUserIds.length} user(s) selected
+                </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Title</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Title
+                </label>
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -225,7 +247,9 @@ const [totalItems, setTotalItems] = useState(0);
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Message</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Message
+                </label>
                 <Input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -246,15 +270,22 @@ const [totalItems, setTotalItems] = useState(0);
               </div>
               {includeImage && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Upload Image</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Upload Image
+                  </label>
                   <Input
                     type="file"
-                    onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
+                    onChange={(e) =>
+                      setImageFile(e.target.files ? e.target.files[0] : null)
+                    }
                     className="mt-1"
                   />
                 </div>
               )}
-              <Button onClick={handleSendNotification} className="bg-black text-white hover:bg-gray-800 w-full">
+              <Button
+                onClick={handleSendNotification}
+                className="bg-black text-white hover:bg-gray-800 w-full"
+              >
                 Send
               </Button>
             </div>
@@ -302,26 +333,29 @@ const [totalItems, setTotalItems] = useState(0);
           </CardContent>
         </Card>
       </div>
-      <Input
-  placeholder="Search notifications..."
-  value={searchQuery}
-  onChange={(e) => {
-    setSearchQuery(e.target.value);
-    setCurrentPage(1);// reset to page 1 when searching
-  }}
-  className="w-[300px]"
-/>
+      <div className="relative w-fit">
+        <Input
+          placeholder="Search notifications..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(1); // reset to page 1 when searching
+          }}
+          className="w-[300px]"
+        />
+        <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Notifications</CardTitle>
         </CardHeader>
-        
+
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead></TableHead>
+                  {/* <TableHead></TableHead> */}
                   <TableHead>Title</TableHead>
                   <TableHead>Message</TableHead>
                   <TableHead>Image</TableHead>
@@ -332,14 +366,18 @@ const [totalItems, setTotalItems] = useState(0);
               <TableBody>
                 {notifications.map((notification) => (
                   <TableRow key={notification.id}>
-                    <TableCell>
+                    {/* <TableCell>
                       <input
                         type="checkbox"
-                        checked={selectedNotifications.includes(notification.id)}
-                        onChange={() => handleNotificationSelect(notification.id)}
+                        checked={selectedNotifications.includes(
+                          notification.id
+                        )}
+                        onChange={() =>
+                          handleNotificationSelect(notification.id)
+                        }
                         className="mr-2"
                       />
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell>{notification.title}</TableCell>
                     <TableCell>{notification.message}</TableCell>
                     <TableCell>
@@ -358,8 +396,14 @@ const [totalItems, setTotalItems] = useState(0);
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleDeleteNotification(notification.id)}
-                        className={`bg-red-600 hover:bg-red-700 p-1 ${deleteLoading === notification.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                        onClick={() =>
+                          handleDeleteNotification(notification.id)
+                        }
+                        className={`  p-1 ${
+                          deleteLoading === notification.id
+                            ? "opacity-100 cursor-not-allowed"
+                            : ""
+                        }`}
                         disabled={deleteLoading === notification.id}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -371,36 +415,43 @@ const [totalItems, setTotalItems] = useState(0);
             </Table>
           </div>
           <div className="mt-4 flex justify-between items-center">
-  <div>
-    <label>Items per page:</label>
-    <select
-      value={itemsPerPage}
-      onChange={(e) => {
-        setItemsPerPage(Number(e.target.value));
-        setCurrentPage(1);
-      }}
-    >
-      <option value={5}>5</option>
-      <option value={10}>10</option>
-      <option value={20}>20</option>
-    </select>
-  </div>
-  <div>
-    <Button
-      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-      disabled={currentPage === 1}
-    >
-      Previous
-    </Button>
-    <span> Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)} </span>
-    <Button
-      onClick={() => setCurrentPage((p) => Math.min(Math.ceil(totalItems / itemsPerPage), p + 1))}
-      disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
-    >
-      Next
-    </Button>
-  </div>
-</div>
+            <div>
+              <label>Items per page:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+              </select>
+            </div>
+            <div>
+              <Button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span>
+                {" "}
+                Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}{" "}
+              </span>
+              <Button
+                onClick={() =>
+                  setCurrentPage((p) =>
+                    Math.min(Math.ceil(totalItems / itemsPerPage), p + 1)
+                  )
+                }
+                disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -7,12 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
-import { useToast } from '@/components/ui/use-toast';
+import toast from 'react-hot-toast';
 import { debounce } from 'lodash';
 import Loader from '@/components/ui/Loader';
 
@@ -54,19 +54,20 @@ interface NewPackagePrice {
 }
 
 const PackagePrices: React.FC = () => {
-  const { toast } = useToast();
   const [packagePrices, setPackagePrices] = useState<PackagePrice[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [subPackages, setSubPackages] = useState<SubPackage[]>([]); // For dropdown
   const [allSubPackages, setAllSubPackages] = useState<SubPackage[]>([]); // For table display
   const [cars, setCars] = useState<Car[]>([]);
   const [showPackagePriceForm, setShowPackagePriceForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePackagePriceId, setDeletePackagePriceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-const [currentPage, setCurrentPage] = useState<number>(1);
-const [itemsPerPage, setItemsPerPage] = useState<number>(10);
-const [totalItems, setTotalItems] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [totalItems, setTotalItems] = useState<number>(0);
   const [newPackagePrice, setNewPackagePrice] = useState<NewPackagePrice>({
     id: '',
     package_id: '',
@@ -94,19 +95,20 @@ const [totalItems, setTotalItems] = useState<number>(0);
     const fetchDropdownData = async () => {
       try {
         const [packagesResponse, carsResponse, subPackagesResponse] = await Promise.all([
-          apiClient.get('/v1/admin/package'),
-          apiClient.get('/v1/admin/car'),
-          apiClient.get('/v1/admin/sub-package'),
+          apiClient.get('/v1/admin/package/active'),
+          apiClient.get('/v1/admin/car/list'),
+          apiClient.get('/v1/admin/sub-package/active'),
         ]);
-        setPackages(packagesResponse.data.result.data);
-        setCars(carsResponse.data.result.data);
-        setAllSubPackages(subPackagesResponse.data.result.data);
+        setPackages(packagesResponse.data);
+        setCars(carsResponse.data);
+        setAllSubPackages(subPackagesResponse.data);
       } catch (err: any) {
         console.error('Fetch dropdown data error:', err);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.error || 'Failed to fetch dropdown data',
+        toast.error(err.response?.data?.error || 'Failed to fetch dropdown data', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
         });
       }
     };
@@ -115,96 +117,106 @@ const [totalItems, setTotalItems] = useState<number>(0);
   }, []);
 
   // Fetch sub-packages for dropdown when package_id changes
-// Fetch sub-packages for dropdown when package_id changes
-useEffect(() => {
-  const fetchSubPackages = async () => {
-    if (newPackagePrice.package_id) {
-      console.log('Fetching sub-packages for package_id:', newPackagePrice.package_id); // Debug log
-      try {
-        const response = await apiClient.get(`/v1/admin/packageprice/sub-packages/${newPackagePrice.package_id}`);
-        console.log('Sub-packages response:', response.data.result.data); // Debug log
-        setSubPackages(response.data.result.data);
-      } catch (err: any) {
-        console.error('Fetch sub-packages error:', err);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.error || 'Failed to fetch sub-packages',
-        });
+  useEffect(() => {
+    const fetchSubPackages = async () => {
+      if (newPackagePrice.package_id) {
+        console.log('Fetching sub-packages for package_id:', newPackagePrice.package_id); // Debug log
+        try {
+          const response = await apiClient.get(`/v1/admin/packageprice/sub-packages/${newPackagePrice.package_id}`);
+          console.log('Sub-packages response:', response.data.result.data); // Debug log
+          setSubPackages(response.data.result.data);
+        } catch (err: any) {
+          console.error('Fetch sub-packages error:', err);
+          toast.error(err.response?.data?.error || 'Failed to fetch sub-packages', {
+            style: {
+              background: '#622A39',
+              color: 'hsl(42, 51%, 91%)',
+            },
+          });
+          setSubPackages([]);
+        }
+      } else {
+        console.log('No package_id selected, clearing sub-packages'); // Debug log
         setSubPackages([]);
+        setNewPackagePrice((prev) => ({ ...prev, sub_package_id: '' }));
       }
-    } else {
-      console.log('No package_id selected, clearing sub-packages'); // Debug log
-      setSubPackages([]);
-      setNewPackagePrice((prev) => ({ ...prev, sub_package_id: '' }));
-    }
-  };
+    };
 
-  fetchSubPackages();
-}, [newPackagePrice.package_id]);
+    fetchSubPackages();
+  }, [newPackagePrice.package_id]);
 
   // Memoize the debounced fetchPackagePrices function
- const debouncedFetchPackagePrices = useCallback(
-  debounce(async (query: string, page: number, limit: number) => {
-    try {
-      const response = await apiClient.get('/v1/admin/packageprice', {
-        params: { search: query, page, limit },
-      });
-      setPackagePrices(response.data.result.data.map(parsePackagePrice));
-      setTotalItems(response.data.result.total);
-    } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.error || 'Failed to fetch package prices',
-      });
-    }
-  }, 500),
-  []
-);
+  const debouncedFetchPackagePrices = useCallback(
+    debounce(async (query: string, page: number, limit: number) => {
+      try {
+        const response = await apiClient.get('/v1/admin/packageprice', {
+          params: { search: query, page, limit },
+        });
+        setPackagePrices(response.data.result.data.map(parsePackagePrice));
+        setTotalItems(response.data.result.total);
+      } catch (err: any) {
+        toast.error(err.response?.data?.error || 'Failed to fetch package prices', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
+      }
+    }, 500),
+    []
+  );
 
-// Initial fetch
-// Initial load only once
-useEffect(() => {
-  const fetchInitialPackagePrices = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get('/v1/admin/packageprice', {
-        params: { search: '', page: currentPage, limit: itemsPerPage },
-      });
-      setPackagePrices(response.data.result.data.map(parsePackagePrice));
-      setTotalItems(response.data.result.total);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch package prices');
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.error || 'Failed to fetch package prices',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Initial fetch
+  useEffect(() => {
+    const fetchInitialPackagePrices = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.get('/v1/admin/packageprice', {
+          params: { search: '', page: currentPage, limit: itemsPerPage },
+        });
+        setPackagePrices(response.data.result.data.map(parsePackagePrice));
+        setTotalItems(response.data.result.total);
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Failed to fetch package prices');
+        toast.error(err.response?.data?.error || 'Failed to fetch package prices', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  fetchInitialPackagePrices();
-}, []);
+    fetchInitialPackagePrices();
+  }, []);
 
-// Debounced fetch for search + pagination
-useEffect(() => {
-  debouncedFetchPackagePrices(searchQuery, currentPage, itemsPerPage);
-  return () => debouncedFetchPackagePrices.cancel();
-}, [searchQuery, currentPage, itemsPerPage, debouncedFetchPackagePrices]);
-
+  // Debounced fetch for search + pagination
+  useEffect(() => {
+    debouncedFetchPackagePrices(searchQuery, currentPage, itemsPerPage);
+    return () => debouncedFetchPackagePrices.cancel();
+  }, [searchQuery, currentPage, itemsPerPage, debouncedFetchPackagePrices]);
 
   const handleUpsertPackagePrice = async () => {
     if (!newPackagePrice.package_id || !newPackagePrice.sub_package_id || !newPackagePrice.car_id || !newPackagePrice.base_fare) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Package, Sub-Package, Car, and Base Fare are required' });
+      toast.error('Package, Sub-Package, Car, and Base Fare are required', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
       return;
     }
 
     const base_fare = parseFloat(newPackagePrice.base_fare);
     if (isNaN(base_fare) || base_fare < 0) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Base Fare must be a valid non-negative number' });
+      toast.error('Base Fare must be a valid non-negative number', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
       return;
     }
 
@@ -241,13 +253,19 @@ useEffect(() => {
       });
       setSubPackages([]);
       setShowPackagePriceForm(false);
-      toast({ title: 'Success', description: response.data.message });
+      toast.success(response.data.message, {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     } catch (err: any) {
       console.error('Upsert package price error:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.error || 'Failed to upsert package price',
+      toast.error(err.response?.data?.error || 'Failed to upsert package price', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
       });
     }
   };
@@ -255,28 +273,47 @@ useEffect(() => {
   const handleDeletePackagePrice = async (packagePriceId: string) => {
     if (!packagePriceId) {
       console.error('Invalid package price ID for delete:', packagePriceId); // Debug log
-      toast({ variant: 'destructive', title: 'Error', description: 'Invalid package price ID' });
+      toast.error('Invalid package price ID', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
       return;
     }
     try {
       console.log('Deleting package price ID:', packagePriceId); // Debug log
       const response = await apiClient.delete(`/v1/admin/packageprice/${packagePriceId}`);
       setPackagePrices(packagePrices.filter(pp => pp.id !== packagePriceId));
-      toast({ title: 'Success', description: response.data.message });
+      toast.success(response.data.message, {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     } catch (err: any) {
       console.error('Delete package price error:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.error || 'Failed to delete package price',
+      toast.error(err.response?.data?.error || 'Failed to delete package price', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
       });
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletePackagePriceId(null);
     }
   };
 
   const handleStatusSwitch = async (packagePriceId: string, checked: boolean) => {
     if (!packagePriceId) {
       console.error('Invalid package price ID for status switch:', packagePriceId); // Debug log
-      toast({ variant: 'destructive', title: 'Error', description: 'Invalid package price ID' });
+      toast.error('Invalid package price ID', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
       return;
     }
     try {
@@ -284,70 +321,87 @@ useEffect(() => {
       const response = await apiClient.patch(`/v1/admin/packageprice/${packagePriceId}/status`);
       console.log('Status switch response base_fare:', response.data.data.base_fare, 'type:', typeof response.data.data.base_fare); // Debug log
       setPackagePrices(packagePrices.map(pp => (pp.id === packagePriceId ? parsePackagePrice(response.data.data) : pp)));
-      toast({ title: 'Success', description: response.data.message });
+      toast.success(response.data.message, {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     } catch (err: any) {
       console.error('Update status error:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.error || 'Failed to update status',
+      toast.error(err.response?.data?.error || 'Failed to update status', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
       });
     }
   };
 
-const handleEditPackagePrice = async (pp: PackagePrice) => {
-  console.log('Attempting to edit package price:', {
-    id: pp.id,
-    package_id: pp.package_id,
-    sub_package_id: pp.sub_package_id,
-    fullObject: pp,
-  }); // Detailed debug log
-  if (!pp.id || typeof pp.id !== 'string' || pp.id.trim() === '') {
-    console.error('Invalid package price ID for edit:', pp.id);
-    toast({ variant: 'destructive', title: 'Error', description: 'Invalid package price ID' });
-    return;
-  }
-  if (!pp.package_id || typeof pp.package_id !== 'string' || pp.package_id.trim() === '') {
-    console.error('Invalid package_id for edit:', pp.package_id);
-    toast({ variant: 'destructive', title: 'Error', description: 'Invalid package ID' });
-    return;
-  }
-  try {
-    console.log('Fetching sub-packages for package_id:', pp.package_id);
-    const response = await apiClient.get(`/v1/admin/packageprice/sub-packages/${pp.package_id}`);
-    console.log('Sub-packages response:', response.data.result.data);
-    setSubPackages(response.data.result.data);
+  const handleEditPackagePrice = async (pp: PackagePrice) => {
+    console.log('Attempting to edit package price:', {
+      id: pp.id,
+      package_id: pp.package_id,
+      sub_package_id: pp.sub_package_id,
+      fullObject: pp,
+    }); // Detailed debug log
+    if (!pp.id || typeof pp.id !== 'string' || pp.id.trim() === '') {
+      console.error('Invalid package price ID for edit:', pp.id);
+      toast.error('Invalid package price ID', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+      return;
+    }
+    if (!pp.package_id || typeof pp.package_id !== 'string' || pp.package_id.trim() === '') {
+      console.error('Invalid package_id for edit:', pp.package_id);
+      toast.error('Invalid package ID', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+      return;
+    }
+    try {
+      console.log('Fetching sub-packages for package_id:', pp.package_id);
+      const response = await apiClient.get(`/v1/admin/packageprice/sub-packages/${pp.package_id}`);
+      console.log('Sub-packages response:', response.data.result.data);
+      setSubPackages(response.data.result.data);
 
-    setNewPackagePrice({
-      id: pp.id,
-      package_id: pp.package_id,
-      sub_package_id: pp.sub_package_id || '',
-      car_id: pp.car_id || '',
-      base_fare: pp.base_fare.toString(),
-      description: pp.description || '',
-      status: pp.status,
-    });
-    setShowPackagePriceForm(true); // Ensure modal opens
-  } catch (err: any) {
-    console.error('Edit package price error:', err, 'Response:', err.response?.data);
-    toast({
-      variant: 'destructive',
-      title: 'Error',
-      description: err.response?.data?.error || 'Failed to fetch sub-packages or edit package price',
-    });
-    // Attempt to open modal with current data even if sub-packages fail
-    setNewPackagePrice({
-      id: pp.id,
-      package_id: pp.package_id,
-      sub_package_id: pp.sub_package_id || '',
-      car_id: pp.car_id || '',
-      base_fare: pp.base_fare.toString(),
-      description: pp.description || '',
-      status: pp.status,
-    });
-    setShowPackagePriceForm(true);
-  }
-};
+      setNewPackagePrice({
+        id: pp.id,
+        package_id: pp.package_id,
+        sub_package_id: pp.sub_package_id || '',
+        car_id: pp.car_id || '',
+        base_fare: pp.base_fare.toString(),
+        description: pp.description || '',
+        status: pp.status,
+      });
+      setShowPackagePriceForm(true); // Ensure modal opens
+    } catch (err: any) {
+      console.error('Edit package price error:', err, 'Response:', err.response?.data);
+      toast.error(err.response?.data?.error || 'Failed to fetch sub-packages or edit package price', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+      // Attempt to open modal with current data even if sub-packages fail
+      setNewPackagePrice({
+        id: pp.id,
+        package_id: pp.package_id,
+        sub_package_id: pp.sub_package_id || '',
+        car_id: pp.car_id || '',
+        base_fare: pp.base_fare.toString(),
+        description: pp.description || '',
+        status: pp.status,
+      });
+      setShowPackagePriceForm(true);
+    }
+  };
 
   const handleCreatePackagePrice = () => {
     console.log('Creating new package price, resetting form'); // Debug log
@@ -392,7 +446,7 @@ const handleEditPackagePrice = async (pp: PackagePrice) => {
     );
   }
 
-if (loading) {
+  if (loading) {
     return <Loader />;
   }
 
@@ -544,103 +598,143 @@ if (loading) {
               </TableRow>
             </TableHeader>
             <TableBody>
-  {packagePrices
-    .filter(pp => pp.id && typeof pp.id === 'string' && pp.id.trim() !== '') // Filter out invalid IDs
-    .map((pp: PackagePrice) => (
-      <TableRow key={`package-price-${pp.id}`}>
-        <TableCell>{packages.find(p => p.id === pp.package_id)?.name || 'N/A'}</TableCell>
-        <TableCell>{allSubPackages.find(sp => sp.id === pp.sub_package_id)?.name || 'N/A'}</TableCell>
-        <TableCell>
-          {cars.find(c => c.id === pp.car_id)?.brand} {cars.find(c => c.id === pp.car_id)?.model || 'N/A'}
-        </TableCell>
-        <TableCell>{renderBaseFare(pp.base_fare)}</TableCell>
-        <TableCell>{pp.description || '-'}</TableCell>
-        <TableCell>
-          <div className="flex items-center space-x-2">
-            {getStatusBadge(pp.status)}
-            <Switch
-              checked={pp.status}
-              onCheckedChange={(checked) => handleStatusSwitch(pp.id, checked)}
-            />
-          </div>
-        </TableCell>
-        <TableCell>{new Date(pp.createdAt).toLocaleDateString()}</TableCell>
-        <TableCell>
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleEditPackagePrice(pp)}
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleDeletePackagePrice(pp.id)}
-            >
-              <Trash2 className="w-4 h-4 mr-1 text-red-500" />
-              Delete
-            </Button>
-          </div>
-        </TableCell>
-      </TableRow>
-    ))}
-</TableBody>
-          </Table>
-          {/* Pagination Controls */}
-{!loading && totalItems > 0 && (
-  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
-    <div className="mb-2 md:mb-0">
-      <label className="mr-2 text-sm text-primary">Items per page:</label>
-      <select
-        value={itemsPerPage}
-        onChange={(e) => {
-          setItemsPerPage(Number(e.target.value));
-          setCurrentPage(1);
-        }}
-        className="p-2 border border-primary rounded-md bg-card"
-      >
-        <option value={5}>5</option>
-        <option value={10}>10</option>
-        <option value={20}>20</option>
-      </select>
-    </div>
-    <div className="flex space-x-2">
-      <Button
-        onClick={() => setCurrentPage(currentPage - 1)}
-        disabled={currentPage === 1}
-        variant="outline"
-        className="text-primary"
-      >
-        Previous
-      </Button>
-      {Array.from({ length: Math.ceil(totalItems / itemsPerPage) }, (_, i) => i + 1).map((page) => (
-        <Button
-          key={page}
-          onClick={() => setCurrentPage(page)}
-          variant={currentPage === page ? 'default' : 'outline'}
-          className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
-        >
-          {page}
-        </Button>
-      ))}
-      <Button
-        onClick={() => setCurrentPage(currentPage + 1)}
-        disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
-        variant="outline"
-        className="text-primary"
-      >
-        Next
-      </Button>
-    </div>
-    <span className="text-sm text-primary mt-2 md:mt-0">
-      Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
-    </span>
-  </div>
-)}
+              {packagePrices
+                .filter(pp => pp.id && typeof pp.id === 'string' && pp.id.trim() !== '') // Filter out invalid IDs
+                .map((pp: PackagePrice) => (
+                  <TableRow key={`package-price-${pp.id}`}>
+                    <TableCell>{packages.find(p => p.id === pp.package_id)?.name || 'N/A'}</TableCell>
+                    <TableCell>{allSubPackages.find(sp => sp.id === pp.sub_package_id)?.name || 'N/A'}</TableCell>
+                    <TableCell>
+                      {cars.find(c => c.id === pp.car_id)?.brand} {cars.find(c => c.id === pp.car_id)?.model || 'N/A'}
+                    </TableCell>
+                    <TableCell>{renderBaseFare(pp.base_fare)}</TableCell>
+                    <TableCell>{pp.description || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        {getStatusBadge(pp.status)}
+                        <Switch
+                          checked={pp.status}
+                          onCheckedChange={(checked) => handleStatusSwitch(pp.id, checked)}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+  {new Date(pp.createdAt).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })}
+</TableCell>
 
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditPackagePrice(pp)}
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                        </Button>
+                        <Dialog open={showDeleteConfirm && deletePackagePriceId === pp.id} onOpenChange={(open) => {
+                          if (!open) {
+                            setShowDeleteConfirm(false);
+                            setDeletePackagePriceId(null);
+                          }
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setDeletePackagePriceId(pp.id);
+                                setShowDeleteConfirm(true);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1 text-red-500" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Confirm Deletion</DialogTitle>
+                              <DialogDescription>
+                                Are you sure you want to delete this package price? This action cannot be undone.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setShowDeleteConfirm(false);
+                                  setDeletePackagePriceId(null);
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => handleDeletePackagePrice(pp.id)}
+                              >
+                                Delete
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+          {!loading && totalItems > 0 && (
+            <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+              <div className="mb-2 md:mb-0">
+                <label className="mr-2 text-sm text-primary">Items per page:</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="p-2 border border-primary rounded-md bg-card"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  className="text-primary"
+                >
+                  Previous
+                </Button>
+                {Array.from({ length: Math.ceil(totalItems / itemsPerPage) }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
+                  variant="outline"
+                  className="text-primary"
+                >
+                  Next
+                </Button>
+              </div>
+              <span className="text-sm text-primary mt-2 md:mt-0">
+                Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

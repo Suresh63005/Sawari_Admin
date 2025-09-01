@@ -6,12 +6,12 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from './ui/dialog';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Search, Eye, CheckCircle, XCircle, Ban, Unlock, Star, Calendar, Languages, Phone, Mail, Car } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
-import { useToast } from '@/components/ui/use-toast';
+import toast from 'react-hot-toast';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Loader from '@/components/ui/Loader';
@@ -41,7 +41,6 @@ interface Driver {
 }
 
 export default function DriverManagement() {
-  const { toast } = useToast();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -66,13 +65,12 @@ export default function DriverManagement() {
   const [totalItems, setTotalItems] = useState(0);
 
   // Debounced search function
-   const debouncedFetchDrivers = useCallback(
+  const debouncedFetchDrivers = useCallback(
     debounce(async (search: string, status: string, page: number, limit: number) => {
-      // Only fetch if search term is empty or has at least 2 characters
       if (search.length === 0 || search.length >= 2) {
         try {
-          setSearchLoading(true);
-          setLoading(true); // Moved inside debounced function
+          
+         
           const response = await apiClient.get('/v1/admin/driver', {
             params: {
               page,
@@ -99,26 +97,26 @@ export default function DriverManagement() {
           setDrivers(normalizedDrivers);
           setTotalItems(total);
         } catch (err: any) {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: err.response?.data?.message || 'Failed to fetch drivers',
+          toast.error(err.response?.data?.message || 'Failed to fetch drivers', {
+            style: {
+              background: '#622A39',
+              color: 'hsl(42, 51%, 91%)',
+            },
           });
         } finally {
-          setLoading(false);
-          setSearchLoading(false);
+         
         }
       } else {
-        setSearchLoading(false); // Ensure loading is false if search is too short
+        
       }
-    }, 500), // 500ms debounce delay
+    }, 500),
     []
   );
 
-    useEffect(() => {
+  useEffect(() => {
     debouncedFetchDrivers(searchTerm, statusFilter, currentPage, itemsPerPage);
-    // Restore focus to input after re-render
-    if (searchInputRef.current) {
+
+    if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [searchTerm, statusFilter, currentPage, itemsPerPage, debouncedFetchDrivers]);
@@ -141,60 +139,98 @@ export default function DriverManagement() {
         await apiClient.post(`/v1/admin/driver/${driverId}/verify-license`, { verified_by: verifiedBy });
         setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'verified' } : d));
         setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, license_verification_status: 'verified' } : prev));
-        toast({ title: 'Success', description: 'License verified' });
+        toast.success('License verified', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
       } else if (action === 'license-reject') {
-        if (!reason) {
-          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the license' });
-          return;
-        }
-        await apiClient.post(`/v1/admin/driver/${driverId}/reject-license`, { reason, verified_by: verifiedBy });
+        await apiClient.post(`/v1/admin/driver/${driverId}/reject-license`, { verified_by: verifiedBy });
         setDrivers(drivers.map(d => d.id === driverId ? { ...d, license_verification_status: 'rejected' } : d));
         setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, license_verification_status: 'rejected' } : prev));
-        toast({ title: 'Success', description: 'License rejected' });
+        toast.success('License rejected', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
       } else if (action === 'emirates-verify') {
         await apiClient.post(`/v1/admin/driver/${driverId}/verify-emirates`, { verified_by: verifiedBy });
         setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'verified' } : d));
         setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, emirates_verification_status: 'verified' } : prev));
-        toast({ title: 'Success', description: 'Emirates ID verified' });
+        toast.success('Emirates ID verified', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
       } else if (action === 'emirates-reject') {
-        if (!reason) {
-          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the emirates ID' });
-          return;
-        }
-        await apiClient.post(`/v1/admin/driver/${driverId}/reject-emirates`, { reason, verified_by: verifiedBy });
+        await apiClient.post(`/v1/admin/driver/${driverId}/reject-emirates`, { verified_by: verifiedBy });
         setDrivers(drivers.map(d => d.id === driverId ? { ...d, emirates_verification_status: 'rejected' } : d));
         setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, emirates_verification_status: 'rejected' } : prev));
-        toast({ title: 'Success', description: 'Emirates ID rejected' });
+        toast.success('Emirates ID rejected', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
       } else if (action === 'approve') {
         await apiClient.post(`/v1/admin/driver/${driverId}/approve`, { verified_by: verifiedBy });
         setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: true, status: 'active' } : d));
         setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, is_approved: true, status: 'active' } : prev));
-        toast({ title: 'Success', description: 'Driver approved' });
+        toast.success('Driver approved', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
       } else if (action === 'reject') {
         if (!reason) {
-          toast({ variant: 'destructive', title: 'Error', description: 'A reason is required to reject the driver' });
+          toast.error('A reason is required to reject the driver', {
+            style: {
+              background: '#622A39',
+              color: 'hsl(42, 51%, 91%)',
+            },
+          });
           return;
         }
         await apiClient.post(`/v1/admin/driver/${driverId}/reject`, { reason, verified_by: verifiedBy });
-        setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: false, status: 'inactive', reason } : d));
-        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, is_approved: false, status: 'inactive', reason } : prev));
-        toast({ title: 'Success', description: 'Driver rejected' });
+        setDrivers(drivers.map(d => d.id === driverId ? { ...d, is_approved: false, status: 'rejected' } : d));
+        setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, is_approved: false, status: 'rejected' } : prev));
+        toast.success('Driver rejected', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
       } else if (action === 'block') {
         await apiClient.post(`/v1/admin/driver/${driverId}/block`, { verified_by: verifiedBy });
         setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'blocked' } : d));
         setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, status: 'blocked' } : prev));
-        toast({ title: 'Success', description: 'Driver blocked' });
+        toast.success('Driver blocked', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
       } else if (action === 'unblock') {
         await apiClient.post(`/v1/admin/driver/${driverId}/unblock`, { verified_by: verifiedBy });
         setDrivers(drivers.map(d => d.id === driverId ? { ...d, status: 'active' } : d));
         setSelectedDriver(prev => (prev && prev.id === driverId ? { ...prev, status: 'active' } : prev));
-        toast({ title: 'Success', description: 'Driver unblocked' });
+        toast.success('Driver unblocked', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
       }
     } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.message || `Failed to ${action.split('-')[0]} ${action.includes('license') ? 'license' : action.includes('emirates') ? 'emirates ID' : 'driver'}`,
+      toast.error(err.response?.data?.message || `Failed to ${action.split('-')[0]} ${action.includes('license') ? 'license' : action.includes('emirates') ? 'emirates ID' : 'driver'}`, {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
       });
     } finally {
       setConfirmDialog({ open: false, action: '', driverId: '' });
@@ -202,14 +238,14 @@ export default function DriverManagement() {
     }
   };
 
-const getStatusBadge = (driver: Driver) => {
-  if (driver.status === 'rejected') return <Badge variant="destructive">Rejected</Badge>;
-  if (driver.status === 'blocked') return <Badge variant="destructive">Blocked</Badge>;
-  if (driver.status === 'inactive' && !driver.is_approved) return <Badge variant="secondary">Pending</Badge>;
-  if (driver.status === 'inactive' && driver.is_approved) return <Badge variant="outline">Inactive</Badge>;
-  if (driver.status === 'active') return <Badge variant="default">Active</Badge>;
-  return <Badge variant="outline">{driver.status}</Badge>; // fallback
-};
+  const getStatusBadge = (driver: Driver) => {
+    if (driver.status === 'rejected') return <Badge variant="destructive">Rejected</Badge>;
+    if (driver.status === 'blocked') return <Badge variant="destructive">Blocked</Badge>;
+    if (driver.status === 'inactive' && !driver.is_approved) return <Badge variant="secondary">Pending</Badge>;
+    if (driver.status === 'inactive' && driver.is_approved) return <Badge variant="outline">Inactive</Badge>;
+    if (driver.status === 'active') return <Badge variant="default">Active</Badge>;
+    return <Badge variant="outline">{driver.status}</Badge>;
+  };
 
   const getDocStatusBadge = (status: 'pending' | 'verified' | 'rejected' | undefined) => {
     if (!status || status === 'pending') return <Badge variant="secondary">Pending</Badge>;
@@ -234,29 +270,28 @@ const getStatusBadge = (driver: Driver) => {
 
   return (
     <div className="space-y-6">
-            <Card className="bg-card p-4 rounded-lg border border-primary">
+      <Card className="bg-card p-4 rounded-lg border border-primary">
         <CardHeader>
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
           <form
-            onSubmit={(e) => e.preventDefault()} // Prevent form submission
+            onSubmit={(e) => {
+              e.preventDefault();
+              console.log('Form submission prevented');
+            }}
             className="flex items-center space-x-4 flex-wrap"
           >
             <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium text-primary">Search Drivers</label>
               <div className="relative mt-1">
-                
-                <Input
-                  ref={searchInputRef} // Attach ref to input
-                  placeholder="Search by name, email, phone (use * for wildcard)..."
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search drivers..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') e.preventDefault(); // Prevent page refresh on Enter
-                  }}
-                  className="pl-10 p-2 border border-primary rounded-md bg-card"
-                  disabled={searchLoading}
+                  className="mt-1 block w-full p-2 border border-primary rounded-md bg-card"
                 />
                 <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               </div>
@@ -315,10 +350,11 @@ const getStatusBadge = (driver: Driver) => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>S.NO</TableHead>
                 <TableHead>Driver</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Experience</TableHead>
-                <TableHead>Rating</TableHead>
+                {/* <TableHead>Rating</TableHead> */}
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -329,8 +365,11 @@ const getStatusBadge = (driver: Driver) => {
                   <TableCell colSpan={6} className="text-center">No drivers found</TableCell>
                 </TableRow>
               ) : (
-                filteredDrivers.map((driver) => (
+                filteredDrivers.map((driver,index) => (
                   <TableRow key={driver.id}>
+                     <TableCell>
+          {(currentPage - 1) * itemsPerPage + index + 1}
+        </TableCell> 
                     <TableCell>
                       <div className="flex items-center space-x-3">
                         <Avatar>
@@ -349,12 +388,12 @@ const getStatusBadge = (driver: Driver) => {
                       </div>
                     </TableCell>
                     <TableCell>{driver.experience} years</TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       <div className="flex items-center space-x-1">
                         <Star className="w-4 h-4 text-yellow-500 fill-current" />
                         <span>{driver.rating || 'N/A'}</span>
                       </div>
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell>{getStatusBadge(driver)}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
@@ -372,9 +411,12 @@ const getStatusBadge = (driver: Driver) => {
                             {selectedDriver && (
                               <Tabs defaultValue="profile" className="w-full">
                                 <TabsList className="grid w-full grid-cols-3">
-                                  <TabsTrigger value="profile">Profile</TabsTrigger>
-                                  <TabsTrigger value="documents">Documents</TabsTrigger>
-                                  <TabsTrigger value="performance">Performance</TabsTrigger>
+                                  <TabsTrigger value="profile"
+                                  className="data-[state=active]:bg-primary data-[state=active]:text-card">Profile</TabsTrigger>
+                                  <TabsTrigger value="documents"
+                                  className="data-[state=active]:bg-primary data-[state=active]:text-card">Documents</TabsTrigger>
+                                  <TabsTrigger value="performance"
+                                  className="data-[state=active]:bg-primary data-[state=active]:text-card">Performance</TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="profile" className="space-y-4">
                                   <div className="grid grid-cols-2 gap-4">
@@ -541,7 +583,7 @@ const getStatusBadge = (driver: Driver) => {
                             )}
                           </DialogContent>
                         </Dialog>
-                        {!driver.is_approved && (
+                        {(!driver.is_approved && driver.status !== 'rejected') && (
                           <>
                             <Button
                               variant="outline"
@@ -666,8 +708,10 @@ const getStatusBadge = (driver: Driver) => {
             <DialogDescription>
               {confirmDialog.action.includes('verify')
                 ? `Are you sure you want to verify the ${confirmDialog.action.includes('license') ? 'license' : 'emirates ID'}?`
+                : confirmDialog.action.includes('reject') && confirmDialog.action === 'reject'
+                ? 'Please provide a reason for rejecting the driver.'
                 : confirmDialog.action.includes('reject')
-                ? `Please provide a reason for rejecting the ${confirmDialog.action.includes('license') ? 'license' : confirmDialog.action.includes('emirates') ? 'emirates ID' : 'driver'}.`
+                ? `Are you sure you want to reject the ${confirmDialog.action.includes('license') ? 'license' : 'emirates ID'}?`
                 : confirmDialog.action === 'approve'
                 ? 'Are you sure you want to approve this driver?'
                 : confirmDialog.action === 'block'
@@ -675,7 +719,7 @@ const getStatusBadge = (driver: Driver) => {
                 : 'Are you sure you want to unblock this driver?'}
             </DialogDescription>
           </DialogHeader>
-          {confirmDialog.action.includes('reject') && (
+          {confirmDialog.action === 'reject' && (
             <div className="space-y-2">
               <Label htmlFor="reject-reason">Rejection Reason</Label>
               <Textarea
@@ -694,16 +738,27 @@ const getStatusBadge = (driver: Driver) => {
             >
               Cancel
             </Button>
-            <Button
-              variant={confirmDialog.action.includes('verify') || confirmDialog.action === 'approve' || confirmDialog.action === 'unblock' ? 'default' : 'destructive'}
-              onClick={() => handleConfirmAction(rejectReason)}
-              disabled={confirmDialog.action.includes('reject') && !rejectReason}
-            >
-              {confirmDialog.action.includes('verify') ? 'Verify' : 
-               confirmDialog.action.includes('reject') ? 'Reject' : 
-               confirmDialog.action === 'approve' ? 'Approve' : 
-               confirmDialog.action === 'block' ? 'Block' : 'Unblock'}
-            </Button>
+          <Button
+  className={
+    confirmDialog.action === 'block'
+      ? 'bg-primary text-card'
+      : confirmDialog.action === 'approve' || confirmDialog.action === 'unblock'
+      ? 'bg-primary text-card'
+      : confirmDialog.action.includes('verify')
+      ? 'bg-primary text-card'
+      : confirmDialog.action.includes('reject')
+      ? 'bg-destructive text-card'
+      : ''
+  }
+  onClick={() => handleConfirmAction(confirmDialog.action === 'reject' ? rejectReason : undefined)}
+  disabled={confirmDialog.action === 'reject' && !rejectReason}
+>
+  {confirmDialog.action.includes('verify') ? 'Verify' : 
+   confirmDialog.action.includes('reject') ? 'Reject' : 
+   confirmDialog.action === 'approve' ? 'Approve' : 
+   confirmDialog.action === 'block' ? 'Block' : 'Unblock'}
+</Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

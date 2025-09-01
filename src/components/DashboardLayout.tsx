@@ -101,13 +101,13 @@ const getRoleBadgeVariant = (
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen">
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-card shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-card s transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center justify-between p-3 border-b">
             <div className="flex items-center space-x-2">
               <div className="bg-primary text-primary-foreground p-2 rounded-lg">
                 <Image src={logo} alt="Logo" className="w-7 h-7" />
@@ -139,7 +139,7 @@ const getRoleBadgeVariant = (
                 <p className="text-sm font-medium truncate text-card">
                   {user?.name ?? 'Unknown User'}
                 </p>
-                <Badge variant={getRoleBadgeVariant(user?.role ?? '')} className="text-xs bg-card text-primary hover:bg-primary">
+                <Badge variant={getRoleBadgeVariant(user?.role ?? '')} className="text-xs bg-card text-primary hover:bg-card hover:text-primary">
                   {getRoleLabel(user?.role ?? '')}
                 </Badge>
               </div>
@@ -199,9 +199,9 @@ const getRoleBadgeVariant = (
             >
               <Bell className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm">
+            {/* <Button variant="ghost" size="sm">
               <Settings className="w-4 h-4" />
-            </Button>
+            </Button> */}
             <Button
               variant="ghost"
               className="text-red-600 hover:text-red-700 hover:bg-red-50"

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
-
+import { Toaster } from "react-hot-toast"; 
 import "./globals.css";
 
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -44,6 +44,7 @@ export default function RootLayout({
       <body className={GeistSans.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
+          <Toaster position="top-right" />
         </ThemeProvider>
       </body>
     </html>

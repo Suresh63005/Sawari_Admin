@@ -20,42 +20,41 @@ export const AuthPage = () => {
   const router = useRouter();
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Email and password are required');
-      return;
-    }
+  if (!email || !password) {
+    setError(!email ? 'Email is required' : 'Password is required');
+    return;
+  }
 
-    setLoading(true);
-    setError('');
+  setLoading(true);
+  setError('');
 
-    try {
-      const response = await apiClient.post('/v1/admin/auth/login', {
-        email,
-        password,
-      });
+  try {
+    const response = await apiClient.post('/v1/admin/auth/login', {
+      email,
+      password,
+    });
 
-      const data = response.data;
+    const data = response.data;
 
-      const user = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        permissions: data.permissions,
-      };
+    const user = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      permissions: data.permissions,
+    };
 
-      // Store token in localStorage
-      localStorage.setItem('token', data.token);
-      console.log('Token stored:', localStorage.getItem('token')); // Debug log
-      
-      router.push('/dashboard');
-    } catch (err: any) {
-      console.error('Login error:', err); // Debug log
-      setError(err.response?.data?.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+    localStorage.setItem('token', data.token);
+    console.log('Token stored:', localStorage.getItem('token'));
+    
+    router.push('/dashboard');
+  } catch (err: any) {
+    console.error('Login error:', err);
+    setError(err.response?.data?.message || 'Login failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="flex h-screen">

@@ -2,14 +2,17 @@ import {
   LayoutDashboard,
   Users,
   Car,
+  CarFront,
   MapPin,
   DollarSign,
+  Combine,
   HeadphonesIcon,
   Bell,
   Settings,
   LucideIcon,
   LogOut,
   Package,
+  Boxes,
 } from "lucide-react";
 
 type Submenu = {
@@ -61,7 +64,7 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           href: "/vehicles",
           label: "Vehicles",
           active: pathname === "/vehicles",
-          icon: Car,
+          icon: CarFront,
           permission: "vehicles",
         },
         {
@@ -101,14 +104,14 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           href: "/subpackages",
           label: "Subpackages",
           active: pathname === "/subpackages",
-          icon: Package,
+          icon: Combine,
           permission: "fleet", // Updated
         },
         {
           href: "/packageprice",
           label: "Package Price",
           active: pathname === "/packageprice",
-          icon: Package,
+          icon: Boxes,
           permission: "fleet", // Updated
         },
       ],
@@ -137,13 +140,13 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           icon: Settings,
           permission: "admin_management",
         },
-        {
-          href: "/logout",
-          label: "Logout",
-          active: pathname === "/logout",
-          icon: LogOut,
-          // No permission required for logout
-        },
+        // {
+        //   href: "/logout",
+        //   label: "Logout",
+        //   active: pathname === "/",
+        //   icon: LogOut,
+        //   // No permission required for logout
+        // },
       ],
     },
   ];

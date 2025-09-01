@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Edit, Trash2, Car, Search } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
-import { useToast } from '@/components/ui/use-toast';
+import toast from 'react-hot-toast';
 import { debounce } from 'lodash';
 import Loader from '@/components/ui/Loader';
 
@@ -25,7 +25,6 @@ interface Car {
 }
 
 const Cars: React.FC = () => {
-  const { toast } = useToast();
   const [cars, setCars] = useState<Car[]>([]);
   const [showCarForm, setShowCarForm] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -43,73 +42,38 @@ const Cars: React.FC = () => {
     image_url: null as string | null,
     status: 'active' as 'active' | 'inactive',
   });
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; carId: string }>({ open: false, carId: '' });
 
   // Memoize the debounced fetchCars function
-  const debouncedFetchCars = useCallback(
-    debounce(async (query: string) => {
-      try {
-        setIsSearching(true);
-        const response = await apiClient.get('/v1/admin/car', {
-          params: { search: query, page: currentPage, limit: itemsPerPage },
-        });
-        setCars(response.data.result.data || []);
-        setTotalItems(response.data.result.total || 0);
-      } catch (err: any) {
-        console.error('Fetch cars error:', err);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.error || 'Failed to fetch cars',
-        });
-        setCars([]);
-        setTotalItems(0);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 500),
-    [toast, currentPage, itemsPerPage] // Add pagination dependencies
+  const debouncedFetchCars = useMemo(
+    () =>
+      debounce(async (query: string, page: number, limit: number) => {
+        try {
+          setIsSearching(true);
+          const response = await apiClient.get('/v1/admin/car', {
+            params: { search: query, page, limit },
+          });
+          setCars(response.data.result.data || []);
+          setTotalItems(response.data.result.total || 0);
+        } catch (err: any) {
+          toast.error(err.response?.data?.error || 'Failed to fetch cars', {
+            style: {
+              background: '#622A39',
+              color: 'hsl(42, 51%, 91%)',
+            },
+          });
+        } finally {
+          setIsSearching(false);
+        }
+      }, 500),
+    []
   );
 
-  // Initial fetch and search updates
-useEffect(() => {
-  // Initial fetch on component mount
+  // Initial fetch
+  useEffect(() => {
     const fetchInitialCars = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get('/v1/admin/car', {
-        params: { search: '', page: currentPage, limit: itemsPerPage },
-      });
-      setCars(response.data.result.data || []);
-      setTotalItems(response.data.result.total || 0);
-    } catch (err: any) {
-      console.error('Fetch cars error:', err);
-      setError(err.response?.data?.error || 'Failed to fetch cars');
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.error || 'Failed to fetch cars',
-      });
-      setCars([]);
-      setTotalItems(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchInitialCars();
-
-  // No cleanup needed for initial fetch
-}, []); // Empty dependency array for initial fetch only
-
-useEffect(() => {
-  if (searchQuery.trim() !== '') {
-    // Run debounced search if query has text
-    debouncedFetchCars(searchQuery);
-  } else {
-    // Fetch all cars when search is cleared
-    (async () => {
       try {
-        setIsSearching(true);
+        setLoading(true);
         const response = await apiClient.get('/v1/admin/car', {
           params: { search: '', page: currentPage, limit: itemsPerPage },
         });
@@ -117,28 +81,65 @@ useEffect(() => {
         setTotalItems(response.data.result.total || 0);
       } catch (err: any) {
         console.error('Fetch cars error:', err);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.error || 'Failed to fetch cars',
+        setError(err.response?.data?.error || 'Failed to fetch cars');
+        toast.error(err.response?.data?.error || 'Failed to fetch cars', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
         });
         setCars([]);
         setTotalItems(0);
       } finally {
-        setIsSearching(false);
+        setLoading(false);
       }
-    })();
-  }
+    };
 
-  return () => {
-    debouncedFetchCars.cancel();
-  };
-}, [searchQuery, currentPage, itemsPerPage, debouncedFetchCars]);
- // Only depends on searchQuery and debouncedFetchCars
+    fetchInitialCars();
+  }, []);
+
+  // Search and pagination updates
+  useEffect(() => {
+    if (searchQuery.trim() !== '') {
+      debouncedFetchCars(searchQuery, currentPage, itemsPerPage);
+    } else {
+      (async () => {
+        try {
+          setIsSearching(true);
+          const response = await apiClient.get('/v1/admin/car', {
+            params: { search: '', page: currentPage, limit: itemsPerPage },
+          });
+          setCars(response.data.result.data || []);
+          setTotalItems(response.data.result.total || 0);
+        } catch (err: any) {
+          console.error('Fetch cars error:', err);
+          toast.error(err.response?.data?.error || 'Failed to fetch cars', {
+            style: {
+              background: '#622A39',
+              color: 'hsl(42, 51%, 91%)',
+            },
+          });
+          setCars([]);
+          setTotalItems(0);
+        } finally {
+          setIsSearching(false);
+        }
+      })();
+    }
+
+    return () => {
+      debouncedFetchCars.cancel();
+    };
+  }, [searchQuery, currentPage, itemsPerPage, debouncedFetchCars]);
 
   const handleUpsertCar = async () => {
     if (!newCar.brand || !newCar.model) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Brand and model are required' });
+      toast.error('Brand and model are required', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
       return;
     }
 
@@ -168,10 +169,20 @@ useEffect(() => {
 
       setNewCar({ id: '', brand: '', model: '', image: null, image_url: null, status: 'active' });
       setShowCarForm(false);
-      toast({ title: 'Success', description: response.data.message });
+      toast.success(response.data.message, {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     } catch (err: any) {
       console.error('Upsert car error:', err);
-      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.error || 'Failed to upsert car' });
+      toast.error(err.response?.data?.error || 'Failed to upsert car', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     }
   };
 
@@ -179,10 +190,22 @@ useEffect(() => {
     try {
       const response = await apiClient.delete(`/v1/admin/car/${carId}`);
       setCars(cars.filter(car => car.id !== carId));
-      toast({ title: 'Success', description: response.data.message });
+      toast.success(response.data.message, {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     } catch (err: any) {
       console.error('Delete car error:', err);
-      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.error || 'Failed to delete car' });
+      toast.error(err.response?.data?.error || 'Failed to delete car', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+    } finally {
+      setConfirmDelete({ open: false, carId: '' });
     }
   };
 
@@ -190,10 +213,20 @@ useEffect(() => {
     try {
       const response = await apiClient.patch(`/v1/admin/car/${carId}/status`);
       setCars(cars.map(c => (c.id === carId ? response.data.data : c)));
-      toast({ title: 'Success', description: response.data.message });
+      toast.success(response.data.message, {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     } catch (err: any) {
       console.error('Update status error:', err);
-      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.error || 'Failed to update status' });
+      toast.error(err.response?.data?.error || 'Failed to update status', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     }
   };
 
@@ -235,9 +268,10 @@ useEffect(() => {
       </div>
     );
   }
-if(loading) {
-  return <Loader/>
-}
+  if (loading) {
+    return <Loader />;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
@@ -287,6 +321,24 @@ if(loading) {
               </div>
               <div>
                 <Label htmlFor="image">Image</Label>
+                {newCar.image_url && !newCar.image && (
+                  <div className="mb-2">
+                    <img
+                      src={newCar.image_url}
+                      alt="Car"
+                      className="w-24 h-24 object-cover rounded"
+                    />
+                  </div>
+                )}
+                {newCar.image && (
+                  <div className="mb-2">
+                    <img
+                      src={URL.createObjectURL(newCar.image)}
+                      alt="Preview"
+                      className="w-24 h-24 object-cover rounded"
+                    />
+                  </div>
+                )}
                 <Input
                   id="image"
                   type="file"
@@ -322,23 +374,20 @@ if(loading) {
           <CardTitle>Cars ({cars.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* {isSearching && (
-            <div className="flex justify-center items-center mb-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-900"></div>
-            </div>
-          )} */}
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Car</TableHead>
+                <TableHead>S.NO</TableHead>
+                <TableHead>Car Models</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cars.map((car: Car) => (
+              {cars.map((car: Car, index: number) => (
                 <TableRow key={car.id}>
+                  <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       {car.image_url ? (
@@ -364,7 +413,13 @@ if(loading) {
                       />
                     </div>
                   </TableCell>
-                  <TableCell>{new Date(car.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {new Date(car.createdAt).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    })}
+                  </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <Button
@@ -373,15 +428,15 @@ if(loading) {
                         onClick={() => handleEditCar(car)}
                       >
                         <Edit className="w-4 h-4 mr-1" />
-                        Edit
+                      
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDeleteCar(car.id)}
+                        onClick={() => setConfirmDelete({ open: true, carId: car.id })}
                       >
                         <Trash2 className="w-4 h-4 mr-1 text-red-500" />
-                        Delete
+                        
                       </Button>
                     </div>
                   </TableCell>
@@ -389,7 +444,7 @@ if(loading) {
               ))}
             </TableBody>
           </Table>
-                    {!loading && totalItems > 0 && (
+          {!loading && totalItems > 0 && (
             <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
               <div className="mb-2 md:mb-0">
                 <label className="mr-2 text-sm text-primary">Items per page:</label>
@@ -397,7 +452,7 @@ if(loading) {
                   value={itemsPerPage}
                   onChange={(e) => {
                     setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1); // Reset to first page
+                    setCurrentPage(1);
                   }}
                   className="p-2 border border-primary rounded-md bg-card"
                 >
@@ -441,6 +496,32 @@ if(loading) {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={confirmDelete.open} onOpenChange={() => setConfirmDelete({ open: false, carId: '' })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this car? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDelete({ open: false, carId: '' })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => handleDeleteCar(confirmDelete.carId)}
+              className='bg-primary text-card hover:bg-primary hover:text-card'
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

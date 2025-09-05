@@ -344,7 +344,9 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
                     <TableCell>{parseFloat(earning.amount).toLocaleString()}</TableCell>
                     <TableCell>{parseFloat(earning.commission).toLocaleString()}</TableCell>
                     <TableCell>{earning.percentage}%</TableCell>
-                    <TableCell>{earning.payment_method.replace('_', ' ').toUpperCase()}</TableCell>
+                    <TableCell>
+  {earning.payment_method ? earning.payment_method.replace('_', ' ').toUpperCase() : 'N/A'}
+</TableCell> 
                     <TableCell>{getStatusBadge(earning.status)}</TableCell>
                     <TableCell>{new Date(earning.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>

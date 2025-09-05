@@ -234,37 +234,43 @@ useEffect(() => {
   };
 
   const handleUpdateAdmin = async () => {
-    if (!editingAdmin) return;
+  if (!editingAdmin) return;
 
-    try {
-      const { id, first_name, last_name, email, phone, role, status } = editingAdmin;
-      const payload = {
-        first_name,
-        last_name,
-        email,
-        phone,
-        role,
-        status,
-      };
-      await apiClient.put(`/v1/admin/auth/admin-management/${id}`, payload);
-      fetchAdmins(searchQuery, currentPage, itemsPerPage);
-      setShowEditDialog(false);
-      toast.success("Admin updated successfully", {
-        style: {
-          background: "#622A39",
-          color: "hsl(42, 51%, 91%)"
-        }
-      });
-    } catch (err: any) {
-      console.error("Update admin error:", err);
-      toast.error(err.response?.data?.message || "Failed to update admin", {
-        style: {
-          background: "#622A39",
-          color: "hsl(42, 51%, 91%)"
-        }
-      });
-    }
-  };
+  try {
+    // Fix: explicitly rename id so it's always a string
+    const { id: adminId, first_name, last_name, email, phone, role, status } = editingAdmin;
+
+    const payload = {
+      first_name,
+      last_name,
+      email,
+      phone,
+      role,
+      status,
+    };
+
+    console.log("Updating admin with id:", adminId, typeof adminId);
+
+    await apiClient.put(`/v1/admin/auth/admin-management/${adminId}`, payload);
+    fetchAdmins(searchQuery, currentPage, itemsPerPage);
+    setShowEditDialog(false);
+    toast.success("Admin updated successfully", {
+      style: {
+        background: "#622A39",
+        color: "hsl(42, 51%, 91%)"
+      }
+    });
+  } catch (err: any) {
+    console.error("Update admin error:", err);
+    toast.error(err.response?.data?.message || "Failed to update admin", {
+      style: {
+        background: "#622A39",
+        color: "hsl(42, 51%, 91%)"
+      }
+    });
+  }
+};
+
 
   const handleUpdatePermissions = async (
     adminId: string,
@@ -645,7 +651,16 @@ useEffect(() => {
                             <span>{getRoleLabel(admin.role)}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{getStatusBadge(admin.status)}</TableCell>
+                       <TableCell>
+        <div className="flex items-center space-x-2">
+          {getStatusBadge(admin.status)}
+          <Switch
+            checked={admin.status === "active"}
+            onCheckedChange={(checked) => handleStatusSwitch(admin.id, checked)}
+            disabled={admin.id === currentUser.id || admin.status === "blocked"}
+          />
+        </div>
+      </TableCell>
                         <TableCell>{admin.created_at}</TableCell>
                         <TableCell>
                           <div className="flex space-x-2">

@@ -66,52 +66,49 @@ export default function DriverManagement() {
 
   // Debounced search function
   const debouncedFetchDrivers = useCallback(
-    debounce(async (search: string, status: string, page: number, limit: number) => {
-      if (search.length === 0 || search.length >= 2) {
-        try {
-          
-         
-          const response = await apiClient.get('/v1/admin/driver', {
-            params: {
-              page,
-              limit,
-              search,
-              status: status === 'all' ? undefined : status,
-            },
-          });
-          const { drivers: fetchedDrivers, total } = response.data;
-          const normalizedDrivers = fetchedDrivers.map((driver: Driver) => ({
-            ...driver,
-            languages: Array.isArray(driver.languages) ? driver.languages : [],
-            license_verification_status: driver.license_verification_status || 'pending',
-            emirates_verification_status: driver.emirates_verification_status || 'pending',
-          }));
+  debounce(async (search: string, status: string, page: number, limit: number) => {
+    if (search.length === 0 || search.length >= 2) {
+      try {
+        const response = await apiClient.get('/v1/admin/driver', {
+          params: {
+            page,
+            limit,
+            search,
+            status: status === 'all' ? undefined : status,
+          },
+        });
+        console.log(response.data,"Fetched Drivers");
+        const { drivers: fetchedDrivers, total } = response.data;
+        const normalizedDrivers = fetchedDrivers.map((driver: Driver) => ({
+          ...driver,
+          first_name: driver.first_name || '', // Normalize to empty string
+          last_name: driver.last_name || '',   // Normalize to empty string
+          languages: Array.isArray(driver.languages) ? driver.languages : [],
+          license_verification_status: driver.license_verification_status || 'pending',
+          emirates_verification_status: driver.emirates_verification_status || 'pending',
+        }));
 
-          const storedDriverId = localStorage.getItem("selectedDriverId");
+        const storedDriverId = localStorage.getItem("selectedDriverId");
 
-          if (storedDriverId) {
-            setDriverIdFilter(storedDriverId);
-            localStorage.removeItem("selectedDriverId");
-          }
-
-          setDrivers(normalizedDrivers);
-          setTotalItems(total);
-        } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Failed to fetch drivers', {
-            style: {
-              background: '#622A39',
-              color: 'hsl(42, 51%, 91%)',
-            },
-          });
-        } finally {
-         
+        if (storedDriverId) {
+          setDriverIdFilter(storedDriverId);
+          localStorage.removeItem("selectedDriverId");
         }
-      } else {
-        
+
+        setDrivers(normalizedDrivers);
+        setTotalItems(total);
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Failed to fetch drivers', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
       }
-    }, 500),
-    []
-  );
+    }
+  }, 500),
+  []
+);
 
   useEffect(() => {
     debouncedFetchDrivers(searchTerm, statusFilter, currentPage, itemsPerPage);
@@ -757,6 +754,7 @@ export default function DriverManagement() {
    confirmDialog.action.includes('reject') ? 'Reject' : 
    confirmDialog.action === 'approve' ? 'Approve' : 
    confirmDialog.action === 'block' ? 'Block' : 'Unblock'}
+   
 </Button>
 
           </DialogFooter>

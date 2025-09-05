@@ -488,7 +488,7 @@ const getStatusBadge = (vehicle: Vehicle) => {
                                 <img
                                   src={selectedVehicle.rc_doc}
                                   alt="RC Document"
-                                  className="w-full h-auto rounded cursor-pointer"
+                                  className="w-full h-[400px] rounded cursor-pointer"
                                   onClick={() => handleImageClick(selectedVehicle.rc_doc)}
                                 />
                                 {selectedVehicle.rc_doc_status === 'pending' && (
@@ -528,7 +528,7 @@ const getStatusBadge = (vehicle: Vehicle) => {
                                 <img
                                   src={selectedVehicle.insurance_doc}
                                   alt="Insurance Document"
-                                  className="w-full h-auto rounded cursor-pointer"
+                                  className="w-full h-[400px] rounded cursor-pointer"
                                   onClick={() => handleImageClick(selectedVehicle.insurance_doc)}
                                 />
                                 {selectedVehicle.insurance_doc_status === 'pending' && (

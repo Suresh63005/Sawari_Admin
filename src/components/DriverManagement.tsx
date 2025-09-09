@@ -52,7 +52,9 @@ export default function DriverManagement() {
   const [emiratesModalOpen, setEmiratesModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [driverIdFilter, setDriverIdFilter] = useState<string | null>(null);
+  const [driverIdFilter, setDriverIdFilter] = useState<string | null>(() => {
+    return localStorage.getItem("selectedDriverId");
+  });
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     action: string;
@@ -480,7 +482,7 @@ export default function DriverManagement() {
                                                   variant="outline"
                                                   size="sm"
                                                   onClick={() => setConfirmDialog({ open: true, action: 'license-reject', driverId: selectedDriver.id })}
-                                                  className="text-red-600 hover:text-red-700"
+                                                  className="text-primary  hover:text-primary"
                                                 >
                                                   Reject
                                                 </Button>
@@ -724,7 +726,7 @@ export default function DriverManagement() {
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Enter reason for rejection"
-                className="w-full"
+                className="w-full bg-card"
               />
             </div>
           )}
@@ -744,7 +746,7 @@ export default function DriverManagement() {
       : confirmDialog.action.includes('verify')
       ? 'bg-primary text-card'
       : confirmDialog.action.includes('reject')
-      ? 'bg-destructive text-card'
+      ? 'bg-primary text-card'
       : ''
   }
   onClick={() => handleConfirmAction(confirmDialog.action === 'reject' ? rejectReason : undefined)}

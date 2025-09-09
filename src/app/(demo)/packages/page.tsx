@@ -33,6 +33,7 @@ const Packages: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [totalItems, setTotalItems] = useState<number>(0);
+  const nameInputRef = React.useRef<HTMLInputElement>(null);
   const [newPackage, setNewPackage] = useState({
     id: '',
     name: '',
@@ -209,6 +210,13 @@ const Packages: React.FC = () => {
         return <Badge variant="secondary">Inactive</Badge>;
     }
   };
+  useEffect(() => {
+  if (showPackageForm && newPackage.id && nameInputRef.current) {
+    // move caret to end without selection
+    const len = nameInputRef.current.value.length;
+    nameInputRef.current.setSelectionRange(len, len);
+  }
+}, [showPackageForm, newPackage.id]);
 
   if (loading) {
     return <Loader />;
@@ -245,7 +253,7 @@ const Packages: React.FC = () => {
               Create Package
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md" autoFocus={false} >
             <DialogHeader>
               <DialogTitle>{newPackage.id ? 'Edit Package' : 'Create New Package'}</DialogTitle>
               <DialogDescription>
@@ -256,11 +264,12 @@ const Packages: React.FC = () => {
               <div>
                 <Label htmlFor="name">Name</Label>
                 <Input
-                  id="name"
-                  value={newPackage.name}
-                  onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
-                  placeholder="Enter package name"
-                />
+  ref={nameInputRef}
+  id="name"
+  value={newPackage.name}
+  onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
+  placeholder="Enter package name"
+/>
               </div>
               <div>
                 <Label htmlFor="description">Description</Label>

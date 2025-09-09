@@ -469,6 +469,7 @@ const SubPackages: React.FC = () => {
                                 <Button
                                   variant="destructive"
                                   onClick={() => handleDeleteSubPackage(sp.id)}
+                                  className='bg-primary text-card hover:bg-primary hover:text-card'
                                 >
                                   Delete
                                 </Button>

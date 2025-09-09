@@ -1,7 +1,8 @@
+
 "use client";
 
-import React, { useState, useEffect,useCallback } from "react";
-import { Ban, CarTaxiFront, EyeOff, Sheet, Pencil } from "lucide-react"; // 👈 import at top
+import React, { useState, useEffect, useCallback } from "react";
+import { Ban, CarTaxiFront, EyeOff, Sheet, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -117,48 +118,49 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
     password: ""
   });
 
- const fetchAdmins = async (search: string = "", page: number = 1, limit: number = 10, isSearch: boolean = false) => {
-  try {
-    if (isSearch) {
-      setSearchLoading(true);
-    } else {
-      setLoading(true);
+  const fetchAdmins = async (search: string = "", page: number = 1, limit: number = 10, isSearch: boolean = false) => {
+    try {
+      if (isSearch) {
+        setSearchLoading(true);
+      } else {
+        setLoading(true);
+      }
+
+      const response = await apiClient.get('/v1/admin/auth/admin-management', {
+        params: { search, page, limit },
+      });
+
+      setAdmins(response.data.data || []);
+      setTotalItems(response.data.pagination?.total || 0);
+      console.log("Total admins:", response.data.pagination?.total);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to fetch admins');
+    } finally {
+      if (isSearch) {
+        setSearchLoading(false);
+      } else {
+        setLoading(false);
+      }
     }
+  };
 
-    const response = await apiClient.get('/v1/admin/auth/admin-management', {
-      params: { search, page, limit },
-    });
+  const debouncedSearch = useCallback(
+    debounce((query: string) => fetchAdmins(query, currentPage, itemsPerPage, true), 500),
+    [currentPage, itemsPerPage]
+  );
 
-    setAdmins(response.data.data || []);
-    setTotalItems(response.data.pagination?.total || 0);
-  } catch (err: any) {
-    toast.error(err.response?.data?.message || 'Failed to fetch admins');
-  } finally {
-    if (isSearch) {
-      setSearchLoading(false);
+  useEffect(() => {
+    fetchAdmins(searchQuery, currentPage, itemsPerPage);
+  }, [currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    if (searchQuery.trim() !== '') {
+      debouncedSearch(searchQuery);
     } else {
-      setLoading(false);
+      fetchAdmins('', currentPage, itemsPerPage);
     }
-  }
-};
-
-const debouncedSearch = useCallback(
-  debounce((query: string) => fetchAdmins(query, currentPage, itemsPerPage, true), 500),
-  [currentPage, itemsPerPage]
-);
-
-useEffect(() => {
-  fetchAdmins(searchQuery, currentPage, itemsPerPage);
-}, [currentPage, itemsPerPage]);
-
-useEffect(() => {
-  if (searchQuery.trim() !== '') {
-    debouncedSearch(searchQuery);
-  } else {
-    fetchAdmins('', currentPage, itemsPerPage);
-  }
-  return () => debouncedSearch.cancel();
-}, [searchQuery, debouncedSearch]);
+    return () => debouncedSearch.cancel();
+  }, [searchQuery, debouncedSearch]);
 
   const getAvailableRoles = () => {
     return getAdminHierarchy(currentUser?.role);
@@ -196,7 +198,13 @@ useEffect(() => {
         "/v1/admin/auth/admin-management",
         newAdmin
       );
-      setAdmins([...admins, response.data]);
+      // Merge response with DEFAULT_PERMISSIONS to ensure permissions are defined
+      const newAdminData: Admin = {
+        ...response.data,
+        name: `${newAdmin.first_name} ${newAdmin.last_name}`,
+        permissions: response.data.permissions || DEFAULT_PERMISSIONS
+      };
+      setAdmins([...admins, newAdminData]);
       setNewAdmin({
         first_name: "",
         last_name: "",
@@ -234,43 +242,41 @@ useEffect(() => {
   };
 
   const handleUpdateAdmin = async () => {
-  if (!editingAdmin) return;
+    if (!editingAdmin) return;
 
-  try {
-    // Fix: explicitly rename id so it's always a string
-    const { id: adminId, first_name, last_name, email, phone, role, status } = editingAdmin;
+    try {
+      const { id: adminId, first_name, last_name, email, phone, role, status } = editingAdmin;
 
-    const payload = {
-      first_name,
-      last_name,
-      email,
-      phone,
-      role,
-      status,
-    };
+      const payload = {
+        first_name,
+        last_name,
+        email,
+        phone,
+        role,
+        status,
+      };
 
-    console.log("Updating admin with id:", adminId, typeof adminId);
+      console.log("Updating admin with id:", adminId, typeof adminId);
 
-    await apiClient.put(`/v1/admin/auth/admin-management/${adminId}`, payload);
-    fetchAdmins(searchQuery, currentPage, itemsPerPage);
-    setShowEditDialog(false);
-    toast.success("Admin updated successfully", {
-      style: {
-        background: "#622A39",
-        color: "hsl(42, 51%, 91%)"
-      }
-    });
-  } catch (err: any) {
-    console.error("Update admin error:", err);
-    toast.error(err.response?.data?.message || "Failed to update admin", {
-      style: {
-        background: "#622A39",
-        color: "hsl(42, 51%, 91%)"
-      }
-    });
-  }
-};
-
+      await apiClient.put(`/v1/admin/auth/admin-management/${adminId}`, payload);
+      fetchAdmins(searchQuery, currentPage, itemsPerPage);
+      setShowEditDialog(false);
+      toast.success("Admin updated successfully", {
+        style: {
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
+      });
+    } catch (err: any) {
+      console.error("Update admin error:", err);
+      toast.error(err.response?.data?.message || "Failed to update admin", {
+        style: {
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
+      });
+    }
+  };
 
   const handleUpdatePermissions = async (
     adminId: string,
@@ -298,11 +304,7 @@ useEffect(() => {
             : a
         )
       );
-      setSelectedAdmin((prev) =>
-        prev && prev.id === adminId
-          ? { ...prev, permissions: response.data.permissions }
-          : prev
-      );
+      setSelectedAdmin(null); // Close modal by resetting selectedAdmin
       toast.success("Permissions updated successfully", {
         style: {
           background: "#622A39",
@@ -363,6 +365,17 @@ useEffect(() => {
         }
       });
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}/${month}/${year}`;
   };
 
   const handleBlockUnblockAdmin = async (adminId: string) => {
@@ -544,8 +557,8 @@ useEffect(() => {
                           type="tel"
                           value={newAdmin.phone}
                           onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, ""); // only numbers
-                            const maxLength = 10; // 👈 change here if you want 9 or something else
+                            const value = e.target.value.replace(/\D/g, "");
+                            const maxLength = 10;
                             if (value.length <= maxLength) {
                               setNewAdmin({ ...newAdmin, phone: value });
                             }
@@ -553,7 +566,6 @@ useEffect(() => {
                           placeholder="Enter phone number"
                         />
                       </div>
-
                       <div>
                         <Label htmlFor="password">Password</Label>
                         <div className="relative">
@@ -623,6 +635,7 @@ useEffect(() => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>S.No</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
@@ -632,8 +645,11 @@ useEffect(() => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {admins.map((admin) => (
+                    {admins.map((admin, index) => (
                       <TableRow key={admin.id}>
+                        <TableCell>
+                          {(currentPage - 1) * itemsPerPage + index + 1}
+                        </TableCell>
                         <TableCell className="font-medium">
                           <div className="flex items-center space-x-3">
                             <Avatar>
@@ -651,33 +667,38 @@ useEffect(() => {
                             <span>{getRoleLabel(admin.role)}</span>
                           </div>
                         </TableCell>
-                       <TableCell>
-        <div className="flex items-center space-x-2">
-          {getStatusBadge(admin.status)}
-          <Switch
-            checked={admin.status === "active"}
-            onCheckedChange={(checked) => handleStatusSwitch(admin.id, checked)}
-            disabled={admin.id === currentUser.id || admin.status === "blocked"}
-          />
-        </div>
-      </TableCell>
-                        <TableCell>{admin.created_at}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            {getStatusBadge(admin.status)}
+                            <Switch
+                              checked={admin.status === "active"}
+                              onCheckedChange={(checked) => handleStatusSwitch(admin.id, checked)}
+                              disabled={admin.id === currentUser.id || admin.status === "blocked"}
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>{formatDate(admin.created_at)}</TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={() => handleEditClick(admin)}
                               disabled={admin.id === currentUser.id}
                             >
                               <Pencil className="w-4 h-4" />
                             </Button>
-                            <Dialog>
+                            <Dialog open={selectedAdmin !== null} onOpenChange={(open) => {
+                              if (!open) setSelectedAdmin(null);
+                            }}>
                               <DialogTrigger asChild>
                                 <Button
-                                  variant="ghost"
+                                  variant="outline"
                                   size="sm"
-                                  onClick={() => setSelectedAdmin(admin)}
+                                  onClick={() => setSelectedAdmin({
+                                    ...admin,
+                                    permissions: admin.permissions || DEFAULT_PERMISSIONS
+                                  })}
                                   disabled={admin.id === currentUser.id || admin.status === "blocked"}
                                 >
                                   <Eye className="w-4 h-4" />
@@ -690,306 +711,241 @@ useEffect(() => {
                                       <TabsTrigger value="details">Details</TabsTrigger>
                                       <TabsTrigger value="permissions">Permissions</TabsTrigger>
                                     </TabsList>
-                                    <TabsContent
-                                      value="details"
-                                      className="space-y-4"
-                                    >
+                                    <TabsContent value="details" className="space-y-4">
                                       <div className="grid grid-cols-2 gap-4">
                                         <div>
                                           <Label>Full Name</Label>
-                                          <p className="text-sm">
-                                            {selectedAdmin.name}
-                                          </p>
+                                          <p className="text-sm">{selectedAdmin.name}</p>
                                         </div>
                                         <div>
                                           <Label>Email</Label>
-                                          <p className="text-sm">
-                                            {selectedAdmin.email}
-                                          </p>
+                                          <p className="text-sm">{selectedAdmin.email}</p>
                                         </div>
                                         <div>
                                           <Label>Phone</Label>
-                                          <p className="text-sm">
-                                            {selectedAdmin.phone}
-                                          </p>
+                                          <p className="text-sm">{selectedAdmin.phone}</p>
                                         </div>
                                         <div>
                                           <Label>Role</Label>
-                                          <p className="text-sm">
-                                            {getRoleLabel(selectedAdmin.role)}
-                                          </p>
+                                          <p className="text-sm">{getRoleLabel(selectedAdmin.role)}</p>
                                         </div>
                                         <div>
                                           <Label>Status</Label>
                                           <div className="flex items-center space-x-2">
-                                            <p className="text-sm">
-                                              {selectedAdmin.status}
-                                            </p>
+                                            <p className="text-sm">{selectedAdmin.status}</p>
                                             <Switch
-                                              checked={
-                                                selectedAdmin.status === "active"
-                                              }
+                                              checked={selectedAdmin.status === "active"}
                                               onCheckedChange={(checked) =>
-                                                handleStatusSwitch(
-                                                  selectedAdmin.id,
-                                                  checked
-                                                )
+                                                handleStatusSwitch(selectedAdmin.id, checked)
                                               }
-                                              disabled={
-                                                selectedAdmin.id === currentUser.id ||
-                                                selectedAdmin.status === "blocked"
-                                              }
+                                              disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
                                             />
                                           </div>
                                         </div>
                                         <div>
                                           <Label>Created</Label>
-                                          <p className="text-sm">
-                                            {selectedAdmin.created_at}
-                                          </p>
+                                          <p className="text-sm">{formatDate(selectedAdmin.created_at)}</p>
                                         </div>
                                       </div>
                                     </TabsContent>
                                     <TabsContent value="permissions" className="space-y-4">
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    {/* Dashboard */}
-    <div className="flex items-center justify-between">
-      <div>
-        <Label>Dashboard Access</Label>
-        <p className="text-sm text-muted-foreground">
-          View dashboard and analytics
-        </p>
-      </div>
-      <Switch
-        checked={selectedAdmin.permissions.dashboard}
-        onCheckedChange={(checked) =>
-          setSelectedAdmin((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  permissions: { ...prev.permissions, dashboard: checked },
-                }
-              : null
-          )
-        }
-        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
-      />
-    </div>
-
-    {/* Drivers */}
-    <div className="flex items-center justify-between">
-      <div>
-        <Label>Driver Management</Label>
-        <p className="text-sm text-muted-foreground">
-          Manage driver approvals and status
-        </p>
-      </div>
-      <Switch
-        checked={selectedAdmin.permissions.drivers}
-        onCheckedChange={(checked) =>
-          setSelectedAdmin((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  permissions: { ...prev.permissions, drivers: checked },
-                }
-              : null
-          )
-        }
-        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
-      />
-    </div>
-
-    {/* Vehicles */}
-    <div className="flex items-center justify-between">
-      <div>
-        <Label>Vehicle Management</Label>
-        <p className="text-sm text-muted-foreground">
-          Manage vehicle approvals and status
-        </p>
-      </div>
-      <Switch
-        checked={selectedAdmin.permissions.vehicles}
-        onCheckedChange={(checked) =>
-          setSelectedAdmin((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  permissions: { ...prev.permissions, vehicles: checked },
-                }
-              : null
-          )
-        }
-        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
-      />
-    </div>
-
-    {/* Rides */}
-    <div className="flex items-center justify-between">
-      <div>
-        <Label>Ride Management</Label>
-        <p className="text-sm text-muted-foreground">
-          Manage ride bookings and assignments
-        </p>
-      </div>
-      <Switch
-        checked={selectedAdmin.permissions.rides}
-        onCheckedChange={(checked) =>
-          setSelectedAdmin((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  permissions: { ...prev.permissions, rides: checked },
-                }
-              : null
-          )
-        }
-        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
-      />
-    </div>
-
-    {/* Earnings */}
-    <div className="flex items-center justify-between">
-      <div>
-        <Label>Earnings & Reports</Label>
-        <p className="text-sm text-muted-foreground">
-          View financial reports and earnings
-        </p>
-      </div>
-      <Switch
-        checked={selectedAdmin.permissions.earnings}
-        onCheckedChange={(checked) =>
-          setSelectedAdmin((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  permissions: { ...prev.permissions, earnings: checked },
-                }
-              : null
-          )
-        }
-        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
-      />
-    </div>
-
-    {/* Support */}
-    <div className="flex items-center justify-between">
-      <div>
-        <Label>Support & Tickets</Label>
-        <p className="text-sm text-muted-foreground">
-          Handle support tickets and disputes
-        </p>
-      </div>
-      <Switch
-        checked={selectedAdmin.permissions.support}
-        onCheckedChange={(checked) =>
-          setSelectedAdmin((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  permissions: { ...prev.permissions, support: checked },
-                }
-              : null
-          )
-        }
-        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
-      />
-    </div>
-
-    {/* Push Notifications */}
-    <div className="flex items-center justify-between">
-      <div>
-        <Label>Push Notifications</Label>
-        <p className="text-sm text-muted-foreground">
-          Send notifications and alerts
-        </p>
-      </div>
-      <Switch
-        checked={selectedAdmin.permissions.push_notifications}
-        onCheckedChange={(checked) =>
-          setSelectedAdmin((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  permissions: { ...prev.permissions, push_notifications: checked },
-                }
-              : null
-          )
-        }
-        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
-      />
-    </div>
-
-    {/* Fleet */}
-    <div className="flex items-center justify-between">
-      <div>
-        <Label>Fleet Management</Label>
-        <p className="text-sm text-muted-foreground">
-          Manage cars, packages, subpackages, and pricing
-        </p>
-      </div>
-      <Switch
-        checked={selectedAdmin.permissions.fleet}
-        onCheckedChange={(checked) =>
-          setSelectedAdmin((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  permissions: { ...prev.permissions, fleet: checked },
-                }
-              : null
-          )
-        }
-        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
-      />
-    </div>
-
-    {/* Admin Management */}
-    <div className="flex items-center justify-between">
-      <div>
-        <Label>Admin Management</Label>
-        <p className="text-sm text-muted-foreground">
-          Create and manage admin accounts
-        </p>
-      </div>
-      <Switch
-        checked={selectedAdmin.permissions.admin_management}
-        onCheckedChange={(checked) =>
-          setSelectedAdmin((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  permissions: { ...prev.permissions, admin_management: checked },
-                }
-              : null
-          )
-        }
-        disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
-      />
-    </div>
-  </div>
-
-  {/* Footer Buttons */}
-  <div className="flex justify-end space-x-2 mt-4">
-    <Button
-      className="bg-primary text-card"
-      onClick={() => setSelectedAdmin(null)}
-    >
-      Cancel
-    </Button>
-    <Button
-      className="bg-primary text-card"
-      onClick={() => {
-        if (selectedAdmin) {
-          handleUpdatePermissions(selectedAdmin.id, selectedAdmin.permissions);
-        }
-      }}
-    >
-      Confirm
-    </Button>
-  </div>
-</TabsContent>
-
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <Label>Dashboard Access</Label>
+                                            <p className="text-sm text-muted-foreground">View dashboard and analytics</p>
+                                          </div>
+                                          <Switch
+                                            checked={selectedAdmin.permissions?.dashboard ?? false}
+                                            onCheckedChange={(checked) =>
+                                              setSelectedAdmin((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      permissions: { ...prev.permissions, dashboard: checked }
+                                                    }
+                                                  : null
+                                              )
+                                            }
+                                            disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <Label>Driver Management</Label>
+                                            <p className="text-sm text-muted-foreground">Manage driver approvals and status</p>
+                                          </div>
+                                          <Switch
+                                            checked={selectedAdmin.permissions?.drivers ?? false}
+                                            onCheckedChange={(checked) =>
+                                              setSelectedAdmin((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      permissions: { ...prev.permissions, drivers: checked }
+                                                    }
+                                                  : null
+                                              )
+                                            }
+                                            disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <Label>Vehicle Management</Label>
+                                            <p className="text-sm text-muted-foreground">Manage vehicle approvals and status</p>
+                                          </div>
+                                          <Switch
+                                            checked={selectedAdmin.permissions?.vehicles ?? false}
+                                            onCheckedChange={(checked) =>
+                                              setSelectedAdmin((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      permissions: { ...prev.permissions, vehicles: checked }
+                                                    }
+                                                  : null
+                                              )
+                                            }
+                                            disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <Label>Ride Management</Label>
+                                            <p className="text-sm text-muted-foreground">Manage ride bookings and assignments</p>
+                                          </div>
+                                          <Switch
+                                            checked={selectedAdmin.permissions?.rides ?? false}
+                                            onCheckedChange={(checked) =>
+                                              setSelectedAdmin((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      permissions: { ...prev.permissions, rides: checked }
+                                                    }
+                                                  : null
+                                              )
+                                            }
+                                            disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <Label>Earnings & Reports</Label>
+                                            <p className="text-sm text-muted-foreground">View financial reports and earnings</p>
+                                          </div>
+                                          <Switch
+                                            checked={selectedAdmin.permissions?.earnings ?? false}
+                                            onCheckedChange={(checked) =>
+                                              setSelectedAdmin((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      permissions: { ...prev.permissions, earnings: checked }
+                                                    }
+                                                  : null
+                                              )
+                                            }
+                                            disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <Label>Support & Tickets</Label>
+                                            <p className="text-sm text-muted-foreground">Handle support tickets and disputes</p>
+                                          </div>
+                                          <Switch
+                                            checked={selectedAdmin.permissions?.support ?? false}
+                                            onCheckedChange={(checked) =>
+                                              setSelectedAdmin((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      permissions: { ...prev.permissions, support: checked }
+                                                    }
+                                                  : null
+                                              )
+                                            }
+                                            disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <Label>Push Notifications</Label>
+                                            <p className="text-sm text-muted-foreground">Send notifications and alerts</p>
+                                          </div>
+                                          <Switch
+                                            checked={selectedAdmin.permissions?.push_notifications ?? false}
+                                            onCheckedChange={(checked) =>
+                                              setSelectedAdmin((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      permissions: { ...prev.permissions, push_notifications: checked }
+                                                    }
+                                                  : null
+                                              )
+                                            }
+                                            disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <Label>Fleet Management</Label>
+                                            <p className="text-sm text-muted-foreground">Manage cars, packages, subpackages, and pricing</p>
+                                          </div>
+                                          <Switch
+                                            checked={selectedAdmin.permissions?.fleet ?? false}
+                                            onCheckedChange={(checked) =>
+                                              setSelectedAdmin((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      permissions: { ...prev.permissions, fleet: checked }
+                                                    }
+                                                  : null
+                                              )
+                                            }
+                                            disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <Label>Admin Management</Label>
+                                            <p className="text-sm text-muted-foreground">Create and manage admin accounts</p>
+                                          </div>
+                                          <Switch
+                                            checked={selectedAdmin.permissions?.admin_management ?? false}
+                                            onCheckedChange={(checked) =>
+                                              setSelectedAdmin((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      permissions: { ...prev.permissions, admin_management: checked }
+                                                    }
+                                                  : null
+                                              )
+                                            }
+                                            disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="flex justify-end space-x-2 mt-4">
+                                        <Button variant="outline" onClick={() => setSelectedAdmin(null)}>
+                                          Cancel
+                                        </Button>
+                                        <Button
+                                          onClick={() => {
+                                            if (selectedAdmin) {
+                                              handleUpdatePermissions(selectedAdmin.id, selectedAdmin.permissions);
+                                            }
+                                          }}
+                                        >
+                                          Confirm
+                                        </Button>
+                                      </div>
+                                    </TabsContent>
                                   </Tabs>
                                 )}
                               </DialogContent>
@@ -1023,14 +979,10 @@ useEffect(() => {
                               <DialogContent>
                                 <DialogHeader>
                                   <DialogTitle>
-                                    Confirm{" "}
-                                    {admin.status === "blocked" ? "Unblock" : "Block"}{" "}
-                                    Admin
+                                    Confirm {admin.status === "blocked" ? "Unblock" : "Block"} Admin
                                   </DialogTitle>
                                   <DialogDescription>
-                                    Are you sure you want to{" "}
-                                    {admin.status === "blocked" ? "unblock" : "block"}{" "}
-                                    this admin? This action cannot be undone.
+                                    Are you sure you want to {admin.status === "blocked" ? "unblock" : "block"} this admin? This action cannot be undone.
                                   </DialogDescription>
                                 </DialogHeader>
                                 <DialogFooter>
@@ -1044,7 +996,6 @@ useEffect(() => {
                                     Cancel
                                   </Button>
                                   <Button
-                                  className="bg-primary text-card hover:bg-primary hover:text-card"
                                     variant="destructive"
                                     onClick={() => handleBlockUnblockAdmin(admin.id)}
                                   >
@@ -1060,79 +1011,72 @@ useEffect(() => {
                   </TableBody>
                 </Table>
                 {!loading && totalItems > 0 && (
-                  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
-                    <div className="mb-2 md:mb-0">
-                      <label className="mr-2 text-sm text-primary">
-                        Items per page:
-                      </label>
-                      <select
-                        value={itemsPerPage}
-                        onChange={(e) => {
-                          setItemsPerPage(Number(e.target.value));
-                          setCurrentPage(1);
-                        }}
-                        className="p-2 border border-primary rounded-md bg-card"
-                      >
-                        <option value={5}>5</option>
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                      </select>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        onClick={() => setCurrentPage(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        variant="outline"
-                        className="text-primary"
-                      >
-                        Previous
-                      </Button>
-                      {Array.from(
-                        { length: Math.ceil(totalItems / itemsPerPage) },
-                        (_, i) => i + 1
-                      ).map((page) => (
-                        <Button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          variant={currentPage === page ? "default" : "outline"}
-                          className={
-                            currentPage === page
-                              ? "bg-primary text-card"
-                              : "bg-card text-primary"
-                          }
-                        >
-                          {page}
-                        </Button>
-                      ))}
-                      <Button
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={
-                          currentPage === Math.ceil(totalItems / itemsPerPage)
-                        }
-                        variant="outline"
-                        className="text-primary"
-                      >
-                        Next
-                      </Button>
-                    </div>
-                    <span className="text-sm text-primary mt-2 md:mt-0">
-                      Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
-                    </span>
-                  </div>
-                )}
-              </CardContent>
+  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+    <div className="mb-2 md:mb-0">
+      <label className="mr-2 text-sm text-primary">Items per page:</label>
+      <select
+        value={itemsPerPage}
+        onChange={(e) => {
+          setItemsPerPage(Number(e.target.value));
+          setCurrentPage(1);
+        }}
+        className="p-2 border border-primary rounded-md bg-card"
+      >
+        <option value={5}>5</option>
+        <option value={10}>10</option>
+        <option value={20}>20</option>
+      </select>
+    </div>
+    <div className="flex space-x-2">
+      <Button
+        onClick={() => setCurrentPage(currentPage - 1)}
+        disabled={currentPage === 1}
+        variant="outline"
+        className="text-primary"
+      >
+        Previous
+      </Button>
+      {Array.from(
+        { length: Math.ceil(totalItems / itemsPerPage) },
+        (_, i) => i + 1
+      ).map((page) => (
+        <Button
+          key={page}
+          onClick={() => setCurrentPage(page)}
+          variant={currentPage === page ? "default" : "outline"}
+          className={
+            currentPage === page
+              ? "bg-primary text-card"
+              : "bg-card text-primary"
+          }
+        >
+          {page}
+        </Button>
+      ))}
+      <Button
+        onClick={() => setCurrentPage(currentPage + 1)}
+        disabled={currentPage >= Math.ceil(totalItems / itemsPerPage)}
+        variant="outline"
+        className="text-primary"
+      >
+        Next
+      </Button>
+    </div>
+    <span className="text-sm text-primary mt-2 md:mt-0">
+      Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)} (Total: {totalItems} admins)
+    </span>
+  </div>
+)}
+</CardContent>
             </Card>
           </>
         )}
       </div>
-      {/* Edit Admin Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Admin</DialogTitle>
-            <DialogDescription>
-              Update admin details
-            </DialogDescription>
+            <DialogDescription>Update admin details</DialogDescription>
           </DialogHeader>
           {editingAdmin && (
             <div className="space-y-4">

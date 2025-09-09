@@ -540,7 +540,7 @@ const PackagePrices: React.FC = () => {
                   id="base_fare"
                   type="number"
                   min="0"
-                  step="0.01"
+                  step="1"
                   value={newPackagePrice.base_fare}
                   onChange={(e) => setNewPackagePrice({ ...newPackagePrice, base_fare: e.target.value })}
                   placeholder="Enter base fare"
@@ -587,6 +587,7 @@ const PackagePrices: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>S.No</TableHead>
                 <TableHead>Package</TableHead>
                 <TableHead>Sub-Package</TableHead>
                 <TableHead>Car</TableHead>
@@ -600,8 +601,9 @@ const PackagePrices: React.FC = () => {
             <TableBody>
               {packagePrices
                 .filter(pp => pp.id && typeof pp.id === 'string' && pp.id.trim() !== '') // Filter out invalid IDs
-                .map((pp: PackagePrice) => (
+                .map((pp: PackagePrice, index: number) => (
                   <TableRow key={`package-price-${pp.id}`}>
+                     <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                     <TableCell>{packages.find(p => p.id === pp.package_id)?.name || 'N/A'}</TableCell>
                     <TableCell>{allSubPackages.find(sp => sp.id === pp.sub_package_id)?.name || 'N/A'}</TableCell>
                     <TableCell>
@@ -673,6 +675,7 @@ const PackagePrices: React.FC = () => {
                               <Button
                                 variant="destructive"
                                 onClick={() => handleDeletePackagePrice(pp.id)}
+                                className='bg-primary text-card hover:bg-primary hover:text-card'
                               >
                                 Delete
                               </Button>

@@ -112,7 +112,7 @@ export default function SupportManagement() {
     fetchOpenTickets();
   }, [searchTerm, selectedStatus, currentPage, itemsPerPage]);
 
-  const statusOptions = ["All", "Open", "In Progress", "Resolved", "Closedc"];
+  const statusOptions = ["All", "Open", "In Progress", "Resolved", "Closed"];
 
   return (
     <div className="space-y-6">
@@ -314,7 +314,11 @@ export default function SupportManagement() {
               </p>
               <p>
                 <strong>Created At:</strong>{" "}
-                {new Date(selectedTicket.createdAt).toLocaleString()}
+                {new Date(selectedTicket.createdAt).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric"
+                      })}
               </p>
             </div>
           )}

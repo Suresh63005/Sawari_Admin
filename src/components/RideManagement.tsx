@@ -194,6 +194,9 @@ const Rides: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
+const [rideToCancel, setRideToCancel] = useState<any | null>(null);
+const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+
 
   // Check if selected sub-package is 1-hour
   const isOneHourSubPackage = useMemo(() => {
@@ -1349,16 +1352,17 @@ const Rides: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="text-sm">
-                          {ride.scheduled_time
-                            ? new Date(ride.scheduled_time).toLocaleString()
-                            : "-"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {ride.ride_date
-                            ? new Date(ride.ride_date).toLocaleDateString()
-                            : "-"}
-                        </p>
+                      <p className="text-sm">
+  {ride.scheduled_time
+    ? new Date(ride.scheduled_time).toLocaleString("en-GB")
+    : "-"}
+</p>
+<p className="text-sm text-muted-foreground">
+  {ride.ride_date
+    ? new Date(ride.ride_date).toLocaleDateString("en-GB")
+    : "-"}
+</p>
+
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1417,141 +1421,61 @@ const Rides: React.FC = () => {
                                     History
                                   </TabsTrigger>
                                 </TabsList>
-                                <TabsContent
-                                  value="details"
-                                  className="space-y-4"
-                                >
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                      <label className="text-sm font-medium">
-                                        Customer Information
-                                      </label>
-                                      <div className="space-y-1">
-                                        <p className="flex items-center text-sm">
-                                          <User className="w-4 h-4 mr-2" />
-                                          {selectedRide.customer_name}
-                                        </p>
-                                        <p className="flex items-center text-sm">
-                                          <Phone className="w-4 h-4 mr-2" />
-                                          {selectedRide.phone || "-"}
-                                        </p>
-                                        <p className="flex items-center text-sm">
-                                          <MapPin className="w-4 h-4 mr-2" />
-                                          {selectedRide.pickup_location || "-"}
-                                        </p>
-                                        <p className="flex items-center text-sm">
-                                          <MapPin className="w-4 h-4 mr-2" />
-                                          {selectedRide.pickup_address || "-"}
-                                        </p>
-                                        <p className="flex items-center text-sm">
-                                          <Mail className="w-4 h-4 mr-2" />
-                                          {selectedRide.email || "-"}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <label className="text-sm font-medium">
-                                        Ride Information
-                                      </label>
-                                      <div className="space-y-1">
-                                        <p className="flex items-center text-sm">
-                                          <Calendar className="w-4 h-4 mr-2" />
-                                          {selectedRide.ride_date
-                                            ? new Date(
-                                                selectedRide.ride_date
-                                              ).toLocaleString()
-                                            : "-"}
-                                        </p>
-                                        <p className="flex items-center text-sm">
-                                          <Calendar className="w-4 h-4 mr-2" />
-                                          {selectedRide.scheduled_time
-                                            ? new Date(
-                                                selectedRide.scheduled_time
-                                              ).toLocaleString()
-                                            : "-"}
-                                        </p>
-                                        <p className="flex items-center text-sm">
-                                          <Car className="w-4 h-4 mr-2" />
-                                          {selectedRide.car_name || "-"}
-                                        </p>
-                                        <p className="flex items-center text-sm">
-                                          <Car className="w-4 h-4 mr-2" />
-                                          {selectedRide.package_name ||
-                                            "-"} -{" "}
-                                          {selectedRide.subpackage_name || "-"}
-                                        </p>
-                                        <p className="flex items-center text-sm">
-                                          <DollarSign className="w-4 h-4 mr-2" />
-                                          AED{" "}
-                                          {Number(selectedRide.Price)
-                                            ? Number(
-                                                selectedRide.Price
-                                              ).toFixed(2)
-                                            : "0.00"}
-                                        </p>
-                                        <p className="flex items-center text-sm">
-                                          <DollarSign className="w-4 h-4 mr-2" />
-                                          Total: AED{" "}
-                                          {Number(selectedRide.Total)
-                                            ? Number(
-                                                selectedRide.Total
-                                              ).toFixed(2)
-                                            : "0.00"}
-                                        </p>
-                                        {selectedRide.subpackage_name
-                                          ?.toLowerCase()
-                                          .includes("1 hour") && (
-                                          <p className="flex items-center text-sm">
-                                            <Clock className="w-4 h-4 mr-2" />
-                                            {selectedRide.rider_hours} hours
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <label className="text-sm font-medium">
-                                      Route
-                                    </label>
-                                    <div className="space-y-2">
-                                      <div className="flex items-center text-sm">
-                                        <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                                        <span>
-                                          Pickup: {selectedRide.pickup_location}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center text-sm">
-                                        <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
-                                        <span>
-                                          Drop: {selectedRide.drop_location}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  {selectedRide.notes && (
-                                    <div className="space-y-2">
-                                      <label className="text-sm font-medium">
-                                        Special Notes
-                                      </label>
-                                      <p className="text-sm text-muted-foreground">
-                                        {selectedRide.notes}
-                                      </p>
-                                    </div>
-                                  )}
-                                  {selectedRide.driver_id && (
-                                    <div className="space-y-2">
-                                      <label className="text-sm font-medium">
-                                        Driver Information
-                                      </label>
-                                      <div className="space-y-1">
-                                        <p className="flex items-center text-sm">
-                                          <User className="w-4 h-4 mr-2" />
-                                          Driver ID: {selectedRide.driver_id}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  )}
-                                </TabsContent>
+                                <TabsContent value="details" className="space-y-4">
+  <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-2">
+      <label className="text-sm font-medium">Customer Information</label>
+      <div className="space-y-1">
+        <p className="flex items-center text-sm"><User className="w-4 h-4 mr-2" />{selectedRide.customer_name}</p>
+        <p className="flex items-center text-sm"><Phone className="w-4 h-4 mr-2" />{selectedRide.phone || "-"}</p>
+        <p className="flex items-center text-sm"><MapPin className="w-4 h-4 mr-2" />{selectedRide.pickup_location || "-"}</p> {/* Removed w-[50px] here */}
+        <p className="flex items-center text-sm"><MapPin className="w-4 h-4 mr-2" />{selectedRide.pickup_address || "-"}</p>
+        <p className="flex items-center text-sm"><Mail className="w-4 h-4 mr-2" />{selectedRide.email || "-"}</p>
+      </div>
+    </div>
+    <div className="space-y-2">
+      <label className="text-sm font-medium">Ride Information</label>
+      <div className="space-y-1">
+        <p className="flex items-center text-sm"><Calendar className="w-4 h-4 mr-2" />{selectedRide.ride_date ? new Date(selectedRide.ride_date).toLocaleString("en-GB") : "-"}</p>
+        <p className="flex items-center text-sm"><Calendar className="w-4 h-4 mr-2" />{selectedRide.scheduled_time ? new Date(selectedRide.scheduled_time).toLocaleString("en-GB") : "-"}</p>
+        <p className="flex items-center text-sm"><Car className="w-4 h-4 mr-2" />{selectedRide.car_name || "-"}</p>
+        <p className="flex items-center text-sm"><Car className="w-4 h-4 mr-2" />{selectedRide.package_name || "-"} - {selectedRide.subpackage_name || "-"}</p>
+        <p className="flex items-center text-sm"><DollarSign className="w-4 h-4 mr-2" />AED {Number(selectedRide.Price) ? Number(selectedRide.Price).toFixed(2) : "0.00"}</p>
+        <p className="flex items-center text-sm"><DollarSign className="w-4 h-4 mr-2" />Total: AED {Number(selectedRide.Total) ? Number(selectedRide.Total).toFixed(2) : "0.00"}</p>
+        {selectedRide.subpackage_name?.toLowerCase().includes("1 hour") && (
+          <p className="flex items-center text-sm"><Clock className="w-4 h-4 mr-2" />{selectedRide.rider_hours} hours</p>
+        )}
+      </div>
+    </div>
+  </div>
+  <div className="space-y-2">
+    <label className="text-sm font-medium">Route</label>
+    <div className="space-y-2">
+      <div className="flex items-center text-sm">
+        <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+        <span>Pickup: {selectedRide.pickup_location}</span>
+      </div>
+      <div className="flex items-center text-sm">
+        <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
+        <span>Drop: {selectedRide.drop_location}</span>
+      </div>
+    </div>
+  </div>
+  {selectedRide.notes && (
+    <div className="space-y-2">
+      <label className="text-sm font-medium">Special Notes</label>
+      <p className="text-sm text-muted-foreground">{selectedRide.notes}</p>
+    </div>
+  )}
+  {selectedRide.driver_id && (
+    <div className="space-y-2">
+      <label className="text-sm font-medium">Driver Information</label>
+      <div className="space-y-1">
+        <p className="flex items-center text-sm"><User className="w-4 h-4 mr-2" />Driver ID: {selectedRide.driver_id}</p>
+      </div>
+    </div>
+  )}
+</TabsContent>
                                 <TabsContent
                                   value="tracking"
                                   className="space-y-4"
@@ -1570,9 +1494,8 @@ const Rides: React.FC = () => {
                                       <div>
                                         <p className="text-sm">Ride created</p>
                                         <p className="text-xs text-muted-foreground">
-                                          {new Date(
-                                            selectedRide.createdAt
-                                          ).toLocaleString()}
+                                          {new Date(selectedRide.createdAt).toLocaleString("en-GB")}
+
                                         </p>
                                       </div>
                                     </div>
@@ -1584,9 +1507,8 @@ const Rides: React.FC = () => {
                                             Ride accepted
                                           </p>
                                           <p className="text-xs text-muted-foreground">
-                                            {new Date(
-                                              selectedRide.accept_time
-                                            ).toLocaleString()}
+                                            {new Date(selectedRide.accept_time).toLocaleString("en-GB")}
+
                                           </p>
                                         </div>
                                       </div>
@@ -1599,9 +1521,8 @@ const Rides: React.FC = () => {
                                             Pickup started
                                           </p>
                                           <p className="text-xs text-muted-foreground">
-                                            {new Date(
-                                              selectedRide.pickup_time
-                                            ).toLocaleString()}
+                                           {new Date(selectedRide.pickup_time).toLocaleString("en-GB")}
+
                                           </p>
                                         </div>
                                       </div>
@@ -1614,9 +1535,8 @@ const Rides: React.FC = () => {
                                             Drop-off completed
                                           </p>
                                           <p className="text-xs text-muted-foreground">
-                                            {new Date(
-                                              selectedRide.dropoff_time
-                                            ).toLocaleString()}
+                                            {new Date(selectedRide.dropoff_time).toLocaleString("en-GB")}
+
                                           </p>
                                         </div>
                                       </div>
@@ -1638,17 +1558,49 @@ const Rides: React.FC = () => {
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCancelRide(ride.id)}
-                          disabled={
-                            ride.status === "completed" ||
-                            ride.status === "cancelled"
-                          }
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+<Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+  <DialogTrigger asChild>
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        setRideToCancel(ride);
+        setIsCancelDialogOpen(true);
+      }}
+      disabled={ride.status === "completed" || ride.status === "cancelled"}
+    >
+      <X className="w-4 h-4" />
+    </Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Cancel Ride</DialogTitle>
+      <DialogDescription>
+        Are you sure you want to cancel this ride? This action cannot be undone.
+      </DialogDescription>
+    </DialogHeader>
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
+        No, keep ride
+      </Button>
+      <Button
+        variant="destructive"
+        className="bg-primary text-card hover:bg-primary hover:text-card"
+        onClick={() => {
+          if (rideToCancel) {
+            handleCancelRide(rideToCancel.id);
+          }
+          setIsCancelDialogOpen(false);
+          setRideToCancel(null);
+        }}
+      >
+        Yes, cancel ride
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+
                       </div>
                     </TableCell>
                   </TableRow>

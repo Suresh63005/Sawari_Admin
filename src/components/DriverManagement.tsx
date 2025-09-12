@@ -65,52 +65,69 @@ export default function DriverManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
+  
+
+  // add this effect for initial load
+useEffect(() => {
+  const fetchInitialDrivers = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/v1/admin/driver', {
+        params: {
+          page: currentPage,
+          limit: itemsPerPage,
+          search: '',
+          status: statusFilter === 'all' ? undefined : statusFilter,
+        },
+      });
+      const { drivers: fetchedDrivers, total } = response.data;
+      setDrivers(fetchedDrivers);
+      setTotalItems(total);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to fetch drivers', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchInitialDrivers();
+}, []); // run once on mount
 
   // Debounced search function
-  const debouncedFetchDrivers = useCallback(
+ const debouncedFetchDrivers = useCallback(
   debounce(async (search: string, status: string, page: number, limit: number) => {
-    if (search.length === 0 || search.length >= 2) {
-      try {
-        const response = await apiClient.get('/v1/admin/driver', {
-          params: {
-            page,
-            limit,
-            search,
-            status: status === 'all' ? undefined : status,
-          },
-        });
-        console.log(response.data,"Fetched Drivers");
-        const { drivers: fetchedDrivers, total } = response.data;
-        const normalizedDrivers = fetchedDrivers.map((driver: Driver) => ({
-          ...driver,
-          first_name: driver.first_name || '', // Normalize to empty string
-          last_name: driver.last_name || '',   // Normalize to empty string
-          languages: Array.isArray(driver.languages) ? driver.languages : [],
-          license_verification_status: driver.license_verification_status || 'pending',
-          emirates_verification_status: driver.emirates_verification_status || 'pending',
-        }));
-
-        const storedDriverId = localStorage.getItem("selectedDriverId");
-
-        if (storedDriverId) {
-          setDriverIdFilter(storedDriverId);
-          localStorage.removeItem("selectedDriverId");
-        }
-
-        setDrivers(normalizedDrivers);
-        setTotalItems(total);
-      } catch (err: any) {
-        toast.error(err.response?.data?.message || 'Failed to fetch drivers', {
-          style: {
-            background: '#622A39',
-            color: 'hsl(42, 51%, 91%)',
-          },
-        });
-      }
+    try {
+      setSearchLoading(true); // <<< add this
+      const response = await apiClient.get('/v1/admin/driver', {
+        params: {
+          page,
+          limit,
+          search,
+          status: status === 'all' ? undefined : status,
+        },
+      });
+      const { drivers: fetchedDrivers, total } = response.data;
+      setDrivers(fetchedDrivers);
+      setTotalItems(total);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to fetch drivers', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+    } finally {
+      setSearchLoading(false); // <<< add this
     }
   }, 500),
   []
 );
+
 
   useEffect(() => {
     debouncedFetchDrivers(searchTerm, statusFilter, currentPage, itemsPerPage);
@@ -359,6 +376,13 @@ export default function DriverManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {searchLoading && (
+    <TableRow>
+      <TableCell colSpan={6} className="text-center">
+        <Loader />
+      </TableCell>
+    </TableRow>
+  )}
               {filteredDrivers.length === 0 && !searchLoading ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center">No drivers found</TableCell>
@@ -371,8 +395,9 @@ export default function DriverManagement() {
         </TableCell> 
                     <TableCell>
                       <div className="flex items-center space-x-3">
+                        
                         <Avatar>
-                          <AvatarFallback>{`${driver.first_name[0]}${driver.last_name[0]}`}</AvatarFallback>
+                          <AvatarFallback>{`${(driver.first_name?.[0] || '').toUpperCase()}${(driver.last_name?.[0] || '').toUpperCase()}` || 'NA'}</AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="font-medium">{`${driver.first_name} ${driver.last_name}`}</p>

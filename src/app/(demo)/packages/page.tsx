@@ -367,7 +367,7 @@ const Packages: React.FC = () => {
                           size="sm"
                           onClick={() => setConfirmDelete({ open: true, packageId: pkg.id })}
                         >
-                          <Trash2 className="w-4 h-4 mr-1 text-red-500" />
+                          <Trash2 className="w-4 h-4 mr-1 text-primary" />
                         </Button>
                       </div>
                     </TableCell>

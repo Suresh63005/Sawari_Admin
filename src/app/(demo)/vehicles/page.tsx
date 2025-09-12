@@ -75,24 +75,32 @@ export default function VehicleApproval() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
-  useEffect(() => {
-    const driverId = localStorage.getItem("selectedDriverId");
 
- const fetchVehicles = async (isSearch = false) => {
+const [driverIdFilter, setDriverIdFilter] = useState<string | null>(() => {
+  return localStorage.getItem("selectedDriverId");
+});
+
+ const fetchVehicles = async (
+  search: string,
+  status: string,
+  page: number,
+  limit: number,
+  driverId?: string | null
+) => {
   try {
-    if (isSearch) {
-      setSearchLoading(false);
-    } else {
-      setLoading(false);
-    }
+    setSearchLoading(true); // small loader
 
-    const response = await apiClient.get(
-      `/v1/admin/vehicles?page=${currentPage}&limit=${itemsPerPage}&search=${encodeURIComponent(searchTerm)}&status=${statusFilter}`
-    );
+    const response = await apiClient.get("/v1/admin/vehicles", {
+      params: {
+        page,
+        limit,
+        search,
+        status: status === "all" ? undefined : status,
+        driver_id: driverId || undefined, // <<< include driver id
+      },
+    });
 
-    let data = response.data.data;
-    // normalize data
-    data = data.map((vehicle: any) => ({
+    let data = response.data.data.map((vehicle: any) => ({
       ...vehicle,
       car_photos: Array.isArray(vehicle.car_photos) ? vehicle.car_photos : [],
       rc_doc_status: vehicle.rc_doc_status || "pending",
@@ -108,42 +116,62 @@ export default function VehicleApproval() {
       description: err.response?.data?.message || "Failed to fetch vehicles",
     });
   } finally {
-    if (isSearch) {
-      setSearchLoading(false);
-    } else {
-      setLoading(false);
-    }
+    setSearchLoading(false);
   }
 };
 
+useEffect(() => {
+  const storedDriverId = localStorage.getItem("selectedDriverId");
+  if (storedDriverId) {
+    setDriverIdFilter(storedDriverId);
+    localStorage.removeItem("selectedDriverId");
+  }
 
-    fetchVehicles();
-  }, [currentPage, itemsPerPage, searchTerm, statusFilter]);
+  const loadInitial = async () => {
+    try {
+      setLoading(true); // show big loader
+      await fetchVehicles(searchTerm, statusFilter, currentPage, itemsPerPage, storedDriverId);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  loadInitial();
+}, []); // run once on mount
+
+useEffect(() => {
+  if (!loading) {
+    fetchVehicles(searchTerm, statusFilter, currentPage, itemsPerPage, driverIdFilter);
+  }
+}, [searchTerm, statusFilter, currentPage, itemsPerPage, driverIdFilter]);
+
+
+  
   // Wild search implementation
   const filteredVehicles = vehicles.filter((vehicle) => {
-    const searchTerms = searchTerm
-      .toLowerCase()
-      .split(/\s+/)
-      .filter((term) => term.length > 0);
-    const vehicleString =
-      `${vehicle.car_brand} ${vehicle.car_model} ${vehicle.license_plate}`.toLowerCase();
-    const matchesSearch = searchTerms.every(
-      (term) =>
-        vehicleString.includes(term) ||
-        vehicle.car_brand.toLowerCase().includes(term) ||
-        vehicle.car_model.toLowerCase().includes(term) ||
-        vehicle.license_plate.toLowerCase().includes(term)
-    );
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "pending" && !vehicle.is_approved) ||
-      (statusFilter === "approved" &&
-        vehicle.is_approved &&
-        vehicle.status === "active") ||
-      (statusFilter === "rejected" && vehicle.status === "rejected");
-    return matchesSearch && matchesStatus;
-  });
+  const searchTerms = searchTerm
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((term) => term.length > 0);
+  const vehicleString = `${vehicle.car_brand} ${vehicle.car_model} ${vehicle.license_plate}`.toLowerCase();
+  const matchesSearch = searchTerms.every(
+    (term) =>
+      vehicleString.includes(term) ||
+      vehicle.car_brand.toLowerCase().includes(term) ||
+      vehicle.car_model.toLowerCase().includes(term) ||
+      vehicle.license_plate.toLowerCase().includes(term)
+  );
+  const matchesStatus =
+    statusFilter === "all" ||
+    (statusFilter === "pending" && !vehicle.is_approved) ||
+    (statusFilter === "approved" && vehicle.is_approved && vehicle.status === "active") ||
+    (statusFilter === "rejected" && vehicle.status === "rejected");
+
+  const matchesDriverId = driverIdFilter ? vehicle.driver_id === driverIdFilter : true;
+
+  return matchesSearch && matchesStatus && matchesDriverId;
+});
+
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredVehicles.length / itemsPerPage);
@@ -159,6 +187,15 @@ export default function VehicleApproval() {
       setCurrentPage(pageNumber);
     }
   };
+
+  useEffect(() => {
+  const storedDriverId = localStorage.getItem("selectedDriverId");
+  if (storedDriverId) {
+    setDriverIdFilter(storedDriverId);
+    localStorage.removeItem("selectedDriverId"); // optional
+  }
+}, []);
+
 
   const verifiedBy = "some-user-id"; // Replace with actual user ID from auth context
 
@@ -407,6 +444,14 @@ const getStatusBadge = (vehicle: Vehicle) => {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {searchLoading && (
+  <TableRow>
+    <TableCell colSpan={5} className="text-center">
+      <Loader />
+    </TableCell>
+  </TableRow>
+)}
+
   {currentVehicles.length === 0 ? (
     <TableRow>
       <TableCell colSpan={4} className="text-center">No vehicles found</TableCell>

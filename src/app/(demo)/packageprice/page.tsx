@@ -652,7 +652,7 @@ const PackagePrices: React.FC = () => {
                                 setShowDeleteConfirm(true);
                               }}
                             >
-                              <Trash2 className="w-4 h-4 mr-1 text-red-500" />
+                              <Trash2 className="w-4 h-4 mr-1 text-primary" />
                             </Button>
                           </DialogTrigger>
                           <DialogContent>

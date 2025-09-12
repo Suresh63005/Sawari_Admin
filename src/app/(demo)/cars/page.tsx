@@ -435,7 +435,7 @@ const Cars: React.FC = () => {
                         size="sm"
                         onClick={() => setConfirmDelete({ open: true, carId: car.id })}
                       >
-                        <Trash2 className="w-4 h-4 mr-1 text-red-500" />
+                        <Trash2 className="w-4 h-4 mr-1 text-primary" />
                         
                       </Button>
                     </div>

@@ -271,7 +271,7 @@ export default function Notifications() {
                         size="sm"
                         onClick={() => setConfirmDelete({ open: true, notificationId: notification.id })}
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
+                        <Trash2 className="w-4 h-4 text-primary" />
                       </Button>
                     </TableCell>
                   </TableRow>

@@ -49,12 +49,13 @@ import {
   AlertCircle,
   User,
   Calendar,
-  Eye
+  Eye,
+  Loader2
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import apiClient from "@/lib/apiClient";
 import toast from "react-hot-toast";
-import { debounce } from "lodash";
+import { debounce, set } from "lodash";
 import MapView from "./MapView";
 import Loader from "@/components/ui/Loader";
 import { DebouncedFunc } from "lodash";
@@ -161,6 +162,8 @@ const Rides: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formData, setFormData] = useState<FormData>({
     customer_name: "",
     phone: "",
@@ -593,7 +596,7 @@ const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
         return;
       }
     }
-
+setIsSaving(true);
     try {
       console.log("Sending create ride request:", {
         ...formData,
@@ -631,6 +634,7 @@ const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
       });
     } finally {
       setIsSubmitting(false);
+      setIsSaving(false);
     }
   }, [
     formData,
@@ -681,7 +685,7 @@ const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
         return;
       }
     }
-
+setIsSaving(true);
     try {
       const response = await apiClient.put(
         `/v1/admin/ride/${selectedRide.id}`,
@@ -712,6 +716,7 @@ const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
       });
     } finally {
       setIsSubmitting(false);
+      setIsSaving(false);
     }
   }, [
     selectedRide,
@@ -1169,13 +1174,16 @@ const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
           Cancel
         </Button>
         <Button
-          disabled={isSubmitting}
+          disabled={isSaving}
           onClick={() => {
             console.log("Create/Save button clicked, isEdit:", isEdit);
             isEdit ? handleEditRide() : handleCreateRide();
           }}
         >
-          {isSubmitting ? "Processing..." : isEdit ? "Save Changes" : "Create"}
+          {isSaving && (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          )}
+          {isSaving ? "Processing..." : isEdit ? "Save Changes" : "Create"}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -1586,6 +1594,7 @@ const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
       <Button
         variant="destructive"
         className="bg-primary text-card hover:bg-primary hover:text-card"
+        disabled={isDeleting}
         onClick={() => {
           if (rideToCancel) {
             handleCancelRide(rideToCancel.id);
@@ -1594,6 +1603,9 @@ const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
           setRideToCancel(null);
         }}
       >
+        {isDeleting ? (
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        ) : null}
         Yes, cancel ride
       </Button>
     </DialogFooter>

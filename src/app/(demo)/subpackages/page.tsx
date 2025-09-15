@@ -10,10 +10,10 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Loader2 } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
-import { debounce } from 'lodash';
+import { debounce, set } from 'lodash';
 import Loader from '@/components/ui/Loader';
 
 interface Package {
@@ -51,7 +51,8 @@ const SubPackages: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
   const [totalItems, setTotalItems] = useState<number>(0);
-
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [newSubPackage, setNewSubPackage] = useState<NewSubPackage>({
     id: '',
     name: '',
@@ -149,7 +150,7 @@ const SubPackages: React.FC = () => {
       });
       return;
     }
-
+setIsSaving(true);
     try {
       const payload: Partial<SubPackage> & { id?: string } = {
         name: newSubPackage.name.trim(),
@@ -191,10 +192,13 @@ const SubPackages: React.FC = () => {
           color: 'hsl(42, 51%, 91%)',
         },
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDeleteSubPackage = async (subPackageId: string) => {
+    setIsDeleting(true);
       try {
         const response = await apiClient.delete(`/v1/admin/sub-package/${subPackageId}`);
         setSubPackages(subPackages.filter(sp => sp.id !== subPackageId));
@@ -215,6 +219,7 @@ const SubPackages: React.FC = () => {
       } finally {
         setShowDeleteConfirm(false);
         setDeleteSubPackageId(null);
+        setIsDeleting(false);
       }
     };
 
@@ -362,7 +367,8 @@ const SubPackages: React.FC = () => {
                 <Button variant="outline" onClick={() => setShowSubPackageForm(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleUpsertSubPackage}>
+                <Button onClick={handleUpsertSubPackage} disabled={isSaving}>
+                  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   {newSubPackage.id ? 'Update Sub-Package' : 'Create Sub-Package'}
                 </Button>
               </div>
@@ -470,7 +476,11 @@ const SubPackages: React.FC = () => {
                                   variant="destructive"
                                   onClick={() => handleDeleteSubPackage(sp.id)}
                                   className='bg-primary text-card hover:bg-primary hover:text-card'
+                                  disabled={isDeleting}
                                 >
+                                  {isDeleting && (
+                                    <Loader2 className="inline-block h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                  )}
                                   Delete
                                 </Button>
                               </DialogFooter>

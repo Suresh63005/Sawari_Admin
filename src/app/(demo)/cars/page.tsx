@@ -9,10 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Edit, Trash2, Car, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Car, Search, Loader2 } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
-import { debounce } from 'lodash';
+import { debounce, set } from 'lodash';
 import Loader from '@/components/ui/Loader';
 
 interface Car {
@@ -43,7 +43,8 @@ const Cars: React.FC = () => {
     status: 'active' as 'active' | 'inactive',
   });
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; carId: string }>({ open: false, carId: '' });
-
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   // Memoize the debounced fetchCars function
   const debouncedFetchCars = useMemo(
     () =>
@@ -142,7 +143,7 @@ const Cars: React.FC = () => {
       });
       return;
     }
-
+setIsSaving(true);
     try {
       const formData = new FormData();
       formData.append('brand', newCar.brand);
@@ -183,10 +184,13 @@ const Cars: React.FC = () => {
           color: 'hsl(42, 51%, 91%)',
         },
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDeleteCar = async (carId: string) => {
+    setIsDeleting(true);
     try {
       const response = await apiClient.delete(`/v1/admin/car/${carId}`);
       setCars(cars.filter(car => car.id !== carId));
@@ -206,6 +210,7 @@ const Cars: React.FC = () => {
       });
     } finally {
       setConfirmDelete({ open: false, carId: '' });
+      setIsDeleting(false);
     }
   };
 
@@ -360,7 +365,8 @@ const Cars: React.FC = () => {
                 <Button variant="outline" onClick={() => setShowCarForm(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleUpsertCar}>
+                <Button onClick={handleUpsertCar} disabled={isSaving}>
+                  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   {newCar.id ? 'Update Car' : 'Create Car'}
                 </Button>
               </div>
@@ -516,7 +522,11 @@ const Cars: React.FC = () => {
               variant="destructive"
               onClick={() => handleDeleteCar(confirmDelete.carId)}
               className='bg-primary text-card hover:bg-primary hover:text-card'
+              disabled={isDeleting}
             >
+              {isDeleting && (
+                <Loader2 className="inline-block h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              )}  
               Delete
             </Button>
           </DialogFooter>

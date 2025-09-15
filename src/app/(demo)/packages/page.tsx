@@ -14,6 +14,8 @@ import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 import { debounce } from 'lodash';
 import Loader from '@/components/ui/Loader';
+import { Loader2 } from 'lucide-react';
+
 
 interface Package {
   id: string;
@@ -41,7 +43,8 @@ const Packages: React.FC = () => {
     status: 'active' as 'active' | 'inactive',
   });
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; packageId: string }>({ open: false, packageId: '' });
-
+const [isSaving, setIsSaving] = useState(false);
+const [isDeleting, setIsDeleting] = useState(false);
   // Memoize the debounced fetchPackages function
   const debouncedFetchPackages = useCallback(
     debounce(async (query: string, page: number, limit: number) => {
@@ -112,7 +115,7 @@ const Packages: React.FC = () => {
       });
       return;
     }
-
+setIsSaving(true);
     try {
       const response = await apiClient.post('/v1/admin/package/upsert', newPackage);
 
@@ -138,10 +141,13 @@ const Packages: React.FC = () => {
           color: 'hsl(42, 51%, 91%)',
         },
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDeletePackage = async (packageId: string) => {
+    setIsDeleting(true);
     try {
       const response = await apiClient.delete(`/v1/admin/package/${packageId}`);
       setPackages(packages.filter(pkg => pkg.id !== packageId));
@@ -161,6 +167,7 @@ const Packages: React.FC = () => {
       });
     } finally {
       setConfirmDelete({ open: false, packageId: '' });
+      setIsDeleting(false);
     }
   };
 
@@ -294,9 +301,10 @@ const Packages: React.FC = () => {
                 <Button variant="outline" onClick={() => setShowPackageForm(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleUpsertPackage}>
-                  {newPackage.id ? 'Update Package' : 'Create Package'}
-                </Button>
+                <Button onClick={handleUpsertPackage} disabled={isSaving}>
+  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+  {newPackage.id ? 'Update Package' : 'Create Package'}
+</Button>
               </div>
             </div>
           </DialogContent>
@@ -445,12 +453,17 @@ const Packages: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button
-              className="bg-primary text-card"
-              onClick={() => handleDeletePackage(confirmDelete.packageId)}
-            >
-              Delete
-            </Button>
+          <Button
+  className="bg-primary text-card"
+  onClick={() => handleDeletePackage(confirmDelete.packageId)}
+  disabled={isDeleting}
+>
+  {isDeleting && (
+    <span className="inline-block h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+  )}
+  Delete
+</Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

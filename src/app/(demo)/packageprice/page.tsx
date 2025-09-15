@@ -10,10 +10,10 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Loader2 } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
-import { debounce } from 'lodash';
+import { debounce, set } from 'lodash';
 import Loader from '@/components/ui/Loader';
 
 interface Package {
@@ -68,6 +68,8 @@ const PackagePrices: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [totalItems, setTotalItems] = useState<number>(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [newPackagePrice, setNewPackagePrice] = useState<NewPackagePrice>({
     id: '',
     package_id: '',
@@ -219,7 +221,7 @@ const PackagePrices: React.FC = () => {
       });
       return;
     }
-
+setIsSaving(true);
     try {
       const payload: Partial<PackagePrice> & { id?: string } = {
         package_id: newPackagePrice.package_id,
@@ -267,10 +269,12 @@ const PackagePrices: React.FC = () => {
           color: 'hsl(42, 51%, 91%)',
         },
       });
+      setIsSaving(false);
     }
   };
 
   const handleDeletePackagePrice = async (packagePriceId: string) => {
+    
     if (!packagePriceId) {
       console.error('Invalid package price ID for delete:', packagePriceId); // Debug log
       toast.error('Invalid package price ID', {
@@ -281,6 +285,7 @@ const PackagePrices: React.FC = () => {
       });
       return;
     }
+    setIsDeleting(true);
     try {
       console.log('Deleting package price ID:', packagePriceId); // Debug log
       const response = await apiClient.delete(`/v1/admin/packageprice/${packagePriceId}`);
@@ -302,6 +307,7 @@ const PackagePrices: React.FC = () => {
     } finally {
       setShowDeleteConfirm(false);
       setDeletePackagePriceId(null);
+      setIsDeleting(false);
     }
   };
 
@@ -570,7 +576,10 @@ const PackagePrices: React.FC = () => {
                 <Button variant="outline" onClick={() => setShowPackagePriceForm(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleUpsertPackagePrice}>
+                <Button onClick={handleUpsertPackagePrice} disabled={isSaving}>
+                  {isSaving && (
+                    <Loader2 className="inline-block h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  )}
                   {newPackagePrice.id ? 'Update Package Price' : 'Create Package Price'}
                 </Button>
               </div>
@@ -676,7 +685,11 @@ const PackagePrices: React.FC = () => {
                                 variant="destructive"
                                 onClick={() => handleDeletePackagePrice(pp.id)}
                                 className='bg-primary text-card hover:bg-primary hover:text-card'
+                                disabled={isDeleting}
                               >
+                                {isDeleting && (
+                                  <Loader2 className="inline-block h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                )}
                                 Delete
                               </Button>
                             </DialogFooter>

@@ -48,6 +48,7 @@ export default function DashboardRootLayout({
           'push_notifications',
           'admin_management',
           'fleet',
+          'reports'
         ];
         const missingPermissions = expectedPermissions.filter(
           (perm) => !(perm in permissions)
@@ -69,6 +70,7 @@ export default function DashboardRootLayout({
             push_notifications: !!permissions.push_notifications,
             admin_management: !!permissions.admin_management,
             fleet: !!permissions.fleet,
+            reports: !!permissions.reports,
           },
         });
       } catch (error: any) {

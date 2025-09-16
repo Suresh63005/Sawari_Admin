@@ -10,10 +10,11 @@ import {
   Bell,
   Settings,
   LucideIcon,
-  LogOut,
   Package,
   Boxes,
+  FileText,
 } from "lucide-react";
+import { use } from "react";
 
 type Submenu = {
   href: string;
@@ -27,7 +28,7 @@ type Menu = {
   active: boolean;
   icon: LucideIcon;
   submenus?: Submenu[];
-  permission?: string; // Made optional to allow menu items without permission checks
+  permission?: string;
 };
 
 type Group = {
@@ -35,8 +36,24 @@ type Group = {
   menus: Menu[];
 };
 
-// getMenuList
-export function getMenuList(pathname: string, userPermissions: { [key: string]: boolean }): Group[] {
+// Define the shape of userPermissions with an index signature
+export interface UserPermissions {
+  dashboard: boolean;
+  drivers: boolean;
+  vehicles: boolean;
+  rides: boolean;
+  earnings: boolean;
+  support: boolean;
+  push_notifications: boolean;
+  admin_management: boolean;
+  fleet: boolean;
+  reports: boolean;
+  [key: string]: boolean; // Index signature to allow string-based indexing
+}
+
+
+export function getMenuList(pathname: string, userPermissions: UserPermissions): Group[] {
+  console.log('userPermissions passed to getMenuList:', userPermissions);
   const allMenus: Group[] = [
     {
       groupLabel: "",
@@ -91,31 +108,58 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           label: "Cars",
           active: pathname === "/cars",
           icon: Car,
-          permission: "fleet", // Updated
+          permission: "fleet",
         },
         {
           href: "/packages",
           label: "Packages",
           active: pathname === "/packages",
           icon: Package,
-          permission: "fleet", // Updated
+          permission: "fleet",
         },
         {
           href: "/subpackages",
           label: "Subpackages",
           active: pathname === "/subpackages",
           icon: Combine,
-          permission: "fleet", // Updated
+          permission: "fleet",
         },
         {
           href: "/packageprice",
           label: "Package Price",
           active: pathname === "/packageprice",
           icon: Boxes,
-          permission: "fleet", // Updated
+          permission: "fleet",
         },
       ],
     },
+    {
+  groupLabel: "Reports",
+  menus: [
+    {
+      href: "/reports/drivers",
+      label: "Driver Reports",
+      active: pathname === "/reports/drivers",
+      icon: FileText, // you can pick a different icon for each if you want
+      permission: "reports",
+    },
+    {
+      href: "/reports/rides",
+      label: "Ride Reports",
+      active: pathname === "/reports/rides",
+      icon: FileText, // or MapPin, whatever suits
+      permission: "reports",
+    },
+    {
+      href: "/reports/payments",
+      label: "Payment Reports",
+      active: pathname === "/reports/payments",
+      icon: FileText, // or DollarSign for payments
+      permission: "reports",
+    },
+  ],
+},
+
     {
       groupLabel: "System",
       menus: [
@@ -131,7 +175,7 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           label: "Push Notifications",
           active: pathname === "/notifications",
           icon: Bell,
-          permission: "push_notifications", // Renamed
+          permission: "push_notifications",
         },
         {
           href: "/admin-management",
@@ -140,19 +184,15 @@ export function getMenuList(pathname: string, userPermissions: { [key: string]: 
           icon: Settings,
           permission: "admin_management",
         },
-        // {
-        //   href: "/logout",
-        //   label: "Logout",
-        //   active: pathname === "/",
-        //   icon: LogOut,
-        //   // No permission required for logout
-        // },
       ],
     },
   ];
 
-  return allMenus.map(group => ({
-    ...group,
-    menus: group.menus.filter(menu => !menu.permission || userPermissions[menu.permission]),
-  })).filter(group => group.menus.length > 0);
+  return allMenus
+    .map(group => ({
+      ...group,
+      menus: group.menus.filter(menu => !menu.permission || userPermissions[menu.permission]),
+    }))
+    
+    .filter(group => group.menus.length > 0);
 }

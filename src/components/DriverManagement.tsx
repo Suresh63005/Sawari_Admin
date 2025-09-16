@@ -9,13 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from './ui/dialog';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Search, Eye, CheckCircle, XCircle, Ban, Unlock, Star, Calendar, Languages, Phone, Mail, Car } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, Ban, Unlock, Star, Calendar, Languages, Phone, Mail, Car, Loader2 } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Loader from '@/components/ui/Loader';
-import { debounce } from 'lodash'; // Assuming lodash is installed for debouncing
+import { debounce, set } from 'lodash'; // Assuming lodash is installed for debouncing
 
 interface Driver {
   id: string;
@@ -42,6 +42,7 @@ interface Driver {
 
 export default function DriverManagement() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  console.log(drivers, "Drivers State");
   const [searchTerm, setSearchTerm] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -52,6 +53,7 @@ export default function DriverManagement() {
   const [emiratesModalOpen, setEmiratesModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [driverIdFilter, setDriverIdFilter] = useState<string | null>(() => {
     return localStorage.getItem("selectedDriverId");
   });
@@ -149,7 +151,7 @@ useEffect(() => {
   const handleConfirmAction = async (providedReason?: string) => {
     const { action, driverId } = confirmDialog;
     const reason = providedReason?.trim();
-
+    setIsDeleting(true);
     try {
       if (action === 'license-verify') {
         await apiClient.post(`/v1/admin/driver/${driverId}/verify-license`, { verified_by: verifiedBy });
@@ -251,6 +253,7 @@ useEffect(() => {
     } finally {
       setConfirmDialog({ open: false, action: '', driverId: '' });
       setRejectReason('');
+      setIsDeleting(false);
     }
   };
 
@@ -284,6 +287,7 @@ useEffect(() => {
     return <Loader />;
   }
 
+ 
   return (
     <div className="space-y-6">
       <Card className="bg-card p-4 rounded-lg border border-primary">
@@ -762,7 +766,7 @@ useEffect(() => {
             >
               Cancel
             </Button>
-          <Button
+      <Button
   className={
     confirmDialog.action === 'block'
       ? 'bg-primary text-card'
@@ -774,14 +778,31 @@ useEffect(() => {
       ? 'bg-primary text-card'
       : ''
   }
-  onClick={() => handleConfirmAction(confirmDialog.action === 'reject' ? rejectReason : undefined)}
-  disabled={confirmDialog.action === 'reject' && !rejectReason}
+  onClick={() =>
+    handleConfirmAction(
+      confirmDialog.action === 'reject' ? rejectReason : undefined
+    )
+  }
+  disabled={
+    isDeleting || // disable while deleting
+    (confirmDialog.action === 'reject' && !rejectReason)
+  }
 >
-  {confirmDialog.action.includes('verify') ? 'Verify' : 
-   confirmDialog.action.includes('reject') ? 'Reject' : 
-   confirmDialog.action === 'approve' ? 'Approve' : 
-   confirmDialog.action === 'block' ? 'Block' : 'Unblock'}
-   
+  {isDeleting ? (
+    // show loader while deleting
+    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+  ) : null}
+
+  {/* the label text */}
+  {confirmDialog.action.includes('verify')
+    ? 'Verify'
+    : confirmDialog.action.includes('reject')
+    ? 'Reject'
+    : confirmDialog.action === 'approve'
+    ? 'Approve'
+    : confirmDialog.action === 'block'
+    ? 'Block'
+    : 'Unblock'}
 </Button>
 
           </DialogFooter>

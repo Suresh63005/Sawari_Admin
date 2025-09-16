@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import apiClient from "@/lib/apiClient";
 import {
+  
   DEFAULT_PERMISSIONS,
   getAdminHierarchy,
   canCreateAdmin,
@@ -78,6 +79,7 @@ interface Admin {
     push_notifications: boolean;
     admin_management: boolean;
     fleet: boolean;
+    reports: boolean;
   };
 }
 
@@ -707,9 +709,9 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
                               <DialogContent className="max-w-2xl">
                                 {selectedAdmin && (
                                   <Tabs defaultValue="details" className="w-full">
-                                    <TabsList>
-                                      <TabsTrigger value="details">Details</TabsTrigger>
-                                      <TabsTrigger value="permissions">Permissions</TabsTrigger>
+                                    <TabsList className="grid w-full grid-cols-2">
+                                      <TabsTrigger value="details" className="data-[state=active]:bg-primary data-[state=active]:text-card">Details</TabsTrigger>
+                                      <TabsTrigger value="permissions" className="data-[state=active]:bg-primary data-[state=active]:text-card ">Permissions</TabsTrigger>
                                     </TabsList>
                                     <TabsContent value="details" className="space-y-4">
                                       <div className="grid grid-cols-2 gap-4">
@@ -930,6 +932,27 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
                                             disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
                                           />
                                         </div>
+   <div className="flex items-center justify-between">
+  <div>
+    <Label>Reports</Label>
+    <p className="text-sm text-muted-foreground">View and download reports</p>
+  </div>
+  <Switch
+    checked={selectedAdmin.permissions?.reports ?? false}
+    onCheckedChange={(checked) =>
+      setSelectedAdmin((prev) =>
+        prev
+          ? {
+              ...prev,
+              permissions: { ...prev.permissions, reports: checked }
+            }
+          : null
+      )
+    }
+    disabled={selectedAdmin.id === currentUser.id || selectedAdmin.status === "blocked"}
+  />
+</div>
+
                                       </div>
                                       <div className="flex justify-end space-x-2 mt-4">
                                         <Button variant="outline" onClick={() => setSelectedAdmin(null)}>

@@ -1,17 +1,7 @@
 export type Role = 'super_admin' | 'admin' | 'executive_admin' | 'ride_manager';
 
 // permissions.ts
-export const DEFAULT_PERMISSIONS: Record<Role, {
-  dashboard: boolean;
-  drivers: boolean;
-  vehicles: boolean;
-  rides: boolean;
-  earnings: boolean;
-  support: boolean;
-  push_notifications: boolean; // Renamed
-  admin_management: boolean;
-  fleet: boolean; // New
-}> = {
+export const DEFAULT_PERMISSIONS = {
   super_admin: {
     dashboard: true,
     drivers: true,
@@ -19,9 +9,10 @@ export const DEFAULT_PERMISSIONS: Record<Role, {
     rides: true,
     earnings: true,
     support: true,
-    push_notifications: true, // Renamed
+    push_notifications: true,
     admin_management: true,
-    fleet: true, // New
+    fleet: true,
+    reports: true, // New
   },
   admin: {
     dashboard: true,
@@ -30,9 +21,10 @@ export const DEFAULT_PERMISSIONS: Record<Role, {
     rides: true,
     earnings: false,
     support: true,
-    push_notifications: true, // Renamed
+    push_notifications: true,
     admin_management: true,
-    fleet: true, // New
+    fleet: true,
+    reports: true, // New
   },
   executive_admin: {
     dashboard: true,
@@ -41,9 +33,10 @@ export const DEFAULT_PERMISSIONS: Record<Role, {
     rides: true,
     earnings: false,
     support: true,
-    push_notifications: true, // Renamed
+    push_notifications: true,
     admin_management: false,
-    fleet: true, // New
+    fleet: true,
+    reports: true, // New
   },
   ride_manager: {
     dashboard: true,
@@ -52,11 +45,13 @@ export const DEFAULT_PERMISSIONS: Record<Role, {
     rides: true,
     earnings: false,
     support: false,
-    push_notifications: false, // Renamed
+    push_notifications: false,
     admin_management: false,
-    fleet: false, // New
+    fleet: false,
+    reports: true, // New
   },
 };
+
 
 export const getAdminHierarchy = (currentRole: Role): Role[] => {
   const hierarchy: Record<Role, Role[]> = {

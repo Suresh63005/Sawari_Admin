@@ -24,11 +24,11 @@ import Cookies from 'js-cookie';
 import logo from '../../public/logo.png';
 import Image from 'next/image';
 import Loader from '@/components/ui/Loader';
-
+import type { UserPermissions } from '../lib/menu-list';
 export interface User {
   name: string;
   role: string;
-  permissions: Record<string, boolean>;
+  permissions: UserPermissions;
 }
 
 export interface DashboardLayoutProps {

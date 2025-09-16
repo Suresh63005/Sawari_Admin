@@ -23,7 +23,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Eye, CheckCircle, XCircle, User } from "lucide-react";
+import { Search, Eye, CheckCircle, XCircle, User, Loader2 } from "lucide-react";
 import apiClient from "@/lib/apiClient";
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
@@ -61,6 +61,7 @@ export default function VehicleApproval() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setisDeleting] = useState(false);
   const [rcModalOpen, setRcModalOpen] = useState(false);
   const [insuranceModalOpen, setInsuranceModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -202,7 +203,7 @@ useEffect(() => {
   const handleConfirmAction = async (providedReason?: string) => {
   const { action, vehicleId } = confirmDialog;
   const reason = providedReason?.trim();
-
+setisDeleting(true);
   try {
     if (action === "rc-verify") {
       await apiClient.post(`/v1/admin/vehicles/${vehicleId}/verify-rc`, {
@@ -317,6 +318,7 @@ useEffect(() => {
   } finally {
     setConfirmDialog({ open: false, action: "", vehicleId: "" });
     setRejectReason("");
+    setisDeleting(false);
   }
 };
 
@@ -636,16 +638,20 @@ const getStatusBadge = (vehicle: Vehicle) => {
   </Button>
 )}
 
-{(vehicle.status !== "rejected") && (
+{/* Show Reject only if NOT already rejected AND NOT already approved+active */}
+{vehicle.status !== "rejected" && !(vehicle.is_approved && vehicle.status === "active") && (
   <Button
     variant="outline"
     size="sm"
-    onClick={() => setConfirmDialog({ open: true, action: 'reject', vehicleId: vehicle.id })}
+    onClick={() =>
+      setConfirmDialog({ open: true, action: 'reject', vehicleId: vehicle.id })
+    }
     className="text-red-600 hover:text-red-700"
   >
     <XCircle className="w-4 h-4" />
   </Button>
 )}
+
 
             <Button
               variant="outline"
@@ -781,22 +787,33 @@ const getStatusBadge = (vehicle: Vehicle) => {
         Cancel
       </Button>
       <Button
-        variant={
-          confirmDialog.action.includes("verify") || confirmDialog.action === "approve"
-            ? "default"
-            : "destructive"
-        }
-        onClick={() => handleConfirmAction(confirmDialog.action === "reject" ? rejectReason : undefined)}
-        disabled={confirmDialog.action === "reject" && !rejectReason}
-      >
-        {confirmDialog.action.includes("verify")
-          ? "Verify"
-          : confirmDialog.action.includes("reject")
-          ? "Reject"
-          : confirmDialog.action === "approve"
-          ? "Approve"
-          : "Reject"}
-      </Button>
+  variant={
+    confirmDialog.action.includes("verify") || confirmDialog.action === "approve"
+      ? "default"
+      : "destructive"
+  }
+  onClick={() =>
+    handleConfirmAction(
+      confirmDialog.action === "reject" ? rejectReason : undefined
+    )
+  }
+  disabled={
+    isDeleting || // disable while deleting
+    (confirmDialog.action === "reject" && !rejectReason)
+  }
+>
+  {/* spinner when deleting */}
+  {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+
+  {/* label */}
+  {confirmDialog.action.includes("verify")
+    ? "Verify"
+    : confirmDialog.action.includes("reject")
+    ? "Reject"
+    : confirmDialog.action === "approve"
+    ? "Approve"
+    : "Reject"}
+</Button>
     </DialogFooter>
   </DialogContent>
 </Dialog>

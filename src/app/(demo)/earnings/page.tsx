@@ -45,13 +45,14 @@ export default function EarningsManagementPage() {
     fetchCurrentUser();
   }, [router]);
 
-  if (loading) {
-    return <Loader />;
-  }
+  // if (loading) {
+  //   return <Loader />;
+  // }
 
   if (error || !currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        {loading && <Loader />}
         <div className="bg-white p-6 rounded-lg shadow-lg">
           <h2 className="text-red-600 text-xl font-semibold">Error</h2>
           <p className="text-gray-700 mt-2">{error || 'User not authenticated'}</p>

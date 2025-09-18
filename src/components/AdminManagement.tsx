@@ -464,9 +464,9 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
     }
   };
 
-  if (loading) {
-    return <Loader />;
-  }
+  // if (loading) {
+  //   return <Loader />;
+  // }
 
   if (error) {
     return (
@@ -481,6 +481,7 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
 
   return (
     <div className="space-y-6">
+      {loading && <Loader />}
       <div className="mb-4">
         {getAvailableRoles().length > 0 && (
           <>

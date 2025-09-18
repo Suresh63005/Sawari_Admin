@@ -283,13 +283,14 @@ useEffect(() => {
     }
   };
 
-  if (loading) {
-    return <Loader />;
-  }
+  // if (loading) {
+  //   return <Loader />;
+  // }
 
  
   return (
     <div className="space-y-6">
+      {loading && <Loader />}
       <Card className="bg-card p-4 rounded-lg border border-primary">
         <CardHeader>
           <CardTitle>Filters</CardTitle>
@@ -487,13 +488,13 @@ useEffect(() => {
                                               <img
                                                 src={selectedDriver.license_front}
                                                 alt="License Front"
-                                                className="w-1/2 h-auto rounded cursor-pointer"
+                                                className="w-[400px] h-[250px] object-contain rounded cursor-pointer"
                                                 onClick={() => handleImageClick(selectedDriver.license_front)}
                                               />
                                               <img
                                                 src={selectedDriver.license_back}
                                                 alt="License Back"
-                                                className="w-1/2 h-auto rounded cursor-pointer"
+                                                className="w-[400px] h-[250px] object-contain rounded cursor-pointer"
                                                 onClick={() => handleImageClick(selectedDriver.license_back)}
                                               />
                                             </div>
@@ -534,13 +535,13 @@ useEffect(() => {
                                               <img
                                                 src={selectedDriver.emirates_doc_front}
                                                 alt="Emirates Front"
-                                                className="w-1/2 h-auto rounded cursor-pointer"
+                                                className="w-[400px] h-[250px] object-contain rounded cursor-pointer"
                                                 onClick={() => handleImageClick(selectedDriver.emirates_doc_front)}
                                               />
                                               <img
                                                 src={selectedDriver.emirates_doc_back}
                                                 alt="Emirates Back"
-                                                className="w-1/2 h-auto rounded cursor-pointer"
+                                                className="w-[400px] h-[250px] object-contain rounded cursor-pointer"
                                                 onClick={() => handleImageClick(selectedDriver.emirates_doc_back)}
                                               />
                                             </div>

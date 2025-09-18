@@ -273,12 +273,13 @@ setIsSaving(true);
       </div>
     );
   }
-  if (loading) {
-    return <Loader />;
-  }
+  // if (loading) {
+  //   return <Loader />;
+  // }
 
   return (
     <div className="space-y-6">
+      {loading && <Loader />}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center w-1/3">
           <div className="relative w-full">

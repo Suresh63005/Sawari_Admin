@@ -146,12 +146,13 @@ export default function Notifications() {
     }
   };
 
-  if (loading) {
-    return <Loader />;
-  }
+  // if (loading) {
+  //   return <Loader />;
+  // }
 
   return (
     <div className="space-y-6 p-6">
+      {loading && <Loader />}
       <Card>
         <CardHeader>
           <CardTitle>Send Notification</CardTitle>

@@ -225,9 +225,9 @@ setIsSaving(true);
   }
 }, [showPackageForm, newPackage.id]);
 
-  if (loading) {
-    return <Loader />;
-  }
+  // if (loading) {
+  //   return <Loader />;
+  // }
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -241,6 +241,7 @@ setIsSaving(true);
 
   return (
     <div className="space-y-6">
+      {loading && <Loader />}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center w-1/3">
           <div className="relative w-full">

@@ -227,12 +227,13 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
     }
   };
 
-  if (loading) {
-    return <Loader />;
-  }
+  // if (loading) {
+  //   return <Loader />;
+  // }
 
   return (
     <div className="space-y-6">
+      {loading && <Loader />}
       <div className="bg-card p-4 rounded-lg border border-primary">
         <div className="flex items-center space-x-4">
           <div className="flex-1">

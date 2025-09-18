@@ -158,12 +158,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     );
   };
 
-  if (loading) {
-    return <Loader />;
-  }
+  // if (loading) {
+  //   return <Loader />;
+  // }
 
   return (
     <div className="space-y-6">
+       {loading && <Loader />}
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {getStatsCards().map((stat, index) => (

@@ -84,6 +84,7 @@ interface AvailableCar {
   car_id: string;
   car_model: string;
   base_fare: string;
+  tax_rate?: number;
 }
 
 interface Ride {
@@ -92,6 +93,7 @@ interface Ride {
   phone: string;
   email: string | null;
   pickup_address: string | null;
+  drop_address: string | null;
   pickup_location: string;
   drop_location: string;
   ride_date: string | null;
@@ -130,6 +132,7 @@ interface FormData {
   phone: string;
   email: string;
   pickup_address: string;
+  drop_address: string;
   pickup_location: string;
   drop_location: string;
   // ride_date: string;
@@ -163,6 +166,7 @@ const Rides: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [taxRate, setTaxRate] = useState<number>(0);
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formData, setFormData] = useState<FormData>({
@@ -170,6 +174,7 @@ const Rides: React.FC = () => {
     phone: "",
     email: "",
     pickup_address: "",
+    drop_address: "",
     pickup_location: "",
     drop_location: "",
     // ride_date: "",
@@ -213,8 +218,8 @@ const Rides: React.FC = () => {
     const newErrors: Partial<FormData> = {};
     if (!formData.customer_name)
       newErrors.customer_name = "Customer name is required";
-    if (!formData.phone || formData.phone.length !== 10)
-      newErrors.phone = "Phone number must be exactly 10 digits";
+    // if (!formData.phone || formData.phone.length !== 10)
+    //   newErrors.phone = "Phone number must be exactly 10 digits";
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       newErrors.email = "Valid email is required";
     if (!formData.pickup_location)
@@ -338,6 +343,12 @@ const Rides: React.FC = () => {
         );
         console.log("Available cars response:", response.data);
         const availableCars: AvailableCar[] = response.data.data || [];
+        if (availableCars.length > 0) {
+  setTaxRate(availableCars[0].tax_rate || 0);
+} else {
+  setTaxRate(0);
+}
+
         console.log("Parsed availableCars:", availableCars);
         const mappedCars = availableCars.map((item: AvailableCar) => ({
           id: item.car_id,
@@ -351,11 +362,18 @@ const Rides: React.FC = () => {
           );
           if (packagePrice) {
             const baseFare = parseFloat(packagePrice.base_fare) || 0;
-            const total = isOneHourSubPackage
-              ? baseFare * formData.rider_hours
-              : baseFare;
-            console.log(total, "Total calculated for car:", formData.car_id);
-            setFormData((prev) => ({ ...prev, Price: baseFare, Total: total }));
+            const subtotal = isOneHourSubPackage
+  ? baseFare * formData.rider_hours
+  : baseFare;
+
+const taxAmount = subtotal * (taxRate / 100);
+const totalWithTax = subtotal + taxAmount;
+
+console.log(totalWithTax, "Total (incl. tax) for car:", formData.car_id);
+setFormData((prev) => ({ ...prev, Price: baseFare, Total: totalWithTax }));
+
+            console.log(totalWithTax, "Total calculated for car:", formData.car_id);
+            setFormData((prev) => ({ ...prev, Price: baseFare, Total: totalWithTax }));
           } else if (!isEditModalOpen) {
             setFormData((prev) => ({
               ...prev,
@@ -456,6 +474,7 @@ const Rides: React.FC = () => {
               cancelled: data.counts.cancelled || 0,
               totalRevenue: data.counts.totalRevenue || 0
             });
+            console.log("Rides summary:", rideSummary);
           } catch (error: unknown) {
             const err = error as { response?: { data?: { error?: string } } };
             console.error("Fetch rides error:", err);
@@ -510,6 +529,7 @@ const Rides: React.FC = () => {
         phone: "",
         email: "",
         pickup_address: "",
+        drop_address: "",
         pickup_location: "",
         drop_location: "",
         // ride_date: "",
@@ -537,6 +557,7 @@ const Rides: React.FC = () => {
         phone: "",
         email: "",
         pickup_address: "",
+        drop_address: "",
         pickup_location: "",
         drop_location: "",
         // ride_date: "",
@@ -735,6 +756,7 @@ const Rides: React.FC = () => {
       phone: ride.phone,
       email: ride.email || "",
       pickup_address: ride.pickup_address || "",
+      drop_address: ride.drop_address || "",
       pickup_location: ride.pickup_location,
       drop_location: ride.drop_location,
       // ride_date: ride.ride_date
@@ -1011,6 +1033,19 @@ const Rides: React.FC = () => {
                 }
               />
             </div>
+            <div>
+              <Label>Drop Address</Label>
+              <Input
+                value={formData.drop_address}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    drop_address: e.target.value
+                  }))
+                }
+              />
+            </div>
+
             {/* <div>
               <Label>
                 Ride Date and Time <span className="text-red-500">*</span>
@@ -1055,6 +1090,21 @@ const Rides: React.FC = () => {
                 disabled
               />
             </div>
+            <div>
+  <Label>Tax (AED)</Label>
+  <Input
+    type="number"
+    value={(() => {
+      const subtotal = isOneHourSubPackage
+        ? formData.Price * formData.rider_hours
+        : formData.Price;
+      const taxAmount = subtotal * (taxRate / 100);
+      return taxAmount.toFixed(2);
+    })()}
+    disabled // 👈 keep disabled so user can’t edit
+  />
+</div>
+
             {isOneHourSubPackage && (
               <div>
                 <Label>Rider Hours</Label>
@@ -1067,12 +1117,16 @@ const Rides: React.FC = () => {
                     // ✅ enforce minimum 3
                     if (hours < 3) hours = 3;
 
-                    const total = formData.Price * hours;
-                    setFormData((prev) => ({
-                      ...prev,
-                      rider_hours: hours,
-                      Total: total
-                    }));
+                    const subtotal = formData.Price * hours;
+const taxAmount = subtotal * (taxRate / 100);
+const totalWithTax = subtotal + taxAmount;
+
+setFormData((prev) => ({
+  ...prev,
+  rider_hours: hours,
+  Total: totalWithTax
+}));
+
                   }}
                   min="3" // ✅ UI restriction
                 />
@@ -1141,7 +1195,7 @@ const Rides: React.FC = () => {
                   }
                 }}
                 required
-                maxLength={10}
+                maxLength={9}
               />
               {errors.phone && (
                 <p className="text-red-500 text-sm mt-1">{errors.phone}</p>

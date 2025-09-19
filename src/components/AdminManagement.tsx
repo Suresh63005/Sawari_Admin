@@ -105,6 +105,8 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState("");
+const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -169,6 +171,16 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
   };
 
   const handleCreateAdmin = async () => {
+    if (newAdmin.password !== confirmPassword) {
+  toast.error("Passwords do not match", {
+    style: {
+      background: "#622A39",
+      color: "hsl(42, 51%, 91%)"
+    }
+  });
+  return;
+}
+
     if (
       !newAdmin.first_name ||
       !newAdmin.last_name ||
@@ -207,6 +219,7 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
         permissions: response.data.permissions || DEFAULT_PERMISSIONS
       };
       setAdmins([...admins, newAdminData]);
+      setCurrentPage(1); 
       setNewAdmin({
         first_name: "",
         last_name: "",
@@ -216,6 +229,7 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
         password: ""
       });
       setShowCreateForm(false);
+      setConfirmPassword("");
       toast.success("Admin created successfully", {
         style: {
           background: "#622A39",
@@ -561,7 +575,7 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
                           value={newAdmin.phone}
                           onChange={(e) => {
                             const value = e.target.value.replace(/\D/g, "");
-                            const maxLength = 10;
+                            const maxLength = 9;
                             if (value.length <= maxLength) {
                               setNewAdmin({ ...newAdmin, phone: value });
                             }
@@ -599,6 +613,32 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
                           </Button>
                         </div>
                       </div>
+                      <div>
+  <Label htmlFor="confirm_password">Confirm Password</Label>
+  <div className="relative">
+    <Input
+      id="confirm_password"
+      type={showConfirmPassword ? "text" : "password"}
+      value={confirmPassword}
+      onChange={(e) => setConfirmPassword(e.target.value)}
+      placeholder="Confirm password"
+    />
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+    >
+      {showConfirmPassword ? (
+        <EyeOff className="h-4 w-4" />
+      ) : (
+        <Eye className="h-4 w-4" />
+      )}
+    </Button>
+  </div>
+</div>
+
                       <div>
                         <Label>Role</Label>
                         <Select
@@ -1022,6 +1062,7 @@ export const AdminManagement: React.FC<AdminManagementProps> = ({
                                   <Button
                                     variant="destructive"
                                     onClick={() => handleBlockUnblockAdmin(admin.id)}
+                                    className="bg-primary text-card hover:bg-primary hover:text-card"
                                   >
                                     Confirm
                                   </Button>

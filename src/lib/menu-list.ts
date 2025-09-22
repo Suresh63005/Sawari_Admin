@@ -14,7 +14,6 @@ import {
   Boxes,
   FileText,
 } from "lucide-react";
-import { use } from "react";
 
 type Submenu = {
   href: string;
@@ -36,24 +35,22 @@ type Group = {
   menus: Menu[];
 };
 
-// Define the shape of userPermissions with an index signature
 export interface UserPermissions {
-  dashboard: boolean;
-  drivers: boolean;
-  vehicles: boolean;
-  rides: boolean;
-  earnings: boolean;
-  support: boolean;
-  push_notifications: boolean;
-  admin_management: boolean;
-  fleet: boolean;
-  reports: boolean;
-  [key: string]: boolean; // Index signature to allow string-based indexing
+  dashboard?: boolean;
+  drivers?: boolean;
+  vehicles?: boolean;
+  rides?: boolean;
+  earnings?: boolean;
+  support?: boolean;
+  push_notifications?: boolean;
+  admin_management?: boolean;
+  fleet?: boolean;
+  reports?: boolean;
+  [key: string]: boolean | undefined;
 }
 
-
 export function getMenuList(pathname: string, userPermissions: UserPermissions): Group[] {
-  console.log('userPermissions passed to getMenuList:', userPermissions);
+  console.log("userPermissions passed to getMenuList:", userPermissions);
   const allMenus: Group[] = [
     {
       groupLabel: "",
@@ -134,32 +131,31 @@ export function getMenuList(pathname: string, userPermissions: UserPermissions):
       ],
     },
     {
-  groupLabel: "Reports",
-  menus: [
-    {
-      href: "/reports/drivers",
-      label: "Driver Reports",
-      active: pathname === "/reports/drivers",
-      icon: FileText, // you can pick a different icon for each if you want
-      permission: "reports",
+      groupLabel: "Reports",
+      menus: [
+        {
+          href: "/reports/drivers",
+          label: "Driver Reports",
+          active: pathname === "/reports/drivers",
+          icon: FileText,
+          permission: "reports",
+        },
+        {
+          href: "/reports/rides",
+          label: "Ride Reports",
+          active: pathname === "/reports/rides",
+          icon: FileText,
+          permission: "reports",
+        },
+        {
+          href: "/reports/payments",
+          label: "Payment Reports",
+          active: pathname === "/reports/payments",
+          icon: FileText,
+          permission: "reports",
+        },
+      ],
     },
-    {
-      href: "/reports/rides",
-      label: "Ride Reports",
-      active: pathname === "/reports/rides",
-      icon: FileText, // or MapPin, whatever suits
-      permission: "reports",
-    },
-    {
-      href: "/reports/payments",
-      label: "Payment Reports",
-      active: pathname === "/reports/payments",
-      icon: FileText, // or DollarSign for payments
-      permission: "reports",
-    },
-  ],
-},
-
     {
       groupLabel: "System",
       menus: [
@@ -191,8 +187,7 @@ export function getMenuList(pathname: string, userPermissions: UserPermissions):
   return allMenus
     .map(group => ({
       ...group,
-      menus: group.menus.filter(menu => !menu.permission || userPermissions[menu.permission]),
+      menus: group.menus.filter(menu => !menu.permission || userPermissions[menu.permission] === true),
     }))
-    
     .filter(group => group.menus.length > 0);
 }

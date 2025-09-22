@@ -57,7 +57,9 @@ export function Sidebar() {
     rides: true,
     earnings: false,
     support: true,
-    notifications: false,
+    push_notifications: false,
+    fleet: true,
+    reports: false,
     admin_management: true
   }}
 />

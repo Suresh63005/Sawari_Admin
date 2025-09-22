@@ -42,6 +42,11 @@ interface Stats {
   revenue: Stat;
   drivers: Stat;
   vehicles: Stat;
+   onlineDrivers: {
+    value: number;
+    trend?: string;
+    description: string;
+  };
 }
 
 interface Activity {
@@ -68,7 +73,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     completedRides: { value: 0, trend: "0%", description: "vs last month" },
     revenue: { value: 0, trend: "0%", description: "vs last month" },
     drivers: { value: 0, trend: "0%", description: "approved drivers" },
-    vehicles: { value: 0, trend: "0%", description: "approved vehicles" }
+    vehicles: { value: 0, trend: "0%", description: "approved vehicles" },
+    onlineDrivers: { value: 0, trend: "0%", description: "currently online" }
   });
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<Approval[]>([]);
@@ -102,13 +108,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     fetchDashboardData();
   }, []);
 
-  const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
+  const parseDMYTime = (dateString: string) => {
+  // Example input: "18/9/2025, 10:51:13 am"
+  const [datePart, timePart] = dateString.split(", ");
+  const [day, month, year] = datePart.split("/").map(Number);
+
+  // Build ISO string: YYYY-MM-DD + timePart
+  // Ensure two-digit month/day
+  const isoDate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return new Date(`${isoDate} ${timePart}`);
+};
+
+const formatDate = (str: string) => {
+  const date = parseDMYTime(str); // use our parser
+  // Show both date and time:
+  return date.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+};
+
   const getStatsCards = () => {
     const allCards = [
       {
@@ -150,7 +174,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         trend: stats.vehicles.trend,
         description: stats.vehicles.description,
         permission: "vehicles"
-      }
+      },
+      {
+  title: "Online Drivers",
+  value: stats.onlineDrivers.value.toString(),
+  icon: <Users className="w-4 h-4 text-green-500" />,
+  trend: stats.onlineDrivers.trend ?? '',   // optional
+  description: stats.onlineDrivers.description,
+  permission: "drivers",
+}
+
     ];
 
     return allCards.filter(
@@ -195,7 +228,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         ))}
       </div>
 
-      <div className=" w-full">
+      <div className="w-full">
         {/* Recent Activity */}
         <Card>
           <CardHeader>
@@ -225,7 +258,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
         {/* Pending Approvals */}
         {pendingApprovals.length > 0 && (
-          <Card>
+          <Card className="mt-6">
             <CardHeader>
               <CardTitle>Pending Approvals</CardTitle>
               <CardDescription>Items requiring your attention</CardDescription>

@@ -126,10 +126,9 @@ export default function VehicleApproval() {
           setDriverIdFilter(storedDriverId);
           localStorage.removeItem("selectedDriverId");
           setCurrentPage(1);
-          await fetchVehicles(searchTerm, statusFilter, 1, itemsPerPage, storedDriverId);
-        } else {
-          await fetchVehicles(searchTerm, statusFilter, currentPage, itemsPerPage);
+          // Removed await fetchVehicles here to avoid double fetch; let the main useEffect handle it
         }
+        // No fetch in initial; main useEffect will trigger on mount
       } catch (err) {
         console.error("Error in initial vehicle fetch:", err);
       } finally {
@@ -137,12 +136,11 @@ export default function VehicleApproval() {
       }
     };
     fetchInitialVehicles();
-  }, []);
- // run once on mount
+  }, []); // run once on mount
 
 useEffect(() => {
   fetchVehicles(searchTerm, statusFilter, currentPage, itemsPerPage, driverIdFilter);
-}, [currentPage, searchTerm, statusFilter, driverIdFilter]);
+}, [currentPage, searchTerm, statusFilter, driverIdFilter, itemsPerPage]);
 
 useEffect(() => {
   if (driverIdFilter) {
@@ -190,14 +188,6 @@ const currentVehicles = filteredVehicles; // no slicing at all
       setCurrentPage(pageNumber);
     }
   };
-
-  useEffect(() => {
-    const storedDriverId = localStorage.getItem("selectedDriverId");
-    if (storedDriverId) {
-      setDriverIdFilter(storedDriverId);
-      localStorage.removeItem("selectedDriverId"); // optional
-    }
-  }, []);
 
   const verifiedBy = "some-user-id"; // Replace with actual user ID from auth context
 
@@ -614,7 +604,7 @@ const currentVehicles = filteredVehicles; // no slicing at all
                                             <img
                                               src={selectedVehicle.rc_doc}
                                               alt="RC Document"
-                                              className="w-full h-[400px] rounded cursor-pointer"
+                                              className="w-[400px] h-[250px] rounded cursor-pointer"
                                               onClick={() =>
                                                 handleImageClick(
                                                   selectedVehicle.rc_doc
@@ -688,7 +678,7 @@ const currentVehicles = filteredVehicles; // no slicing at all
                                                 selectedVehicle.insurance_doc
                                               }
                                               alt="Insurance Document"
-                                              className="w-full h-[400px] rounded cursor-pointer"
+                                              className="w-[400px] h-[250px] rounded cursor-pointer"
                                               onClick={() =>
                                                 handleImageClick(
                                                   selectedVehicle.insurance_doc
@@ -987,7 +977,7 @@ const currentVehicles = filteredVehicles; // no slicing at all
 
       {/* Image Modal */}
       <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
-        <DialogContent className="max-w-[600px]">
+        <DialogContent className="">
           <DialogHeader>
             <DialogTitle>Enlarged Document</DialogTitle>
           </DialogHeader>
@@ -995,7 +985,7 @@ const currentVehicles = filteredVehicles; // no slicing at all
             <img
               src={selectedImage}
               alt="Enlarged Document"
-              className="w-full h-auto rounded"
+              className="w-[50vw] h-[80vh] rounded"
             />
           )}
         </DialogContent>

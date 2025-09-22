@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from './ui/dialog';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Search, Eye, CheckCircle, XCircle, Ban, Unlock, Star, Calendar, Languages, Phone, Mail, Car, Loader2 } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, Ban, Unlock, Star, Calendar, Languages, Phone, Mail, Car, Loader2, CarFront } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 import { Label } from './ui/label';
@@ -70,47 +70,44 @@ export default function DriverManagement() {
   
 
   // add this effect for initial load
+// 🔄 REPLACE your first useEffect with this
 useEffect(() => {
-  const fetchInitialDrivers = async () => {
+  const fetchInitialDriver = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await apiClient.get('/v1/admin/driver', {
-        params: {
-          page: currentPage,
-          limit: itemsPerPage,
-          search: '',
-          status: statusFilter === 'all' ? undefined : statusFilter,
-        },
-      });
-      const { drivers: fetchedDrivers, total } = response.data;
-      setDrivers(fetchedDrivers);
-      setTotalItems(total);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to fetch drivers', {
-        style: {
-          background: '#622A39',
-          color: 'hsl(42, 51%, 91%)',
-        },
-      });
+      const storedId = localStorage.getItem("selectedDriverId");
+      if (storedId) {
+        setDriverIdFilter(storedId); // set before removing
+        localStorage.removeItem("selectedDriverId");
+        const res = await apiClient.get(`/v1/admin/driver/${storedId}`);
+        console.log('Single driver response', res.data);
+        setDrivers([res.data]); // only this driver
+        setTotalItems(1);
+        setItemsPerPage(1);
+        setCurrentPage(1);
+        return; // skip normal fetch
+      }
+    } catch (err) {
+      console.error("Error fetching single driver:", err);
     } finally {
       setLoading(false);
     }
   };
+  fetchInitialDriver();
+}, []);
 
-  fetchInitialDrivers();
-}, []); // run once on mount
 
-  // Debounced search function
- const debouncedFetchDrivers = useCallback(
+const debouncedFetchDrivers = useCallback(
   debounce(async (search: string, status: string, page: number, limit: number) => {
     try {
-      setSearchLoading(true); // <<< add this
+      setSearchLoading(true);
       const response = await apiClient.get('/v1/admin/driver', {
         params: {
           page,
           limit,
           search,
-          status: status === 'all' ? undefined : status,
+          status: status === 'all' ? undefined : status === 'pending' ? 'inactive' : status,
+          is_approved: status === 'pending' ? false : status === 'approved' ? true : undefined,
         },
       });
       const { drivers: fetchedDrivers, total } = response.data;
@@ -124,25 +121,39 @@ useEffect(() => {
         },
       });
     } finally {
-      setSearchLoading(false); // <<< add this
+      setSearchLoading(false);
     }
   }, 500),
   []
 );
 
 
-  useEffect(() => {
-    debouncedFetchDrivers(searchTerm, statusFilter, currentPage, itemsPerPage);
+ useEffect(() => {
+  // skip normal paginated fetch if we are showing a single driver
+  if (driverIdFilter) return;
 
-    if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [searchTerm, statusFilter, currentPage, itemsPerPage, debouncedFetchDrivers]);
+  debouncedFetchDrivers(searchTerm, statusFilter, currentPage, itemsPerPage);
 
-  const filteredDrivers = drivers.filter(driver => {
-    const matchesDriverId = driverIdFilter ? driver.id === driverIdFilter : true;
-    return matchesDriverId;
-  });
+  if (
+    searchInputRef.current &&
+    document.activeElement !== searchInputRef.current
+  ) {
+    searchInputRef.current.focus();
+  }
+}, [
+  searchTerm,
+  statusFilter,
+  currentPage,
+  itemsPerPage,
+  debouncedFetchDrivers,
+  driverIdFilter // add this
+]);
+
+
+  // const filteredDrivers = drivers.filter(driver => {
+  //   const matchesDriverId = driverIdFilter ? driver.id === driverIdFilter : true;
+  //   return matchesDriverId;
+  // });
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
@@ -329,7 +340,7 @@ useEffect(() => {
                 All
               </Button>
               <Button
-                variant={statusFilter === 'pending' ? 'default' : 'outline'}
+                variant={statusFilter === 'pending'  ? 'default' : 'outline'}
                 className={statusFilter === 'pending' ? 'bg-primary text-card' : 'bg-card text-primary'}
                 onClick={() => {
                   setStatusFilter('pending');
@@ -358,6 +369,17 @@ useEffect(() => {
               >
                 Blocked
               </Button>
+              <Button
+  variant={statusFilter === 'rejected' ? 'default' : 'outline'}
+  className={statusFilter === 'rejected' ? 'bg-primary text-card' : 'bg-card text-primary'}
+  onClick={() => {
+    setStatusFilter('rejected');
+    setCurrentPage(1);
+  }}
+>
+  Rejected
+</Button>
+
             </div>
           </form>
         </CardContent>
@@ -388,12 +410,12 @@ useEffect(() => {
       </TableCell>
     </TableRow>
   )}
-              {filteredDrivers.length === 0 && !searchLoading ? (
+              {drivers.length === 0 && !searchLoading ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center">No drivers found</TableCell>
                 </TableRow>
               ) : (
-                filteredDrivers.map((driver,index) => (
+                drivers.map((driver,index) => (
                   <TableRow key={driver.id}>
                      <TableCell>
           {(currentPage - 1) * itemsPerPage + index + 1}
@@ -663,7 +685,7 @@ useEffect(() => {
                             window.location.href = "/vehicles";
                           }}
                         >
-                          <Car className="w-4 h-4" />
+                          <CarFront className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -811,12 +833,12 @@ useEffect(() => {
       </Dialog>
 
       <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="">
           <DialogHeader>
             <DialogTitle>Enlarged Document</DialogTitle>
           </DialogHeader>
           {selectedImage && (
-            <img src={selectedImage} alt="Enlarged Document" className="w-full h-auto rounded" />
+            <img src={selectedImage} alt="Enlarged Document" className="w-[50vw] h-[80vh] rounded" />
           )}
         </DialogContent>
       </Dialog>

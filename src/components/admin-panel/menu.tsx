@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { Ellipsis, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
-
 import { cn } from "@/lib/utils";
-import { getMenuList } from "@/lib/menu-list";
+import { getMenuList, UserPermissions } from "@/lib/menu-list";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CollapseMenuButton } from "@/components/admin-panel/collapse-menu-button";
@@ -13,18 +12,18 @@ import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-  TooltipProvider
+  TooltipProvider,
 } from "@/components/ui/tooltip";
 
 interface MenuProps {
   isOpen: boolean | undefined;
-  userPermissions: { [key: string]: boolean }; // ✅ add this
+  userPermissions: UserPermissions;
+  onLogout?: () => void;
 }
 
-
-export function Menu({ isOpen,userPermissions  }: MenuProps) {
+export function Menu({ isOpen, userPermissions, onLogout }: MenuProps) {
   const pathname = usePathname();
-const menuList = getMenuList(pathname, userPermissions);
+  const menuList = getMenuList(pathname, userPermissions);
 
   return (
     <ScrollArea className="[&>div>div[style]]:!block">
@@ -120,7 +119,7 @@ const menuList = getMenuList(pathname, userPermissions);
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
                   <Button
-                    onClick={() => {}}
+                    onClick={onLogout}
                     variant="outline"
                     className="w-full justify-center h-10 mt-5"
                   >

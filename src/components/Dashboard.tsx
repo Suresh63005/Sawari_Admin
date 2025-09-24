@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { act, useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -94,7 +94,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         const statsData: Stats = statsResponse.data;
         const activityData: Activity[] = activityResponse.data;
         const approvalsData: Approval[] = approvalsResponse.data;
-
+        console.log(activityData, "activityData");
         setStats(statsData);
         setRecentActivity(activityData);
         setPendingApprovals(approvalsData);

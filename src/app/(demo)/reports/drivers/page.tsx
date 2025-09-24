@@ -352,61 +352,102 @@ const DriverReports: React.FC = () => {
             </TableBody>
           </Table>
           {!isLoading && drivers.length > 0 && (
-            <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
-              <div className="mb-2 md:mb-0">
-                <label className="mr-2 text-sm text-primary">
-                  Items per page:
-                </label>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="p-2 border border-primary rounded-md bg-card"
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                </select>
-              </div>
-              <div className="flex space-x-2">
+  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+    <div className="mb-2 md:mb-0">
+      <label className="mr-2 text-sm text-primary">Items per page:</label>
+      <select
+        value={itemsPerPage}
+        onChange={(e) => {
+          setItemsPerPage(Number(e.target.value));
+          setCurrentPage(1);
+        }}
+        className="p-2 border border-primary rounded-md bg-card"
+      >
+        <option value={5}>5</option>
+        <option value={10}>10</option>
+        <option value={20}>20</option>
+      </select>
+    </div>
+    <div className="flex items-center space-x-2">
+      <Button
+        onClick={() => paginate(currentPage - 1)}
+        disabled={currentPage === 1}
+        variant="outline"
+        className="text-primary"
+      >
+        Previous
+      </Button>
+      {(() => {
+        const renderPages = () => {
+          const visiblePages: number[] = [];
+          const showFirstEllipsis = currentPage > 5 && totalPages > 5;
+          const showLastEllipsis = currentPage <= 5 && totalPages > 5;
+
+          if (totalPages <= 5) {
+            for (let i = 1; i <= totalPages; i++) {
+              visiblePages.push(i);
+            }
+          } else if (currentPage <= 5) {
+            for (let i = 1; i <= 5; i++) {
+              visiblePages.push(i);
+            }
+            if (totalPages > 5) {
+              visiblePages.push(totalPages);
+            }
+          } else {
+            visiblePages.push(1);
+            for (let i = totalPages - 4; i <= totalPages; i++) {
+              if (i > 1) {
+                visiblePages.push(i);
+              }
+            }
+          }
+
+          return (
+            <>
+              {showFirstEllipsis && (
+                <span className="px-2 py-1 text-sm text-muted-foreground">
+                  ...
+                </span>
+              )}
+              {visiblePages.map((page) => (
                 <Button
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  variant="outline"
-                  className="text-primary"
+                  key={page}
+                  onClick={() => paginate(page)}
+                  variant={currentPage === page ? "default" : "outline"}
+                  className={
+                    currentPage === page
+                      ? "bg-primary text-card"
+                      : "bg-card text-primary"
+                  }
                 >
-                  Previous
+                  {page}
                 </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <Button
-                    key={page}
-                    onClick={() => paginate(page)}
-                    variant={currentPage === page ? "default" : "outline"}
-                    className={
-                      currentPage === page
-                        ? "bg-primary text-card"
-                        : "bg-card text-primary"
-                    }
-                  >
-                    {page}
-                  </Button>
-                ))}
-                <Button
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  variant="outline"
-                  className="text-primary"
-                >
-                  Next
-                </Button>
-              </div>
-              <span className="text-sm text-primary mt-2 md:mt-0">
-                Page {currentPage} of {totalPages}
-              </span>
-            </div>
-          )}
+              ))}
+              {showLastEllipsis && (
+                <span className="px-2 py-1 text-sm text-muted-foreground">
+                  ...
+                </span>
+              )}
+            </>
+          );
+        };
+        return renderPages();
+      })()}
+      <Button
+        onClick={() => paginate(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        variant="outline"
+        className="text-primary"
+      >
+        Next
+      </Button>
+    </div>
+    <span className="text-sm text-primary mt-2 md:mt-0">
+      Page {currentPage} of {totalPages} ({totalItems} total items)
+    </span>
+  </div>
+)}
         </CardContent>
       </Card>
     </div>

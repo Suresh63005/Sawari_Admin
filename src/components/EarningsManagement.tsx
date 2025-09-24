@@ -31,10 +31,22 @@ interface Earning {
     phone: string;
     pickup_address: string;
     pickup_location: string;
+    drop_address: string;
     drop_location: string;
-    car_model: string;
-    ride_type: string;
     pickup_time: string;
+    dropoff_time: string;
+    ride_type: string;
+    rider_hours: number;
+    Price: string;
+    Total: string;
+    car_id: string;
+    driver_id: string;
+    driver_name: string; // Added driver_name
+  };
+  Car: {
+    id: string;
+    brand: string;
+    model: string;
   };
 }
 
@@ -65,7 +77,7 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
     const currentDate = new Date();
     for (let i = 0; i < 12; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const label = date.toLocaleString('default', { month: 'long', year: 'numeric' });
       options.push({ value, label });
     }
@@ -81,8 +93,9 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
             ? `/v1/admin/earning/get-all-earnings-history?search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`
             : `/v1/admin/earning/get-all-earnings-history?month=${selectedMonth}&search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`;
         const response = await apiClient.get(endpoint);
-        console.log('Fetched earnings:', response.data);
+        console.log('Fetched earnings:', response.data); // Debug log
         setEarnings(response.data.data);
+        console.log(response.data.data, "Earnings Data");
         setTotalItems(response.data.total || 0);
         setSummary(response.data.summary);
       } catch (err: any) {
@@ -101,88 +114,68 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
     fetchEarnings();
   }, [selectedMonth, searchTerm, currentPage, itemsPerPage]);
 
-  const downloadCSV = (data: Earning[], filename: string) => {
-    const headers = [
-      'Ride ID',
-      'Customer Name',
-      'Customer Email',
-      'Customer Phone',
-      'Amount (AED)',
-      'Commission (AED)',
-      'Percentage',
-      'Payment Method',
-      'Status',
-      'Created At',
-      'Pickup Address',
-      'Pickup Location',
-      'Drop Location',
-      'Car Model',
-      'Ride Type',
-      'Pickup Time',
-    ];
-    const rows = data.map((earning) => [
-      earning.ride_id,
-      earning.Ride.customer_name,
-      earning.Ride.email,
-      earning.Ride.phone,
-      parseFloat(earning.amount).toLocaleString(),
-      parseFloat(earning.commission).toLocaleString(),
-      earning.percentage,
-      earning.payment_method.replace('_', ' ').toUpperCase(),
-      earning.status,
-      new Date(earning.createdAt).toLocaleDateString(),
-      earning.Ride.pickup_address,
-      earning.Ride.pickup_location,
-      earning.Ride.drop_location,
-      earning.Ride.car_model,
-      earning.Ride.ride_type,
-      new Date(earning.Ride.pickup_time).toLocaleString(),
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleDownloadAll = () => {
-    if (earnings.length === 0) {
-      toast.error('No earnings data available to download', {
+  const handleDownloadAll = async () => {
+    try {
+      const endpoint =
+        selectedMonth === 'all'
+          ? `/v1/admin/earning/download-all?search=${encodeURIComponent(searchTerm)}`
+          : `/v1/admin/earning/download-all?month=${selectedMonth}&search=${encodeURIComponent(searchTerm)}`;
+      const response = await apiClient.get(endpoint, { responseType: 'blob' });
+      const filename = selectedMonth === 'all' ? 'all_earnings.xlsx' : `earnings_${selectedMonth}.xlsx`;
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Earnings data downloaded successfully', {
         style: {
           background: '#622A39',
           color: 'hsl(42, 51%, 91%)',
         },
       });
-      return;
+    } catch (err: any) {
+      console.error('Download error:', err);
+      toast.error('Failed to download earnings data', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     }
-    const filename = selectedMonth === 'all' ? 'all_earnings.csv' : `earnings_${selectedMonth}.csv`;
-    downloadCSV(earnings, filename);
-    toast.success('Earnings data downloaded successfully', {
-      style: {
-        background: '#622A39',
-        color: 'hsl(42, 51%, 91%)',
-      },
-    });
   };
 
-  const handleDownloadSingle = (earning: Earning) => {
-    downloadCSV([earning], `earning_${earning.id}.csv`);
-    toast.success('Earning record downloaded successfully', {
-      style: {
-        background: '#622A39',
-        color: 'hsl(42, 51%, 91%)',
-      },
-    });
+  const handleDownloadSingle = async (earning: Earning) => {
+    try {
+      const response = await apiClient.get(`/v1/admin/earning/single-download/${earning.id}`, { responseType: 'blob' });
+      const filename = `earning_${earning.id}.xlsx`;
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Earning record downloaded successfully', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+    } catch (err: any) {
+      console.error('Download error:', err);
+      toast.error('Failed to download earning record', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+    }
   };
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -227,10 +220,6 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
     }
   };
 
-  // if (loading) {
-  //   return <Loader />;
-  // }
-
   return (
     <div className="space-y-6">
       {loading && <Loader />}
@@ -241,7 +230,7 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search by customer, ride ID..."
+                placeholder="Search by customer, driver name, ride ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="mt-1 block w-full p-2 border border-primary rounded-md bg-card"
@@ -250,10 +239,13 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
             </div>
           </div>
           <div className="flex items-center space-x-4 mt-5">
-            <Select value={selectedMonth} onValueChange={(value) => {
-              setSelectedMonth(value);
-              setCurrentPage(1);
-            }}>
+            <Select
+              value={selectedMonth}
+              onValueChange={(value) => {
+                setSelectedMonth(value);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select month" />
               </SelectTrigger>
@@ -314,12 +306,19 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
             <TableHeader>
               <TableRow>
                 <TableHead>Ride ID</TableHead>
+                <TableHead>Driver Name</TableHead> {/* Added Driver Name column */}
                 <TableHead>Customer</TableHead>
                 <TableHead>Amount (AED)</TableHead>
                 <TableHead>Commission (AED)</TableHead>
                 <TableHead>Percentage</TableHead>
                 <TableHead>Payment Method</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Car Details</TableHead>
+                <TableHead>Pickup Time</TableHead>
+                <TableHead>Dropoff Time</TableHead>
+                <TableHead>Rider Hours</TableHead>
+                <TableHead>Price (AED)</TableHead>
+                <TableHead>Total (AED)</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -327,7 +326,7 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
             <TableBody>
               {earnings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">
+                  <TableCell colSpan={16} className="text-center">
                     {searchTerm ? 'No data found for the current search' : 'No earnings found'}
                   </TableCell>
                 </TableRow>
@@ -335,20 +334,35 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
                 earnings.map((earning) => (
                   <TableRow key={earning.id}>
                     <TableCell>{earning.ride_id.slice(0, 8)}</TableCell>
+                    <TableCell>{earning.Ride?.driver_name || 'N/A'}</TableCell> {/* Added driver_name */}
                     <TableCell>
                       <div>
-                        <p className="font-medium">{earning.Ride.customer_name}</p>
-                        <p className="text-sm text-muted-foreground">{earning.Ride.email}</p>
-                        <p className="text-sm text-muted-foreground">{earning.Ride.phone}</p>
+                        <p className="font-medium">{earning.Ride?.customer_name || 'N/A'}</p>
+                        <p className="text-sm text-muted-foreground">{earning.Ride?.email || 'N/A'}</p>
+                        <p className="text-sm text-muted-foreground">{earning.Ride?.phone || 'N/A'}</p>
                       </div>
                     </TableCell>
                     <TableCell>{parseFloat(earning.amount).toLocaleString()}</TableCell>
                     <TableCell>{parseFloat(earning.commission).toLocaleString()}</TableCell>
                     <TableCell>{earning.percentage}%</TableCell>
                     <TableCell>
-  {earning.payment_method ? earning.payment_method.replace('_', ' ').toUpperCase() : 'N/A'}
-</TableCell> 
+                      {earning.payment_method ? earning.payment_method.replace('_', ' ').toUpperCase() : 'N/A'}
+                    </TableCell>
                     <TableCell>{getStatusBadge(earning.status)}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{earning.Car?.brand || 'N/A'} {earning.Car?.model || ''}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {earning.Ride?.pickup_time ? new Date(earning.Ride.pickup_time).toLocaleString() : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {earning.Ride?.dropoff_time ? new Date(earning.Ride.dropoff_time).toLocaleString() : 'N/A'}
+                    </TableCell>
+                    <TableCell>{earning.Ride?.rider_hours || 'N/A'}</TableCell>
+                    <TableCell>{earning.Ride?.Price ? parseFloat(earning.Ride.Price).toLocaleString() : 'N/A'}</TableCell>
+                    <TableCell>{earning.Ride?.Total ? parseFloat(earning.Ride.Total).toLocaleString() : 'N/A'}</TableCell>
                     <TableCell>{new Date(earning.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <Button

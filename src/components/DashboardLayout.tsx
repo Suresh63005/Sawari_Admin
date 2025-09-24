@@ -199,9 +199,10 @@ const getRoleBadgeVariant = (
             >
               <Bell className="w-4 h-4" />
             </Button>
-            {/* <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm"
+            onClick={() => router.push('/settings')}>
               <Settings className="w-4 h-4" />
-            </Button> */}
+            </Button>
             <Button
               variant="ghost"
               className="text-red-600 hover:text-red-700 hover:bg-red-50"

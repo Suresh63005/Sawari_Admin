@@ -15,7 +15,8 @@ import toast from 'react-hot-toast';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Loader from '@/components/ui/Loader';
-import { debounce, set } from 'lodash'; // Assuming lodash is installed for debouncing
+import { debounce } from 'lodash';
+import { format } from 'date-fns'; // Add date-fns for date formatting
 
 interface Driver {
   id: string;
@@ -29,8 +30,7 @@ interface Driver {
   status: 'active' | 'inactive' | 'blocked' | 'rejected';
   is_approved: boolean;
   rating: number;
-  ride_count: number;
-  joined_date: string;
+  createdAt: string; // Changed from joined_date
   license_expiry: string;
   license_front: string;
   license_back: string;
@@ -38,6 +38,10 @@ interface Driver {
   emirates_doc_back: string;
   license_verification_status?: 'pending' | 'verified' | 'rejected';
   emirates_verification_status?: 'pending' | 'verified' | 'rejected';
+  completedRidesCount: number; // Changed from ride_count
+  completionRate: string; // New field for completion rate
+  lastRideTime: string | null; // New field for last ride time
+  totalEarnings: number; // New field for total earnings
 }
 
 export default function DriverManagement() {
@@ -47,6 +51,7 @@ export default function DriverManagement() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+  console.log(selectedDriver, "Selected Driver");
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [licenseModalOpen, setLicenseModalOpen] = useState(false);
@@ -67,93 +72,80 @@ export default function DriverManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
-  
 
-  // add this effect for initial load
-// 🔄 REPLACE your first useEffect with this
-useEffect(() => {
-  const fetchInitialDriver = async () => {
-    setLoading(true);
-    try {
-      const storedId = localStorage.getItem("selectedDriverId");
-      if (storedId) {
-        setDriverIdFilter(storedId); // set before removing
-        localStorage.removeItem("selectedDriverId");
-        const res = await apiClient.get(`/v1/admin/driver/${storedId}`);
-        console.log('Single driver response', res.data);
-        setDrivers([res.data]); // only this driver
-        setTotalItems(1);
-        setItemsPerPage(1);
-        setCurrentPage(1);
-        return; // skip normal fetch
+  useEffect(() => {
+    const fetchInitialDriver = async () => {
+      setLoading(true);
+      try {
+        const storedId = localStorage.getItem("selectedDriverId");
+        if (storedId) {
+          setDriverIdFilter(storedId);
+          localStorage.removeItem("selectedDriverId");
+          const res = await apiClient.get(`/v1/admin/driver/${storedId}`);
+          console.log('Single driver response', res.data);
+          setDrivers([res.data]);
+          setTotalItems(1);
+          setItemsPerPage(1);
+          setCurrentPage(1);
+          return;
+        }
+      } catch (err) {
+        console.error("Error fetching single driver:", err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Error fetching single driver:", err);
-    } finally {
-      setLoading(false);
+    };
+    fetchInitialDriver();
+  }, []);
+
+  const debouncedFetchDrivers = useCallback(
+    debounce(async (search: string, status: string, page: number, limit: number) => {
+      try {
+        setSearchLoading(true);
+        const response = await apiClient.get('/v1/admin/driver', {
+          params: {
+            page,
+            limit,
+            search,
+            status: status === 'all' ? undefined : status === 'pending' ? 'inactive' : status,
+            is_approved: status === 'pending' ? false : status === 'approved' ? true : undefined,
+          },
+        });
+        console.log(response.data, "Fetched Drivers");
+        const { drivers: fetchedDrivers, total } = response.data;
+        setDrivers(fetchedDrivers);
+        setTotalItems(total);
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Failed to fetch drivers', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 500),
+    []
+  );
+
+  useEffect(() => {
+    if (driverIdFilter) return;
+    debouncedFetchDrivers(searchTerm, statusFilter, currentPage, itemsPerPage);
+    if (
+      searchInputRef.current &&
+      document.activeElement !== searchInputRef.current
+    ) {
+      searchInputRef.current.focus();
     }
-  };
-  fetchInitialDriver();
-}, []);
-
-
-const debouncedFetchDrivers = useCallback(
-  debounce(async (search: string, status: string, page: number, limit: number) => {
-    try {
-      setSearchLoading(true);
-      const response = await apiClient.get('/v1/admin/driver', {
-        params: {
-          page,
-          limit,
-          search,
-          status: status === 'all' ? undefined : status === 'pending' ? 'inactive' : status,
-          is_approved: status === 'pending' ? false : status === 'approved' ? true : undefined,
-        },
-      });
-      const { drivers: fetchedDrivers, total } = response.data;
-      setDrivers(fetchedDrivers);
-      setTotalItems(total);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to fetch drivers', {
-        style: {
-          background: '#622A39',
-          color: 'hsl(42, 51%, 91%)',
-        },
-      });
-    } finally {
-      setSearchLoading(false);
-    }
-  }, 500),
-  []
-);
-
-
- useEffect(() => {
-  // skip normal paginated fetch if we are showing a single driver
-  if (driverIdFilter) return;
-
-  debouncedFetchDrivers(searchTerm, statusFilter, currentPage, itemsPerPage);
-
-  if (
-    searchInputRef.current &&
-    document.activeElement !== searchInputRef.current
-  ) {
-    searchInputRef.current.focus();
-  }
-}, [
-  searchTerm,
-  statusFilter,
-  currentPage,
-  itemsPerPage,
-  debouncedFetchDrivers,
-  driverIdFilter // add this
-]);
-
-
-  // const filteredDrivers = drivers.filter(driver => {
-  //   const matchesDriverId = driverIdFilter ? driver.id === driverIdFilter : true;
-  //   return matchesDriverId;
-  // });
+  }, [
+    searchTerm,
+    statusFilter,
+    currentPage,
+    itemsPerPage,
+    debouncedFetchDrivers,
+    driverIdFilter
+  ]);
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
@@ -294,11 +286,6 @@ const debouncedFetchDrivers = useCallback(
     }
   };
 
-  // if (loading) {
-  //   return <Loader />;
-  // }
-
- 
   return (
     <div className="space-y-6">
       {loading && <Loader />}
@@ -340,7 +327,7 @@ const debouncedFetchDrivers = useCallback(
                 All
               </Button>
               <Button
-                variant={statusFilter === 'pending'  ? 'default' : 'outline'}
+                variant={statusFilter === 'pending' ? 'default' : 'outline'}
                 className={statusFilter === 'pending' ? 'bg-primary text-card' : 'bg-card text-primary'}
                 onClick={() => {
                   setStatusFilter('pending');
@@ -370,16 +357,15 @@ const debouncedFetchDrivers = useCallback(
                 Blocked
               </Button>
               <Button
-  variant={statusFilter === 'rejected' ? 'default' : 'outline'}
-  className={statusFilter === 'rejected' ? 'bg-primary text-card' : 'bg-card text-primary'}
-  onClick={() => {
-    setStatusFilter('rejected');
-    setCurrentPage(1);
-  }}
->
-  Rejected
-</Button>
-
+                variant={statusFilter === 'rejected' ? 'default' : 'outline'}
+                className={statusFilter === 'rejected' ? 'bg-primary text-card' : 'bg-card text-primary'}
+                onClick={() => {
+                  setStatusFilter('rejected');
+                  setCurrentPage(1);
+                }}
+              >
+                Rejected
+              </Button>
             </div>
           </form>
         </CardContent>
@@ -397,38 +383,34 @@ const debouncedFetchDrivers = useCallback(
                 <TableHead>Driver</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Experience</TableHead>
-                {/* <TableHead>Rating</TableHead> */}
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {searchLoading && (
-    <TableRow>
-      <TableCell colSpan={6} className="text-center">
-        <Loader />
-      </TableCell>
-    </TableRow>
-  )}
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">
+                    <Loader />
+                  </TableCell>
+                </TableRow>
+              )}
               {drivers.length === 0 && !searchLoading ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center">No drivers found</TableCell>
                 </TableRow>
               ) : (
-                drivers.map((driver,index) => (
+                drivers.map((driver, index) => (
                   <TableRow key={driver.id}>
-                     <TableCell>
-          {(currentPage - 1) * itemsPerPage + index + 1}
-        </TableCell> 
+                    <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-3">
-                        
                         <Avatar>
                           <AvatarFallback>{`${(driver.first_name?.[0] || '').toUpperCase()}${(driver.last_name?.[0] || '').toUpperCase()}` || 'NA'}</AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="font-medium">{`${driver.first_name} ${driver.last_name}`}</p>
-                          <p className="text-sm text-muted-foreground">{driver.ride_count} rides</p>
+                          <p className="text-sm text-muted-foreground">{driver.completedRidesCount || 0} rides completed</p>
                         </div>
                       </div>
                     </TableCell>
@@ -439,12 +421,6 @@ const debouncedFetchDrivers = useCallback(
                       </div>
                     </TableCell>
                     <TableCell>{driver.experience} years</TableCell>
-                    {/* <TableCell>
-                      <div className="flex items-center space-x-1">
-                        <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                        <span>{driver.rating || 'N/A'}</span>
-                      </div>
-                    </TableCell> */}
                     <TableCell>{getStatusBadge(driver)}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
@@ -462,12 +438,9 @@ const debouncedFetchDrivers = useCallback(
                             {selectedDriver && (
                               <Tabs defaultValue="profile" className="w-full">
                                 <TabsList className="grid w-full grid-cols-3">
-                                  <TabsTrigger value="profile"
-                                  className="data-[state=active]:bg-primary data-[state=active]:text-card">Profile</TabsTrigger>
-                                  <TabsTrigger value="documents"
-                                  className="data-[state=active]:bg-primary data-[state=active]:text-card">Documents</TabsTrigger>
-                                  <TabsTrigger value="performance"
-                                  className="data-[state=active]:bg-primary data-[state=active]:text-card">Performance</TabsTrigger>
+                                  <TabsTrigger value="profile" className="data-[state=active]:bg-primary data-[state=active]:text-card">Profile</TabsTrigger>
+                                  <TabsTrigger value="documents" className="data-[state=active]:bg-primary data-[state=active]:text-card">Documents</TabsTrigger>
+                                  <TabsTrigger value="performance" className="data-[state=active]:bg-primary data-[state=active]:text-card">Performance</TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="profile" className="space-y-4">
                                   <div className="grid grid-cols-2 gap-4">
@@ -485,7 +458,7 @@ const debouncedFetchDrivers = useCallback(
                                       <div className="space-y-1">
                                         <p className="text-sm">Experience: {selectedDriver.experience} years</p>
                                         <p className="text-sm">License Expiry: {selectedDriver.license_expiry}</p>
-                                        <p className="text-sm">Joined: {selectedDriver.joined_date}</p>
+                                        <p className="text-sm">Joined: {selectedDriver.createdAt ? format(new Date(selectedDriver.createdAt), 'PPp') : 'N/A'}</p>
                                       </div>
                                     </div>
                                   </div>
@@ -534,7 +507,7 @@ const debouncedFetchDrivers = useCallback(
                                                   variant="outline"
                                                   size="sm"
                                                   onClick={() => setConfirmDialog({ open: true, action: 'license-reject', driverId: selectedDriver.id })}
-                                                  className="text-primary  hover:text-primary"
+                                                  className="text-red-600 hover:text-red-700"
                                                 >
                                                   Reject
                                                 </Button>
@@ -597,34 +570,40 @@ const debouncedFetchDrivers = useCallback(
                                   <div className="grid grid-cols-2 gap-4">
                                     <Card>
                                       <CardHeader>
-                                        <CardTitle className="text-sm">Performance Stats</CardTitle>
+                                        <CardTitle className="text-md">Performance Stats</CardTitle>
                                       </CardHeader>
                                       <CardContent>
                                         <div className="space-y-2">
                                           <div className="flex justify-between">
-                                            <span className="text-sm">Total Rides</span>
-                                            <span className="text-sm font-medium">{selectedDriver.ride_count}</span>
+                                            <span className="text-sm">Total Completed Rides</span>
+                                            <span className="text-sm font-medium">{selectedDriver.completedRidesCount || 0}</span>
                                           </div>
-                                          <div className="flex justify-between">
+                                          {/* <div className="flex justify-between">
                                             <span className="text-sm">Rating</span>
-                                            <span className="text-sm font-medium">{selectedDriver.rating}/5</span>
-                                          </div>
+                                            <span className="text-sm font-medium">{selectedDriver.rating || 'N/A'}/5</span>
+                                          </div> */}
+
                                           <div className="flex justify-between">
                                             <span className="text-sm">Completion Rate</span>
-                                            <span className="text-sm font-medium">94%</span>
+                                            <span className="text-sm font-medium">{selectedDriver.completionRate || 0}%</span>
                                           </div>
                                         </div>
                                       </CardContent>
                                     </Card>
                                     <Card>
                                       <CardHeader>
-                                        <CardTitle className="text-sm">Recent Activity</CardTitle>
+                                        <CardTitle className="text-md">Recent Activity</CardTitle>
                                       </CardHeader>
                                       <CardContent>
                                         <div className="space-y-2">
-                                          <p className="text-sm text-muted-foreground">Last ride: 2 hours ago</p>
-                                          <p className="text-sm text-muted-foreground">Online time: 8h 30m today</p>
-                                          <p className="text-sm text-muted-foreground">Earnings: AED 1,250 this week</p>
+                                          <p className="text-sm text-muted-foreground">
+                                            Last Ride: {selectedDriver.lastRideTime ? format(new Date(selectedDriver.lastRideTime), 'PPp') : 'N/A'}
+                                          </p>
+                                          <p className="text-sm text-muted-foreground">
+                                            Total Earnings: AED {selectedDriver?.totalEarnings != null 
+    ? selectedDriver.totalEarnings.toFixed(2) 
+    : '0.00'}
+                                          </p>
                                         </div>
                                       </CardContent>
                                     </Card>
@@ -694,7 +673,7 @@ const debouncedFetchDrivers = useCallback(
               )}
             </TableBody>
           </Table>
-          {!loading && totalItems > 0 && (
+          {!loading && totalItems > 0 && !driverIdFilter && (
             <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
               <div className="mb-2 md:mb-0">
                 <label className="mr-2 text-sm text-primary">Items per page:</label>
@@ -711,7 +690,7 @@ const debouncedFetchDrivers = useCallback(
                   <option value={20}>20</option>
                 </select>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex items-center space-x-2">
                 <Button
                   onClick={() => paginate(currentPage - 1)}
                   disabled={currentPage === 1}
@@ -720,16 +699,63 @@ const debouncedFetchDrivers = useCallback(
                 >
                   Previous
                 </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <Button
-                    key={page}
-                    onClick={() => paginate(page)}
-                    variant={currentPage === page ? 'default' : 'outline'}
-                    className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
-                  >
-                    {page}
-                  </Button>
-                ))}
+                {(() => {
+                  const renderPages = () => {
+                    const visiblePages: number[] = [];
+                    const showFirstEllipsis = currentPage > 5 && totalPages > 5;
+                    const showLastEllipsis = currentPage <= 5 && totalPages > 5;
+
+                    if (totalPages <= 5) {
+                      for (let i = 1; i <= totalPages; i++) {
+                        visiblePages.push(i);
+                      }
+                    } else if (currentPage <= 5) {
+                      for (let i = 1; i <= 5; i++) {
+                        visiblePages.push(i);
+                      }
+                      if (totalPages > 5) {
+                        visiblePages.push(totalPages);
+                      }
+                    } else {
+                      visiblePages.push(1);
+                      for (let i = totalPages - 4; i <= totalPages; i++) {
+                        if (i > 1) {
+                          visiblePages.push(i);
+                        }
+                      }
+                    }
+
+                    return (
+                      <>
+                        {showFirstEllipsis && (
+                          <span className="px-2 py-1 text-sm text-muted-foreground">
+                            ...
+                          </span>
+                        )}
+                        {visiblePages.map((page) => (
+                          <Button
+                            key={page}
+                            onClick={() => paginate(page)}
+                            variant={currentPage === page ? "default" : "outline"}
+                            className={
+                              currentPage === page
+                                ? "bg-primary text-card"
+                                : "bg-card text-primary"
+                            }
+                          >
+                            {page}
+                          </Button>
+                        ))}
+                        {showLastEllipsis && (
+                          <span className="px-2 py-1 text-sm text-muted-foreground">
+                            ...
+                          </span>
+                        )}
+                      </>
+                    );
+                  };
+                  return renderPages();
+                })()}
                 <Button
                   onClick={() => paginate(currentPage + 1)}
                   disabled={currentPage === totalPages}
@@ -740,7 +766,7 @@ const debouncedFetchDrivers = useCallback(
                 </Button>
               </div>
               <span className="text-sm text-primary mt-2 md:mt-0">
-                Page {currentPage} of {totalPages}
+                Page {currentPage} of {totalPages} ({totalItems} total items)
               </span>
             </div>
           )}
@@ -789,45 +815,41 @@ const debouncedFetchDrivers = useCallback(
             >
               Cancel
             </Button>
-      <Button
-  className={
-    confirmDialog.action === 'block'
-      ? 'bg-primary text-card'
-      : confirmDialog.action === 'approve' || confirmDialog.action === 'unblock'
-      ? 'bg-primary text-card'
-      : confirmDialog.action.includes('verify')
-      ? 'bg-primary text-card'
-      : confirmDialog.action.includes('reject')
-      ? 'bg-primary text-card'
-      : ''
-  }
-  onClick={() =>
-    handleConfirmAction(
-      confirmDialog.action === 'reject' ? rejectReason : undefined
-    )
-  }
-  disabled={
-    isDeleting || // disable while deleting
-    (confirmDialog.action === 'reject' && !rejectReason)
-  }
->
-  {isDeleting ? (
-    // show loader while deleting
-    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-  ) : null}
-
-  {/* the label text */}
-  {confirmDialog.action.includes('verify')
-    ? 'Verify'
-    : confirmDialog.action.includes('reject')
-    ? 'Reject'
-    : confirmDialog.action === 'approve'
-    ? 'Approve'
-    : confirmDialog.action === 'block'
-    ? 'Block'
-    : 'Unblock'}
-</Button>
-
+            <Button
+              className={
+                confirmDialog.action === 'block'
+                  ? 'bg-primary text-card'
+                  : confirmDialog.action === 'approve' || confirmDialog.action === 'unblock'
+                  ? 'bg-primary text-card'
+                  : confirmDialog.action.includes('verify')
+                  ? 'bg-primary text-card'
+                  : confirmDialog.action.includes('reject')
+                  ? 'bg-primary text-card'
+                  : ''
+              }
+              onClick={() =>
+                handleConfirmAction(
+                  confirmDialog.action === 'reject' ? rejectReason : undefined
+                )
+              }
+              disabled={
+                isDeleting ||
+                (confirmDialog.action === 'reject' && !rejectReason)
+              }
+            >
+              {isDeleting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {confirmDialog.action.includes('verify')
+                ? 'Verify'
+                : confirmDialog.action.includes('reject')
+                ? 'Reject'
+                : confirmDialog.action === 'approve'
+                ? 'Approve'
+                : confirmDialog.action === 'block'
+                ? 'Block'
+                : 'Unblock'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

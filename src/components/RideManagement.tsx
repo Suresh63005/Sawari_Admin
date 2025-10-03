@@ -59,6 +59,7 @@ import { debounce, set } from "lodash";
 import MapView from "./MapView";
 import Loader from "@/components/ui/Loader";
 import { DebouncedFunc } from "lodash";
+import { format, parseISO } from "date-fns";
 
 interface Package {
   id: string;
@@ -326,6 +327,16 @@ const Rides: React.FC = () => {
     }
   }, [formData.package_id]);
 
+  const formatDateForInput = (dateString: string | null): string => {
+  if (!dateString) return "";
+  try {
+    const date = parseISO(dateString);
+    return format(date, "yyyy-MM-dd'T'HH:mm");
+  } catch {
+    return "";
+  }
+};
+
   useEffect(() => {
     const fetchModalCarsAndPrice = async () => {
       if (!formData.subpackage_id || !formData.package_id || isLoading.cars)
@@ -521,16 +532,21 @@ setFormData((prev) => ({ ...prev, Price: baseFare, Total: totalWithTax }));
     }
   };
 const getVisiblePages = useCallback((currentPage: number, totalPages: number): number[] => {
-  if (totalPages <= 5) {
+  const maxVisiblePages = 5;
+
+  if (totalPages <= maxVisiblePages) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
   }
-  if (currentPage <= 3) {
-    return [1, 2, 3, 4, 5];
-  } else if (currentPage >= totalPages - 2) {
-    return [totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
-  } else {
-    return [currentPage - 2, currentPage - 1, currentPage, currentPage + 1, currentPage + 2];
+
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+  let endPage = startPage + maxVisiblePages - 1;
+
+  if (endPage > totalPages) {
+    endPage = totalPages;
+    startPage = Math.max(1, endPage - maxVisiblePages + 1);
   }
+
+  return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
 }, []);
 
   const handleCreateModalOpenChange = useCallback((open: boolean) => {
@@ -762,31 +778,43 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
   ]);
 
   const openEditModal = useCallback((ride: Ride) => {
-    setSelectedRide(ride);
-    setFormData({
-      customer_name: ride.customer_name,
-      phone: ride.phone,
-      email: ride.email || "",
-      pickup_address: ride.pickup_address || "",
-      drop_address: ride.drop_address || "",
-      pickup_location: ride.pickup_location,
-      drop_location: ride.drop_location,
-      // ride_date: ride.ride_date
-      //   ? new Date(ride.ride_date).toISOString().slice(0, 16)
-      //   : "",
-      package_id: ride.package_id,
-      subpackage_id: ride.subpackage_id,
-      car_id: ride.car_id,
-      scheduled_time: ride.scheduled_time
-        ? new Date(ride.scheduled_time).toISOString().slice(0, 16)
-        : "",
-      notes: ride.notes || "",
-      Price: ride.Price,
-      Total: ride.Total,
-      rider_hours: ride.rider_hours
-    });
-    setIsEditModalOpen(true);
-  }, []);
+  setSelectedRide(ride);
+
+  // Helper function to format date for datetime-local input
+  const formatDateForInput = (dateString: string | null): string => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    
+    // Format to YYYY-MM-DDTHH:mm for datetime-local input
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  setFormData({
+    customer_name: ride.customer_name,
+    phone: ride.phone,
+    email: ride.email || "",
+    pickup_address: ride.pickup_address || "",
+    drop_address: ride.drop_address || "",
+    pickup_location: ride.pickup_location,
+    drop_location: ride.drop_location,
+    package_id: ride.package_id,
+    subpackage_id: ride.subpackage_id,
+    car_id: ride.car_id,
+    scheduled_time: formatDateForInput(ride.scheduled_time),
+    notes: ride.notes || "",
+    Price: ride.Price,
+    Total: ride.Total,
+    rider_hours: ride.rider_hours,
+  });
+  setIsEditModalOpen(true);
+}, []);
 
   const handleCancelRide = useCallback(
     async (rideId: string) => {
@@ -1425,24 +1453,20 @@ setFormData((prev) => ({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="text-sm">
-                          {ride.scheduled_time
-                            ? new Date(ride.scheduled_time).toLocaleString(
-                                "en-GB"
-                              )
-                            : "-"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {ride.ride_date
-                            ? new Date(ride.ride_date).toLocaleDateString(
-                                "en-GB"
-                              )
-                            : "-"}
-                        </p>
-                      </div>
-                    </TableCell>
+                   <TableCell>
+  <div>
+    <p className="text-sm">
+      {ride.scheduled_time
+        ? formatDateForInput(ride.scheduled_time).replace("T", " ")
+        : "-"}
+    </p>
+    <p className="text-sm text-muted-foreground">
+      {ride.ride_date
+        ? new Date(ride.ride_date).toLocaleDateString("en-GB")
+        : "-"}
+    </p>
+  </div>
+</TableCell>
                     <TableCell>
                       <p className="text-sm">{ride.car_name || "-"}</p>
                       <p className="text-sm text-muted-foreground">
@@ -1725,7 +1749,8 @@ setFormData((prev) => ({
                           onClick={() => openEditModal(ride)}
                           disabled={
                             ride.status === "completed" ||
-                            ride.status === "cancelled"
+                            ride.status === "cancelled" ||
+                            ride.status === "on-route"
                           }
                         >
                           <Edit className="w-4 h-4" />
@@ -1797,111 +1822,57 @@ setFormData((prev) => ({
   !isLoading.cars &&
   !isLoading.baseFare &&
   rides.length > 0 && (
-    <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
-      <div className="mb-2 md:mb-0">
-        <label className="mr-2 text-sm text-primary">
-          Items per page:
-        </label>
-        <select
-          value={itemsPerPage}
-          onChange={(e) => {
-            setItemsPerPage(Number(e.target.value));
-            setCurrentPage(1);
-          }}
-          className="p-2 border border-primary rounded-md bg-card"
-        >
-          <option value={5}>5</option>
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-        </select>
-      </div>
-      <div className="flex items-center space-x-2">
-        <Button
-          onClick={() => paginate(currentPage - 1)}
-          disabled={currentPage === 1}
-          variant="outline"
-          className="text-primary"
-        >
-          Previous
-        </Button>
-
-        {/* Render visible pages logic */}
-        {(() => {
-          const renderPages = () => {
-            const visiblePages: number[] = [];
-            const showFirstEllipsis = currentPage >= 5 && totalPages > 5;
-            const showLastEllipsis = currentPage <= 5 && totalPages > 5;
-
-            if (totalPages <= 5) {
-              // Show all pages if <=5
-              for (let i = 1; i <= totalPages; i++) {
-                visiblePages.push(i);
-              }
-            } else if (currentPage <= 5) {
-              // Show first 5 pages
-              for (let i = 1; i <= 5; i++) {
-                visiblePages.push(i);
-              }
-              if (totalPages > 5) {
-                visiblePages.push(totalPages); // Add last page
-              }
-            } else {
-              // Show first page and last 5 pages
-              visiblePages.push(1); // Always show first page
-              for (let i = totalPages - 4; i <= totalPages; i++) {
-                if (i > 1) {
-                  // Avoid duplicating page 1
-                  visiblePages.push(i);
-                }
-              }
-            }
-
-            return (
-              <>
-                {showFirstEllipsis && (
-                  <span className="px-2 py-1 text-sm text-muted-foreground">
-                    ...
-                  </span>
-                )}
-                {visiblePages.map((page, index) => (
-                  <Button
-                    key={page}
-                    onClick={() => paginate(page)}
-                    variant={currentPage === page ? "default" : "outline"}
-                    className={
-                      currentPage === page
-                        ? "bg-primary text-card"
-                        : "bg-card text-primary"
-                    }
-                  >
-                    {page}
-                  </Button>
-                ))}
-                {showLastEllipsis && (
-                  <span className="px-2 py-1 text-sm text-muted-foreground">
-                    ...
-                  </span>
-                )}
-              </>
-            );
-          };
-
-          return renderPages();
-        })()}
-
-        <Button
-          onClick={() => paginate(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          variant="outline"
-          className="text-primary"
-        >
-          Next
-        </Button>
-      </div>
-      <span className="text-sm text-primary mt-2 md:mt-0">
-        Page {currentPage} of {totalPages} ({totalItems} total items)
-      </span>
-    </div>
+   <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+  <div className="mb-2 md:mb-0">
+    <label className="mr-2 text-sm text-primary">Items per page:</label>
+    <select
+      value={itemsPerPage}
+      onChange={(e) => {
+        setItemsPerPage(Number(e.target.value));
+        setCurrentPage(1);
+      }}
+      className="p-2 border border-primary rounded-md bg-card"
+    >
+      <option value={5}>5</option>
+      <option value={10}>10</option>
+      <option value={20}>20</option>
+    </select>
+  </div>
+  <div className="flex items-center space-x-2">
+    <Button
+      onClick={() => paginate(currentPage - 1)}
+      disabled={currentPage === 1}
+      variant="outline"
+      className="text-primary"
+    >
+      Previous
+    </Button>
+    {getVisiblePages(currentPage, totalPages).map((page) => (
+      <Button
+        key={page}
+        onClick={() => paginate(page)}
+        variant={currentPage === page ? "default" : "outline"}
+        className={currentPage === page ? "bg-primary text-card" : "bg-card text-primary"}
+      >
+        {page}
+      </Button>
+    ))}
+    {totalPages > 5 && currentPage < totalPages - 2 && (
+      <span className="px-2 py-1 text-sm text-muted-foreground">...</span>
+    )}
+    <Button
+      onClick={() => paginate(currentPage + 1)}
+      disabled={currentPage === totalPages}
+      variant="outline"
+      className="text-primary"
+    >
+      Next
+    </Button>
+  </div>
+  <span className="text-sm text-primary mt-2 md:mt-0">
+    Page {currentPage} of {totalPages} ({totalItems} total items)
+  </span>
+</div>
   )}
         </CardContent>
       </Card>

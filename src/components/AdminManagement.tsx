@@ -526,140 +526,139 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
                         Add a new admin account with specified permissions
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="first_name">First Name</Label>
-                        <Input
-                          id="first_name"
-                          value={newAdmin.first_name}
-                          onChange={(e) =>
-                            setNewAdmin({
-                              ...newAdmin,
-                              first_name: e.target.value
-                            })
-                          }
-                          placeholder="Enter first name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="last_name">Last Name</Label>
-                        <Input
-                          id="last_name"
-                          value={newAdmin.last_name}
-                          onChange={(e) =>
-                            setNewAdmin({
-                              ...newAdmin,
-                              last_name: e.target.value
-                            })
-                          }
-                          placeholder="Enter last name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={newAdmin.email}
-                          onChange={(e) =>
-                            setNewAdmin({ ...newAdmin, email: e.target.value })
-                          }
-                          placeholder="Enter email address"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={newAdmin.phone}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, "");
-                            const maxLength = 9;
-                            if (value.length <= maxLength) {
-                              setNewAdmin({ ...newAdmin, phone: value });
-                            }
-                          }}
-                          placeholder="Enter phone number"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="password">Password</Label>
-                        <div className="relative">
-                          <Input
-                            id="password"
-                            type={showPassword ? "text" : "password"}
-                            value={newAdmin.password}
-                            onChange={(e) =>
-                              setNewAdmin({
-                                ...newAdmin,
-                                password: e.target.value
-                              })
-                            }
-                            placeholder="Enter password"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-  <Label htmlFor="confirm_password">Confirm Password</Label>
-  <div className="relative">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div>
+    <Label htmlFor="first_name">First Name</Label>
     <Input
-      id="confirm_password"
-      type={showConfirmPassword ? "text" : "password"}
-      value={confirmPassword}
-      onChange={(e) => setConfirmPassword(e.target.value)}
-      placeholder="Confirm password"
+      id="first_name"
+      value={newAdmin.first_name}
+      onChange={(e) =>
+        setNewAdmin({
+          ...newAdmin,
+          first_name: e.target.value
+        })
+      }
+      placeholder="Enter first name"
     />
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+  </div>
+  <div>
+    <Label htmlFor="last_name">Last Name</Label>
+    <Input
+      id="last_name"
+      value={newAdmin.last_name}
+      onChange={(e) =>
+        setNewAdmin({
+          ...newAdmin,
+          last_name: e.target.value
+        })
+      }
+      placeholder="Enter last name"
+    />
+  </div>
+  <div>
+    <Label htmlFor="email">Email</Label>
+    <Input
+      id="email"
+      type="email"
+      value={newAdmin.email}
+      onChange={(e) =>
+        setNewAdmin({ ...newAdmin, email: e.target.value })
+      }
+      placeholder="Enter email address"
+    />
+  </div>
+  <div>
+    <Label htmlFor="phone">Phone Number</Label>
+    <Input
+      id="phone"
+      type="tel"
+      value={newAdmin.phone}
+      onChange={(e) => {
+        const value = e.target.value.replace(/\D/g, "");
+        const maxLength = 9;
+        if (value.length <= maxLength) {
+          setNewAdmin({ ...newAdmin, phone: value });
+        }
+      }}
+      placeholder="Enter phone number"
+    />
+  </div>
+  <div>
+    <Label htmlFor="password">Password</Label>
+    <div className="relative">
+      <Input
+        id="password"
+        type={showPassword ? "text" : "password"}
+        value={newAdmin.password}
+        onChange={(e) =>
+          setNewAdmin({
+            ...newAdmin,
+            password: e.target.value
+          })
+        }
+        placeholder="Enter password"
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+        onClick={() => setShowPassword(!showPassword)}
+      >
+        {showPassword ? (
+          <EyeOff className="h-4 w-4" />
+        ) : (
+          <Eye className="h-4 w-4" />
+        )}
+      </Button>
+    </div>
+  </div>
+  <div>
+    <Label htmlFor="confirm_password">Confirm Password</Label>
+    <div className="relative">
+      <Input
+        id="confirm_password"
+        type={showConfirmPassword ? "text" : "password"}
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+        placeholder="Confirm password"
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+      >
+        {showConfirmPassword ? (
+          <EyeOff className="h-4 w-4" />
+        ) : (
+          <Eye className="h-4 w-4" />
+        )}
+      </Button>
+    </div>
+  </div>
+  <div className="md:col-span-2">
+    <Label>Role</Label>
+    <Select
+      value={newAdmin.role}
+      onValueChange={(value: Role) =>
+        setNewAdmin({ ...newAdmin, role: value })
+      }
     >
-      {showConfirmPassword ? (
-        <EyeOff className="h-4 w-4" />
-      ) : (
-        <Eye className="h-4 w-4" />
-      )}
-    </Button>
+      <SelectTrigger>
+        <SelectValue placeholder="Select role" />
+      </SelectTrigger>
+      <SelectContent>
+        {getAvailableRoles().map((role) => (
+          <SelectItem key={role} value={role}>
+            {getRoleLabel(role)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   </div>
 </div>
-
-                      <div>
-                        <Label>Role</Label>
-                        <Select
-                          value={newAdmin.role}
-                          onValueChange={(value: Role) =>
-                            setNewAdmin({ ...newAdmin, role: value })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getAvailableRoles().map((role) => (
-                              <SelectItem key={role} value={role}>
-                                {getRoleLabel(role)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
                     <DialogFooter className="mt-6">
                       <Button variant="outline" onClick={() => setShowCreateForm(false)}>
                         Cancel

@@ -147,33 +147,53 @@ const RideReports: React.FC = () => {
   }, []);
 
   const downloadExcel = useCallback(async (rideId: string | null, isAll: boolean = false) => {
-    try {
-      const url = isAll
-        ? `/v1/admin/ridesreports/export-all?search=${encodeURIComponent(
-            searchTerm
-          )}&status=${encodeURIComponent(statusFilter)}`
-        : `/v1/admin/ridesreports/export/${rideId}`;
-      const response = await apiClient.get(url, { responseType: "blob" });
-      const blob = new Blob([response.data], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = isAll
-        ? `all_ride_reports_${new Date().toISOString().replace(/[:.]/g, "-")}.xlsx`
-        : `ride_report_${rideId}.xlsx`;
-      link.click();
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to download report", {
-        style: {
-          background: "#622A39",
-          color: "hsl(42, 51%, 91%)",
-        },
-      });
+  try {
+    const url = isAll
+      ? `/v1/admin/ridesreports/export-all?search=${encodeURIComponent(searchTerm)}&status=${encodeURIComponent(statusFilter)}`
+      : `/v1/admin/ridesreports/export/${rideId}`;
+
+    const response = await apiClient.get(url, { responseType: "blob" });
+
+    // Extract filename from Content-Disposition header
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = 'report.xlsx'; // fallback
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?(.+)"?/);
+      if (match && match[1]) filename = match[1];
     }
-  }, [searchTerm, statusFilter]);
+
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename; // use backend filename
+    link.click();
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error: any) {
+    toast.error(error.response?.data?.error || "Failed to download report", {
+      style: {
+        background: "#622A39",
+        color: "hsl(42, 51%, 91%)",
+      },
+    });
+  }
+}, [searchTerm, statusFilter]);
+
+// Utility function
+const formatDateTime = (dateStr: string | null) => {
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0"); // Month is 0-indexed
+  const year = String(date.getFullYear()).slice(-2); // last 2 digits
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}`; // DD/MM/YY HH:MM 24-hour
+};
+
 
   return (
     <div className="space-y-6">
@@ -327,8 +347,8 @@ const RideReports: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="text-sm">{ride.ride_date ? new Date(ride.ride_date).toLocaleString() : "-"}</p>
-                        <p className="text-sm text-muted-foreground">{ride.scheduled_time ? new Date(ride.scheduled_time).toLocaleString() : "-"}</p>
+                        <p className="text-sm">{ride.ride_date ? formatDateTime(ride.ride_date) : "-"}</p>
+                        <p className="text-sm text-muted-foreground">{ride.scheduled_time ? formatDateTime(ride.scheduled_time) : "-"}</p>
                       </div>
                     </TableCell>
                     <TableCell>

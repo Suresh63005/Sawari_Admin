@@ -1445,11 +1445,11 @@ setFormData((prev) => ({
                       <div className="space-y-1">
                         <div className="flex items-center text-sm">
                           <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                          {ride.pickup_location}
+                          {ride.pickup_address}
                         </div>
                         <div className="flex items-center text-sm text-muted-foreground">
                           <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                          {ride.drop_location}
+                          {ride.drop_address || "-"}
                         </div>
                       </div>
                     </TableCell>
@@ -1550,10 +1550,10 @@ setFormData((prev) => ({
                                           <Phone className="w-4 h-4 mr-2" />
                                           {selectedRide.phone || "-"}
                                         </p>
-                                        <p className="flex items-center text-sm">
+                                        {/* <p className="flex items-center text-sm">
                                           <MapPin className="w-4 h-4 mr-2" />
-                                          {selectedRide.pickup_location || "-"}
-                                        </p>{" "}
+                                          {selectedRide.pickup_address || "-"}
+                                        </p>{" "} */}
                                         {/* Removed w-[50px] here */}
                                         <p className="flex items-center text-sm">
                                           <MapPin className="w-4 h-4 mr-2" />
@@ -1633,13 +1633,13 @@ setFormData((prev) => ({
                                       <div className="flex items-center text-sm">
                                         <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
                                         <span>
-                                          Pickup: {selectedRide.pickup_location}
+                                          Pickup: {selectedRide.pickup_address || "-"}
                                         </span>
                                       </div>
                                       <div className="flex items-center text-sm">
                                         <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
                                         <span>
-                                          Drop: {selectedRide.drop_location}
+                                          Drop: {selectedRide.drop_address || "-"}
                                         </span>
                                       </div>
                                     </div>

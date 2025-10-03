@@ -1,18 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
-import apiClient from '@/lib/apiClient';
-import toast from 'react-hot-toast';
-import Loader from '@/components/ui/Loader';
-import dynamic from 'next/dynamic';
-import 'quill/dist/quill.snow.css';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
+import apiClient from "@/lib/apiClient";
+import toast from "react-hot-toast";
+import Loader from "@/components/ui/Loader";
+import dynamic from "next/dynamic";
+import "quill/dist/quill.snow.css";
 
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
 
 interface Settings {
   id?: string;
@@ -31,17 +31,17 @@ interface Settings {
 
 const Settings: React.FC = () => {
   const [settings, setSettings] = useState<Settings>({
-    weblogo: '',
-    web_name: '',
-    contact_email: '',
-    contact_phone: '',
+    weblogo: "",
+    web_name: "",
+    contact_email: "",
+    contact_phone: "",
     tax_rate: 0.0,
-    currency: '',
-    timezone: '',
-    about_us: '',
-    terms_conditions: '',
-    privacy_policy: '',
-    min_wallet_percentage: 0.0,
+    currency: "",
+    timezone: "",
+    about_us: "",
+    terms_conditions: "",
+    privacy_policy: "",
+    min_wallet_percentage: 0.0
   });
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -51,18 +51,18 @@ const Settings: React.FC = () => {
     const fetchSettings = async () => {
       try {
         setLoading(true);
-        const response = await apiClient.get('/v1/admin/settings');
+        const response = await apiClient.get("/v1/admin/settings");
         if (response.data.result) {
           setSettings(response.data.result);
         }
       } catch (err: any) {
-        console.error('Fetch settings error:', err);
-        setError(err.response?.data?.error || 'Failed to fetch settings');
-        toast.error(err.response?.data?.error || 'Failed to fetch settings', {
+        console.error("Fetch settings error:", err);
+        setError(err.response?.data?.error || "Failed to fetch settings");
+        toast.error(err.response?.data?.error || "Failed to fetch settings", {
           style: {
-            background: '#622A39',
-            color: 'hsl(42, 51%, 91%)',
-          },
+            background: "#622A39",
+            color: "hsl(42, 51%, 91%)"
+          }
         });
       } finally {
         setLoading(false);
@@ -84,21 +84,21 @@ const Settings: React.FC = () => {
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
-      const response = await apiClient.post('/v1/admin/settings', settings);
+      const response = await apiClient.post("/v1/admin/settings", settings);
       setSettings(response.data.result);
       toast.success(response.data.message, {
         style: {
-          background: '#622A39',
-          color: 'hsl(42, 51%, 91%)',
-        },
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
       });
     } catch (err: any) {
-      console.error('Save settings error:', err);
-      toast.error(err.response?.data?.error || 'Failed to save settings', {
+      console.error("Save settings error:", err);
+      toast.error(err.response?.data?.error || "Failed to save settings", {
         style: {
-          background: '#622A39',
-          color: 'hsl(42, 51%, 91%)',
-        },
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
       });
     } finally {
       setIsSaving(false);
@@ -108,24 +108,43 @@ const Settings: React.FC = () => {
   const quillModules = {
     toolbar: [
       [{ header: [1, 2, 3, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ list: 'ordered' }, { list: 'bullet' }],
-      ['link', 'image'],
-      ['clean'],
-    ],
+      ["bold", "italic", "underline", "strike"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      ["link", "image"],
+      ["clean"]
+    ]
   };
 
   const quillFormats = [
-    'header',
-    'bold',
-    'italic',
-    'underline',
-    'strike',
-    'list',
-    'bullet',
-    'link',
-    'image',
+    "header",
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "list",
+    "bullet",
+    "link",
+    "image"
   ];
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+
+    // Ensure it always starts with +971
+    if (!value.startsWith("+971")) {
+      value = "+971";
+    }
+
+    // Remove all non-digits except prefix
+    value = "+971" + value.slice(4).replace(/\D/g, "");
+
+    // Restrict to 9 digits after +971
+    if (value.length > 13) {
+      value = value.slice(0, 13);
+    }
+
+    setSettings((prev) => ({ ...prev, contact_phone: value }));
+  };
 
   if (error) {
     return (
@@ -155,7 +174,7 @@ const Settings: React.FC = () => {
               <Input
                 id="weblogo"
                 name="weblogo"
-                value={settings.weblogo || ''}
+                value={settings.weblogo || ""}
                 onChange={handleInputChange}
                 placeholder="Enter website logo URL"
               />
@@ -165,7 +184,7 @@ const Settings: React.FC = () => {
               <Input
                 id="web_name"
                 name="web_name"
-                value={settings.web_name || ''}
+                value={settings.web_name || ""}
                 onChange={handleInputChange}
                 placeholder="Enter website name"
               />
@@ -176,7 +195,7 @@ const Settings: React.FC = () => {
                 id="contact_email"
                 name="contact_email"
                 type="email"
-                value={settings.contact_email || ''}
+                value={settings.contact_email || ""}
                 onChange={handleInputChange}
                 placeholder="Enter contact email"
               />
@@ -186,13 +205,15 @@ const Settings: React.FC = () => {
               <Input
                 id="contact_phone"
                 name="contact_phone"
-                value={settings.contact_phone || ''}
-                onChange={handleInputChange}
-                placeholder="Enter contact phone"
+                value={settings.contact_phone || "+971"}
+                onChange={handlePhoneChange}
+                placeholder="+971XXXXXXXXX"
+                maxLength={13} // +971 + 9 digits
               />
             </div>
+
             <div>
-              <Label htmlFor="tax_rate">Tax Rate (%)</Label>
+              <Label htmlFor="tax_rate">Tax</Label>
               <Input
                 id="tax_rate"
                 name="tax_rate"
@@ -208,7 +229,7 @@ const Settings: React.FC = () => {
               <Input
                 id="currency"
                 name="currency"
-                value={settings.currency || ''}
+                value={settings.currency || ""}
                 onChange={handleInputChange}
                 placeholder="Enter currency (e.g., USD)"
               />
@@ -218,54 +239,60 @@ const Settings: React.FC = () => {
               <Input
                 id="timezone"
                 name="timezone"
-                value={settings.timezone || ''}
+                value={settings.timezone || ""}
                 onChange={handleInputChange}
                 placeholder="Enter timezone (e.g., UTC)"
               />
             </div>
-            <div>
+            <div className="flex flex-col space-y-2 mb-6">
               <Label htmlFor="about_us">About Us</Label>
               <ReactQuill
-                value={settings.about_us || ''}
-                onChange={(value) => handleEditorChange('about_us', value)}
+                value={settings.about_us || ""}
+                onChange={(value) => handleEditorChange("about_us", value)}
                 modules={quillModules}
                 formats={quillFormats}
                 placeholder="Enter about us text"
                 className="bg-[#FFF8EC]"
-                style={{ height: '300px', marginBottom: '40px' }}
+                style={{ height: "300px", marginBottom: "40px" }}
               />
             </div>
-            <div>
+            <div className="flex flex-col space-y-2 mb-6">
               <Label htmlFor="terms_conditions">Terms & Conditions</Label>
               <ReactQuill
-                value={settings.terms_conditions || ''}
-                onChange={(value) => handleEditorChange('terms_conditions', value)}
+                value={settings.terms_conditions || ""}
+                onChange={(value) =>
+                  handleEditorChange("terms_conditions", value)
+                }
                 modules={quillModules}
                 formats={quillFormats}
                 placeholder="Enter terms and conditions"
                 className="bg-[#FFF8EC]"
-                style={{ height: '300px', marginBottom: '40px' }}
+                style={{ height: "300px", marginBottom: "40px" }}
               />
             </div>
-            <div>
+            <div className="flex flex-col space-y-2 mb-6">
               <Label htmlFor="privacy_policy">Privacy Policy</Label>
               <ReactQuill
-                value={settings.privacy_policy || ''}
-                onChange={(value) => handleEditorChange('privacy_policy', value)}
+                value={settings.privacy_policy || ""}
+                onChange={(value) =>
+                  handleEditorChange("privacy_policy", value)
+                }
                 modules={quillModules}
                 formats={quillFormats}
                 placeholder="Enter privacy policy"
                 className="bg-[#FFF8EC]"
-                style={{ height: '300px', marginBottom: '40px' }}
+                style={{ height: "300px", marginBottom: "40px" }}
               />
             </div>
             <div>
-              <Label htmlFor="min_wallet_percentage">Minimum Wallet Percentage (%)</Label>
+              <Label htmlFor="min_wallet_percentage">
+                Minimum Wallet Percentage (%)
+              </Label>
               <Input
                 id="min_wallet_percentage"
                 name="min_wallet_percentage"
                 type="number"
-                step="0.01"
+                step="1"
                 value={settings.min_wallet_percentage || 0.0}
                 onChange={handleInputChange}
                 placeholder="Enter minimum wallet percentage"

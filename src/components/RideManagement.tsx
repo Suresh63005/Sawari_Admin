@@ -1029,6 +1029,7 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               </Label>
               <Input
                 value={formData.pickup_location}
+                placeholder='{"lat":"25.1949849","lng":"55.2784141"}'
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
@@ -1048,6 +1049,7 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               </Label>
               <Input
                 value={formData.drop_location}
+                placeholder='{"lat":"25.2048493","lng":"55.2707828"}'
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,

@@ -479,7 +479,7 @@ export default function VehicleApproval() {
                                     <div className="space-y-2">
                                       <label className="text-sm font-medium">Verification</label>
                                       <div className="space-y-1">
-                                        <p className="text-sm">RC Status: {getDocStatusBadge(selectedVehicle.rc_doc_status)}</p>
+                                        <p className="text-sm">Mulkiya Status: {getDocStatusBadge(selectedVehicle.rc_doc_status)}</p>
                                         <p className="text-sm">Insurance Status: {getDocStatusBadge(selectedVehicle.insurance_doc_status)}</p>
                                         <p className="text-sm">Verified By: {selectedVehicle.verified_by ? `${selectedVehicle.verified_by.name} (${selectedVehicle.verified_by.role})` : 'N/A'}</p>
                                       </div>

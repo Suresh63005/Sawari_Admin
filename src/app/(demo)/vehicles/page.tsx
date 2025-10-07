@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Eye, CheckCircle, XCircle, User, Loader2 } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
-import { useToast } from '@/components/ui/use-toast';
+import toast from 'react-hot-toast'; // Use react-hot-toast
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import Loader from '@/components/ui/Loader';
@@ -40,7 +40,6 @@ interface Vehicle {
 }
 
 export default function VehicleApproval() {
-  const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -68,89 +67,94 @@ export default function VehicleApproval() {
   const [totalItems, setTotalItems] = useState(0);
 
   const debouncedFetchVehicles = useCallback(
-  debounce(async (search: string, status: string, page: number, limit: number, driverId?: string | null) => {
-    try {
-      setSearchLoading(true);
-      let response;
-      if (driverId) {
-        console.log("Fetching vehicles for driverId:", driverId);
-        response = await apiClient.get(`/v1/admin/vehicles/${driverId}`);
-        console.log("Driver Vehicles Response:", response.data);
-        const data = (response.data.data || []).map((vehicle: any) => ({
-          ...vehicle,
-          car_photos: Array.isArray(vehicle.car_photos) ? vehicle.car_photos : [],
-          rc_doc_status: vehicle.rc_doc_status || "pending",
-          insurance_doc_status: vehicle.insurance_doc_status || "pending",
-          verified_by: vehicle.verified_by || null,
-        }));
-        setVehicles(data);
-        setTotalItems(data.length);
-        if (data.length === 0) {
-          toast({
-            title: "No Vehicles",
-            description: "No vehicles found for this driver.",
+    debounce(async (search: string, status: string, page: number, limit: number, driverId?: string | null) => {
+      try {
+        setSearchLoading(true);
+        let response;
+        if (driverId) {
+          console.log("Fetching vehicles for driverId:", driverId);
+          response = await apiClient.get(`/v1/admin/vehicles/${driverId}`);
+          console.log("Driver Vehicles Response:", response.data);
+          const data = (response.data.data || []).map((vehicle: any) => ({
+            ...vehicle,
+            car_photos: Array.isArray(vehicle.car_photos) ? vehicle.car_photos : [],
+            rc_doc_status: vehicle.rc_doc_status || "pending",
+            insurance_doc_status: vehicle.insurance_doc_status || "pending",
+            verified_by: vehicle.verified_by || null,
+          }));
+          setVehicles(data);
+          setTotalItems(data.length);
+          if (data.length === 0) {
+            toast.error('No vehicles found for this driver', {
+              style: {
+                background: 'card',
+                color: 'primary',
+              },
+            });
+          }
+        } else {
+          response = await apiClient.get("/v1/admin/vehicles", {
+            params: {
+              page,
+              limit,
+              search,
+              status: status === "all" ? undefined : status === "pending" ? "inactive" : status,
+              is_approved: status === "pending" ? false : status === "approved" ? true : undefined,
+            },
           });
+          console.log("All Vehicles Response:", response.data);
+          const data = response.data.data.map((vehicle: any) => ({
+            ...vehicle,
+            car_photos: Array.isArray(vehicle.car_photos) ? vehicle.car_photos : [],
+            rc_doc_status: vehicle.rc_doc_status || "pending",
+            insurance_doc_status: vehicle.insurance_doc_status || "pending",
+            verified_by: vehicle.verified_by || null,
+          }));
+          setVehicles(data);
+          setTotalItems(response.data.total);
         }
-      } else {
-        response = await apiClient.get("/v1/admin/vehicles", {
-          params: {
-            page,
-            limit,
-            search,
-            status: status === "all" ? undefined : status,
+      } catch (err: any) {
+        console.error("Error fetching vehicles:", err);
+        toast.error(err.response?.data?.message || 'Failed to fetch vehicles', {
+          style: {
+            background: 'card',
+            color: 'primary',
           },
         });
-        console.log("All Vehicles Response:", response.data);
-        const data = response.data.data.map((vehicle: any) => ({
-          ...vehicle,
-          car_photos: Array.isArray(vehicle.car_photos) ? vehicle.car_photos : [],
-          rc_doc_status: vehicle.rc_doc_status || "pending",
-          insurance_doc_status: vehicle.insurance_doc_status || "pending",
-          verified_by: vehicle.verified_by || null,
-        }));
-        setVehicles(data);
-        setTotalItems(response.data.total);
+      } finally {
+        setSearchLoading(false);
       }
-    } catch (err: any) {
-      console.error("Error fetching vehicles:", err);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err.response?.data?.message || "Failed to fetch vehicles",
-      });
-    } finally {
-      setSearchLoading(false);
-    }
-  }, 500),
-  []
-);
+    }, 500),
+    []
+  );
 
   useEffect(() => {
-  const fetchInitialVehicles = async () => {
-    setLoading(true);
-    try {
-      const driverId = searchParams.get('driverId');
-      if (driverId) {
-        setDriverIdFilter(driverId);
-        await debouncedFetchVehicles('', 'all', 1, 5, driverId);
-        setItemsPerPage(5);
-        setCurrentPage(1);
-      } else {
-        await debouncedFetchVehicles(searchTerm, statusFilter, currentPage, itemsPerPage);
+    const fetchInitialVehicles = async () => {
+      setLoading(true);
+      try {
+        const driverId = searchParams.get('driverId');
+        if (driverId) {
+          setDriverIdFilter(driverId);
+          await debouncedFetchVehicles('', 'all', 1, 5, driverId);
+          setItemsPerPage(5);
+          setCurrentPage(1);
+        } else {
+          await debouncedFetchVehicles(searchTerm, statusFilter, currentPage, itemsPerPage);
+        }
+      } catch (err) {
+        console.error('Error in initial vehicle fetch:', err);
+        toast.error('Failed to initialize vehicle data', {
+          style: {
+            background: 'card',
+            color: 'primary',
+          },
+        });
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error in initial vehicle fetch:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to initialize vehicle data',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchInitialVehicles();
-}, [searchParams]);
+    };
+    fetchInitialVehicles();
+  }, [searchParams, debouncedFetchVehicles]);
 
   useEffect(() => {
     if (driverIdFilter) {
@@ -169,53 +173,103 @@ export default function VehicleApproval() {
 
   const handleConfirmAction = async (providedReason?: string) => {
     const { action, vehicleId } = confirmDialog;
-    const reason = providedReason?.trim() || 'No reason provided';
+    const reason = providedReason?.trim();
     setIsDeleting(true);
     try {
       if (action === 'rc-verify') {
         await apiClient.post(`/v1/admin/vehicles/${vehicleId}/verify-rc`, { verified_by: verifiedBy });
         setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, rc_doc_status: 'verified' } : v));
         setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, rc_doc_status: 'verified' } : prev));
-        toast({ title: 'Success', description: 'RC document verified' });
+        toast.success('RC document verified', {
+          style: {
+            background: 'card',
+            color: 'primary',
+          },
+        });
       } else if (action === 'rc-reject') {
+        if (!reason) {
+          toast.error('A reason is required to reject the RC document', {
+            style: {
+              background: 'card',
+              color: 'primary',
+            },
+          });
+          return;
+        }
         await apiClient.post(`/v1/admin/vehicles/${vehicleId}/reject-rc`, { reason, verified_by: verifiedBy });
         setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, rc_doc_status: 'rejected' } : v));
         setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, rc_doc_status: 'rejected' } : prev));
-        toast({ title: 'Success', description: 'RC document rejected' });
+        toast.success('RC document rejected', {
+          style: {
+            background: 'card',
+            color: 'primary',
+          },
+        });
       } else if (action === 'insurance-verify') {
         await apiClient.post(`/v1/admin/vehicles/${vehicleId}/verify-insurance`, { verified_by: verifiedBy });
         setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, insurance_doc_status: 'verified' } : v));
         setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, insurance_doc_status: 'verified' } : prev));
-        toast({ title: 'Success', description: 'Insurance document verified' });
+        toast.success('Insurance document verified', {
+          style: {
+            background: 'card',
+            color: 'primary',
+          },
+        });
       } else if (action === 'insurance-reject') {
+        if (!reason) {
+          toast.error('A reason is required to reject the insurance document', {
+            style: {
+              background: 'card',
+              color: 'primary',
+            },
+          });
+          return;
+        }
         await apiClient.post(`/v1/admin/vehicles/${vehicleId}/reject-insurance`, { reason, verified_by: verifiedBy });
         setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, insurance_doc_status: 'rejected' } : v));
         setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, insurance_doc_status: 'rejected' } : prev));
-        toast({ title: 'Success', description: 'Insurance document rejected' });
+        toast.success('Insurance document rejected', {
+          style: {
+            background: 'card',
+            color: 'primary',
+          },
+        });
       } else if (action === 'approve') {
         await apiClient.post(`/v1/admin/vehicles/${vehicleId}/approve`, { verified_by: verifiedBy });
         setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, is_approved: true, status: 'active' } : v));
         setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, is_approved: true, status: 'active' } : prev));
-        toast({ title: 'Success', description: 'Vehicle approved' });
+        toast.success('Vehicle approved', {
+          style: {
+            background: 'card',
+            color: 'primary',
+          },
+        });
       } else if (action === 'reject') {
-        if (!providedReason?.trim()) {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'A reason is required to reject the vehicle',
+        if (!reason) {
+          toast.error('A reason is required to reject the vehicle', {
+            style: {
+              background: 'card',
+              color: 'primary',
+            },
           });
           return;
         }
         await apiClient.post(`/v1/admin/vehicles/${vehicleId}/reject`, { reason, verified_by: verifiedBy });
         setVehicles(vehicles.map(v => v.id === vehicleId ? { ...v, is_approved: false, status: 'rejected' } : v));
         setSelectedVehicle(prev => (prev && prev.id === vehicleId ? { ...prev, is_approved: false, status: 'rejected' } : prev));
-        toast({ title: 'Success', description: 'Vehicle rejected' });
+        toast.success('Vehicle rejected', {
+          style: {
+            background: 'card',
+            color: 'primary',
+          },
+        });
       }
     } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.message || `Failed to ${action.split('-')[0]} ${action.includes('rc') ? 'RC document' : action.includes('insurance') ? 'insurance document' : 'vehicle'}`,
+      toast.error(err.response?.data?.message || `Failed to ${action.split('-')[0]} ${action.includes('rc') ? 'RC document' : action.includes('insurance') ? 'insurance document' : 'vehicle'}`, {
+        style: {
+          background: 'card',
+          color: 'primary',
+        },
       });
     } finally {
       setConfirmDialog({ open: false, action: '', vehicleId: '' });
@@ -282,7 +336,7 @@ export default function VehicleApproval() {
             <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium text-primary">Search Vehicles</label>
               <div className="relative mt-1">
-                <input
+                <Input
                   ref={searchInputRef}
                   type="text"
                   placeholder="Search vehicles..."
@@ -426,7 +480,7 @@ export default function VehicleApproval() {
                                       <label className="text-sm font-medium">Verification</label>
                                       <div className="space-y-1">
                                         <p className="text-sm">RC Status: {getDocStatusBadge(selectedVehicle.rc_doc_status)}</p>
-                                        <p className="text-sm">Insurance Doc Status: {getDocStatusBadge(selectedVehicle.insurance_doc_status)}</p>
+                                        <p className="text-sm">Insurance Status: {getDocStatusBadge(selectedVehicle.insurance_doc_status)}</p>
                                         <p className="text-sm">Verified By: {selectedVehicle.verified_by ? `${selectedVehicle.verified_by.name} (${selectedVehicle.verified_by.role})` : 'N/A'}</p>
                                       </div>
                                     </div>
@@ -451,7 +505,7 @@ export default function VehicleApproval() {
                                             <img
                                               src={selectedVehicle.rc_doc}
                                               alt="RC Document"
-                                              className="w-[400px] h-[250px] rounded cursor-pointer"
+                                              className="w-[400px] h-[250px] object-contain rounded cursor-pointer"
                                               onClick={() => handleImageClick(selectedVehicle.rc_doc)}
                                             />
                                             {selectedVehicle.rc_doc_status === 'pending' && (
@@ -490,7 +544,7 @@ export default function VehicleApproval() {
                                             <img
                                               src={selectedVehicle.insurance_doc}
                                               alt="Insurance Document"
-                                              className="w-[400px] h-[250px] rounded cursor-pointer"
+                                              className="w-[400px] h-[250px] object-contain rounded cursor-pointer"
                                               onClick={() => handleImageClick(selectedVehicle.insurance_doc)}
                                             />
                                             {selectedVehicle.insurance_doc_status === 'pending' && (
@@ -507,7 +561,7 @@ export default function VehicleApproval() {
                                                   variant="outline"
                                                   size="sm"
                                                   onClick={() => setConfirmDialog({ open: true, action: 'insurance-reject', vehicleId: selectedVehicle.id })}
-                                                  className="text-red-600 hover:text-green-700"
+                                                  className="text-red-600 hover:text-red-700"
                                                 >
                                                   Reject
                                                 </Button>
@@ -541,17 +595,18 @@ export default function VehicleApproval() {
                             )}
                           </DialogContent>
                         </Dialog>
-                        {vehicle.status !== 'rejected' && !(vehicle.is_approved && vehicle.status === 'active') && (
+                        {!vehicle.is_approved && vehicle.status !== 'rejected' && (
                           <>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => {
                                 if (vehicle.rc_doc_status !== 'verified' || vehicle.insurance_doc_status !== 'verified') {
-                                  toast({
-                                    variant: 'destructive',
-                                    title: 'Error',
-                                    description: 'Please verify all documents before approving the vehicle',
+                                  toast.error('Please verify all documents before approving the vehicle', {
+                                    style: {
+                                      background: 'card',
+                                      color: 'primary',
+                                    },
                                   });
                                   return;
                                 }
@@ -690,16 +745,14 @@ export default function VehicleApproval() {
             <DialogDescription>
               {confirmDialog.action.includes('verify')
                 ? `Are you sure you want to verify the ${confirmDialog.action.includes('rc') ? 'RC' : 'insurance'} document?`
-                : confirmDialog.action === 'reject'
-                ? 'Please provide a reason for rejecting the vehicle.'
-                : confirmDialog.action.includes('rc-reject') || confirmDialog.action.includes('insurance-reject')
-                ? `Are you sure you want to reject the ${confirmDialog.action.includes('rc') ? 'RC' : 'insurance'} document?`
+                : confirmDialog.action === 'reject' || confirmDialog.action.includes('rc-reject') || confirmDialog.action.includes('insurance-reject')
+                ? `Please provide a reason for rejecting the ${confirmDialog.action.includes('rc') ? 'RC document' : confirmDialog.action.includes('insurance') ? 'insurance document' : 'vehicle'}.`
                 : confirmDialog.action === 'approve'
                 ? 'Are you sure you want to approve this vehicle?'
                 : 'Are you sure you want to reject this vehicle?'}
             </DialogDescription>
           </DialogHeader>
-          {confirmDialog.action === 'reject' && (
+          {(confirmDialog.action === 'reject' || confirmDialog.action.includes('rc-reject') || confirmDialog.action.includes('insurance-reject')) && (
             <div className="space-y-2">
               <Label htmlFor="reject-reason">Rejection Reason</Label>
               <Textarea
@@ -707,7 +760,7 @@ export default function VehicleApproval() {
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Enter reason for rejection"
-                className="w-full"
+                className="w-full bg-card"
               />
             </div>
           )}
@@ -720,8 +773,8 @@ export default function VehicleApproval() {
             </Button>
             <Button
               variant={confirmDialog.action.includes('verify') || confirmDialog.action === 'approve' ? 'default' : 'destructive'}
-              onClick={() => handleConfirmAction(confirmDialog.action === 'reject' ? rejectReason : undefined)}
-              disabled={isDeleting || (confirmDialog.action === 'reject' && !rejectReason)}
+              onClick={() => handleConfirmAction(rejectReason)}
+              disabled={isDeleting || ((confirmDialog.action === 'reject' || confirmDialog.action.includes('rc-reject') || confirmDialog.action.includes('insurance-reject')) && !rejectReason)}
             >
               {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {confirmDialog.action.includes('verify') ? 'Verify' :
@@ -738,7 +791,7 @@ export default function VehicleApproval() {
             <DialogTitle>Enlarged Document</DialogTitle>
           </DialogHeader>
           {selectedImage && (
-            <img src={selectedImage} alt="Enlarged Document" className="w-[50vw] h-[80vh] rounded" />
+            <img src={selectedImage} alt="Enlarged Document" className="w-[50vw] h-[80vh] object-contain rounded" />
           )}
         </DialogContent>
       </Dialog>

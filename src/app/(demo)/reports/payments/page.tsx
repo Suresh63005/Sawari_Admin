@@ -134,24 +134,39 @@ const PaymentReports: React.FC = () => {
     return <Badge variant={config.variant}>{config.text}</Badge>;
   }, []);
 
-  const downloadExcel = useCallback(async (paymentId: string | null, isAll: boolean = false) => {
+  const downloadExcel = useCallback(
+  async (paymentId: string | null, isAll: boolean = false) => {
     try {
       const url = isAll
         ? `/v1/admin/paymentreports/export-all?search=${encodeURIComponent(
             searchTerm
           )}&status=${encodeURIComponent(statusFilter)}`
         : `/v1/admin/paymentreports/export/${paymentId}`;
+
       const response = await apiClient.get(url, { responseType: "blob" });
+
+      // ✅ Extract filename from backend header if available
+      const contentDisposition = response.headers["content-disposition"];
+      let fileName = "payment_report.xlsx"; // fallback filename
+
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) {
+          fileName = match[1];
+        }
+      }
+
       const blob = new Blob([response.data], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
+
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
-      link.download = isAll
-        ? `all_payment_reports_${new Date().toISOString().replace(/[:.]/g, "-")}.xlsx`
-        : `payment_report_${paymentId}.xlsx`;
+      link.download = fileName;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error: any) {
       toast.error(error.response?.data?.error || "Failed to download report", {
@@ -161,7 +176,10 @@ const PaymentReports: React.FC = () => {
         },
       });
     }
-  }, [searchTerm, statusFilter]);
+  },
+  [searchTerm, statusFilter]
+);
+
 
   return (
     <div className="space-y-6">

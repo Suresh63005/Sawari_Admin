@@ -386,7 +386,7 @@ const formatDateTime = (dateStr: string | null) => {
               )}
             </TableBody>
           </Table>
-          {!isLoading && rides.length > 0 && (
+ {!isLoading && rides.length > 0 && (
   <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
     <div className="mb-2 md:mb-0">
       <label className="mr-2 text-sm text-primary">Items per page:</label>
@@ -403,6 +403,7 @@ const formatDateTime = (dateStr: string | null) => {
         <option value={20}>20</option>
       </select>
     </div>
+
     <div className="flex items-center space-x-2">
       <Button
         onClick={() => paginate(currentPage - 1)}
@@ -412,63 +413,43 @@ const formatDateTime = (dateStr: string | null) => {
       >
         Previous
       </Button>
+
       {(() => {
-        const renderPages = () => {
-          const visiblePages: number[] = [];
-          const showFirstEllipsis = currentPage > 5 && totalPages > 5;
-          const showLastEllipsis = currentPage <= 5 && totalPages > 5;
+        const maxVisiblePages = 5;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
-          if (totalPages <= 5) {
-            for (let i = 1; i <= totalPages; i++) {
-              visiblePages.push(i);
-            }
-          } else if (currentPage <= 5) {
-            for (let i = 1; i <= 5; i++) {
-              visiblePages.push(i);
-            }
-            if (totalPages > 5) {
-              visiblePages.push(totalPages);
-            }
-          } else {
-            visiblePages.push(1);
-            for (let i = totalPages - 4; i <= totalPages; i++) {
-              if (i > 1) {
-                visiblePages.push(i);
-              }
-            }
-          }
+        const visiblePages = Array.from(
+          { length: endPage - startPage + 1 },
+          (_, i) => startPage + i
+        );
 
-          return (
-            <>
-              {showFirstEllipsis && (
-                <span className="px-2 py-1 text-sm text-muted-foreground">
-                  ...
-                </span>
-              )}
-              {visiblePages.map((page) => (
-                <Button
-                  key={page}
-                  onClick={() => paginate(page)}
-                  variant={currentPage === page ? "default" : "outline"}
-                  className={
-                    currentPage === page
-                      ? "bg-primary text-card"
-                      : "bg-card text-primary"
-                  }
-                >
-                  {page}
-                </Button>
-              ))}
-              {showLastEllipsis && (
-                <span className="px-2 py-1 text-sm text-muted-foreground">
-                  ...
-                </span>
-              )}
-            </>
-          );
-        };
-        return renderPages();
+        return (
+          <>
+            {visiblePages.map((page) => (
+              <Button
+                key={page}
+                onClick={() => paginate(page)}
+                variant={currentPage === page ? "default" : "outline"}
+                className={
+                  currentPage === page
+                    ? "bg-primary text-card"
+                    : "bg-card text-primary"
+                }
+              >
+                {page}
+              </Button>
+            ))}
+            {totalPages > endPage && (
+              <span className="px-2 py-1 text-sm text-muted-foreground">
+                ...
+              </span>
+            )}
+          </>
+        );
       })()}
+
       <Button
         onClick={() => paginate(currentPage + 1)}
         disabled={currentPage === totalPages}
@@ -478,11 +459,13 @@ const formatDateTime = (dateStr: string | null) => {
         Next
       </Button>
     </div>
+
     <span className="text-sm text-primary mt-2 md:mt-0">
       Page {currentPage} of {totalPages} ({totalItems} total items)
     </span>
   </div>
 )}
+
         </CardContent>
       </Card>
     </div>

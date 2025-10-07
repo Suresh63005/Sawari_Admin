@@ -423,9 +423,9 @@ export default function DriverManagement() {
                                   <div className="space-y-2">
                                     <label className="text-sm font-medium">Personal Information</label>
                                     <div className="space-y-1">
-                                      <p className="flex items-center text-sm"><Calendar className="w-4 h-4 mr-2" /> Born: {selectedDriver.dob ? format(parseISO(selectedDriver.dob), 'dd/MM/yy') : 'N/A'}</p>
-                                      <p className="flex items-center text-sm"><Phone className="w-4 h-4 mr-2" />{selectedDriver.phone}</p>
-                                      <p className="flex items-center text-sm"><Mail className="w-4 h-4 mr-2" />{selectedDriver.email}</p>
+                                      <p className="flex items-center text-sm"><Calendar className="w-4 h-4 mr-2" /> Born: {selectedDriver.dob ? format(parseISO(selectedDriver.dob), 'dd/MM/yyyy') : 'N/A'}</p>
+                                      <p className="flex items-center text-sm"><Phone className="w-4 h-4 mr-2" />{selectedDriver.phone || 'N/A'}</p>
+                                      <p className="flex items-center text-sm"><Mail className="w-4 h-4 mr-2" />{selectedDriver.email || 'N/A'}</p>
                                       <p className="flex items-center text-sm"><Languages className="w-4 h-4 mr-2" />
                                         {selectedDriver.languages
                                           ? (typeof selectedDriver.languages === 'string' ? JSON.parse(selectedDriver.languages).join(', ') : selectedDriver.languages.join(', '))

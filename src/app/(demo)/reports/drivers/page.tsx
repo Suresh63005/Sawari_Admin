@@ -140,24 +140,39 @@ const DriverReports: React.FC = () => {
     return <Badge variant={config.variant}>{config.text}</Badge>;
   }, []);
 
-  const downloadExcel = useCallback(async (driverId: string | null, isAll: boolean = false) => {
+  const downloadExcel = useCallback(
+  async (driverId: string | null, isAll: boolean = false) => {
     try {
       const url = isAll
         ? `/v1/admin/driverreports/export-all?search=${encodeURIComponent(
             searchTerm
           )}&status=${encodeURIComponent(statusFilter)}`
         : `/v1/admin/driverreports/export/${driverId}`;
+
       const response = await apiClient.get(url, { responseType: "blob" });
+
+      // ✅ Try to extract filename from the backend headers
+      const contentDisposition = response.headers["content-disposition"];
+      let fileName = "report.xlsx"; // fallback filename
+
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) {
+          fileName = match[1];
+        }
+      }
+
       const blob = new Blob([response.data], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
+
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
-      link.download = isAll
-        ? `all_driver_reports_${new Date().toISOString().replace(/[:.]/g, "-")}.xlsx`
-        : `driver_report_${driverId}.xlsx`;
+      link.download = fileName; // ✅ Use backend-provided filename
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error: any) {
       toast.error(error.response?.data?.error || "Failed to download report", {
@@ -167,7 +182,10 @@ const DriverReports: React.FC = () => {
         },
       });
     }
-  }, [searchTerm, statusFilter]);
+  },
+  [searchTerm, statusFilter]
+);
+
 
   return (
     <div className="space-y-6">
@@ -305,10 +323,13 @@ const DriverReports: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">
-                          {driver.first_name} {driver.last_name}
-                        </p>
-                      </div>
+  <p className="font-medium">
+    {driver.first_name || driver.last_name
+      ? `${driver.first_name || ''} ${driver.last_name || ''}`.trim()
+      : '-'}
+  </p>
+</div>
+
                     </TableCell>
                     <TableCell>
                       <div>

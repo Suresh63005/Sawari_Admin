@@ -134,17 +134,26 @@ const RideReports: React.FC = () => {
     }
   };
 
-  const getStatusBadge = useCallback((status: string) => {
-    const variants = {
-      pending: { variant: "secondary" as const, text: "Pending" },
-      accepted: { variant: "default" as const, text: "Accepted" },
-      "on-route": { variant: "default" as const, text: "On-Route" },
-      completed: { variant: "default" as const, text: "Completed" },
-      cancelled: { variant: "secondary" as const, text: "Cancelled" },
-    };
-    const config = variants[status as keyof typeof variants] || variants.pending;
-    return <Badge variant={config.variant}>{config.text}</Badge>;
-  }, []);
+const getStatusBadge = useCallback((status: string) => {
+  type BadgeConfig = {
+    variant: "default" | "secondary";
+    text: string;
+    className?: string; // optional for custom colors
+  };
+
+  const variants: Record<string, BadgeConfig> = {
+    pending: { variant: "secondary", text: "Pending", className: "bg-red-600 text-white" },
+    accepted: { variant: "default", text: "Accepted" },
+    "on-route": { variant: "default", text: "On-Route" },
+    completed: { variant: "default", text: "Completed", className: "bg-green-600 text-white" },
+    cancelled: { variant: "secondary", text: "Cancelled" },
+  };
+
+  const config = variants[status] || variants.pending;
+
+  return <Badge variant={config.variant} className={config.className}>{config.text}</Badge>;
+}, []);
+
 
   const downloadExcel = useCallback(async (rideId: string | null, isAll: boolean = false) => {
   try {

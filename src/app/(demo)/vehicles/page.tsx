@@ -280,7 +280,7 @@ export default function VehicleApproval() {
 
   const getStatusBadge = (vehicle: Vehicle) => {
     if (vehicle.status === 'rejected') return <Badge variant="destructive">Rejected</Badge>;
-    if (!vehicle.is_approved) return <Badge variant="secondary">Pending</Badge>;
+    if (!vehicle.is_approved) return <Badge className='bg-red-600'>Pending</Badge>;
     if (vehicle.status === 'inactive') return <Badge variant="outline">Inactive</Badge>;
     return <Badge variant="default">Active</Badge>;
   };
@@ -443,6 +443,7 @@ export default function VehicleApproval() {
                               variant="outline"
                               size="sm"
                               onClick={() => setSelectedVehicle(vehicle)}
+                              title='View Details'
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
@@ -522,7 +523,7 @@ export default function VehicleApproval() {
                                                   variant="outline"
                                                   size="sm"
                                                   onClick={() => setConfirmDialog({ open: true, action: 'rc-reject', vehicleId: selectedVehicle.id })}
-                                                  className="text-red-600 hover:text-red-700"
+                                                  className="text-card bg-primary"
                                                 >
                                                   Reject
                                                 </Button>
@@ -613,6 +614,7 @@ export default function VehicleApproval() {
                                 setConfirmDialog({ open: true, action: 'approve', vehicleId: vehicle.id });
                               }}
                               className="text-green-600 hover:text-green-700"
+                              title='Approve Vehicle'
                             >
                               <CheckCircle className="w-4 h-4" />
                             </Button>
@@ -621,6 +623,7 @@ export default function VehicleApproval() {
                               size="sm"
                               onClick={() => setConfirmDialog({ open: true, action: 'reject', vehicleId: vehicle.id })}
                               className="text-red-600 hover:text-red-700"
+                              title='Reject Vehicle'
                             >
                               <XCircle className="w-4 h-4" />
                             </Button>
@@ -632,6 +635,7 @@ export default function VehicleApproval() {
                           onClick={() => {
                             router.push(`/drivers?driverId=${vehicle.driver_id}`);
                           }}
+                          title='View Driver Details'
                         >
                           <User className="w-4 h-4" />
                         </Button>
@@ -772,9 +776,10 @@ export default function VehicleApproval() {
               Cancel
             </Button>
             <Button
+            className='bg-primary text-card'
               variant={confirmDialog.action.includes('verify') || confirmDialog.action === 'approve' ? 'default' : 'destructive'}
               onClick={() => handleConfirmAction(rejectReason)}
-              disabled={isDeleting || ((confirmDialog.action === 'reject' || confirmDialog.action.includes('rc-reject') || confirmDialog.action.includes('insurance-reject')) && !rejectReason)}
+              disabled={isDeleting || ((confirmDialog.action === 'rejesct' || confirmDialog.action.includes('rc-reject') || confirmDialog.action.includes('insurance-reject')) && !rejectReason)}
             >
               {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {confirmDialog.action.includes('verify') ? 'Verify' :

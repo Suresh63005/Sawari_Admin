@@ -1,15 +1,18 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import apiClient from "@/lib/apiClient";
 import toast from "react-hot-toast";
 import Loader from "@/components/ui/Loader";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import "quill/dist/quill.snow.css";
 
 const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
@@ -29,6 +32,34 @@ interface Settings {
   min_wallet_percentage?: number;
 }
 
+const currencies = [
+  "USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "INR", "AED",
+  "SGD", "HKD", "NZD", "KRW", "BRL", "RUB", "ZAR", "TRY", "MXN", "SEK"
+];
+
+const timezones = [
+  "UTC",
+  "America/New_York",
+  "America/Los_Angeles",
+  "Europe/London",
+  "Europe/Paris",
+  "Asia/Tokyo",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+  "America/Chicago",
+  "America/Denver",
+  "America/Phoenix",
+  "Europe/Berlin",
+  "Europe/Moscow",
+  "Asia/Singapore",
+  "Asia/Shanghai",
+  "Africa/Johannesburg",
+  "America/Sao_Paulo",
+  "Asia/Seoul"
+];
+
 const Settings: React.FC = () => {
   const [settings, setSettings] = useState<Settings>({
     weblogo: "",
@@ -46,6 +77,11 @@ const Settings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [initialSettings, setInitialSettings] = useState<Settings | null>(null);
+  const [unsavedDialogOpen, setUnsavedDialogOpen] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<{ href: string; options?: any } | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -54,6 +90,7 @@ const Settings: React.FC = () => {
         const response = await apiClient.get("/v1/admin/settings");
         if (response.data.result) {
           setSettings(response.data.result);
+          setInitialSettings(response.data.result);
         }
       } catch (err: any) {
         console.error("Fetch settings error:", err);
@@ -72,13 +109,52 @@ const Settings: React.FC = () => {
     fetchSettings();
   }, []);
 
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    const originalPush = router.push;
+    router.push = async (href: string, options?: any) => {
+      if (isDirty) {
+        setPendingNavigation({ href, options });
+        setUnsavedDialogOpen(true);
+        return;
+      }
+      return originalPush(href, options);
+    };
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      router.push = originalPush;
+    };
+  }, [isDirty, router]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    let newValue: string | number = value;
+
+    if (name === "tax_rate" || name === "min_wallet_percentage") {
+      newValue = Math.max(0, parseFloat(value) || 0);
+    }
+
+    setSettings((prev) => ({ ...prev, [name]: newValue }));
+    setIsDirty(JSON.stringify({ ...settings, [name]: newValue }) !== JSON.stringify(initialSettings));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
     setSettings((prev) => ({ ...prev, [name]: value }));
+    setIsDirty(JSON.stringify({ ...settings, [name]: value }) !== JSON.stringify(initialSettings));
   };
 
   const handleEditorChange = (name: string, value: string) => {
     setSettings((prev) => ({ ...prev, [name]: value }));
+    setIsDirty(JSON.stringify({ ...settings, [name]: value }) !== JSON.stringify(initialSettings));
   };
 
   const handleSaveSettings = async () => {
@@ -86,6 +162,8 @@ const Settings: React.FC = () => {
     try {
       const response = await apiClient.post("/v1/admin/settings", settings);
       setSettings(response.data.result);
+      setInitialSettings(response.data.result);
+      setIsDirty(false);
       toast.success(response.data.message, {
         style: {
           background: "#622A39",
@@ -103,6 +181,19 @@ const Settings: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleConfirmNavigation = () => {
+    if (pendingNavigation) {
+      router.push(pendingNavigation.href, pendingNavigation.options);
+    }
+    setUnsavedDialogOpen(false);
+    setPendingNavigation(null);
+  };
+
+  const handleCancelNavigation = () => {
+    setUnsavedDialogOpen(false);
+    setPendingNavigation(null);
   };
 
   const quillModules = {
@@ -130,20 +221,18 @@ const Settings: React.FC = () => {
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
 
-    // Ensure it always starts with +971
     if (!value.startsWith("+971")) {
       value = "+971";
     }
 
-    // Remove all non-digits except prefix
     value = "+971" + value.slice(4).replace(/\D/g, "");
 
-    // Restrict to 9 digits after +971
     if (value.length > 13) {
       value = value.slice(0, 13);
     }
 
     setSettings((prev) => ({ ...prev, contact_phone: value }));
+    setIsDirty(JSON.stringify({ ...settings, contact_phone: value }) !== JSON.stringify(initialSettings));
   };
 
   if (error) {
@@ -208,17 +297,17 @@ const Settings: React.FC = () => {
                 value={settings.contact_phone || "+971"}
                 onChange={handlePhoneChange}
                 placeholder="+971XXXXXXXXX"
-                maxLength={13} // +971 + 9 digits
+                maxLength={13}
               />
             </div>
-
             <div>
               <Label htmlFor="tax_rate">Tax</Label>
               <Input
                 id="tax_rate"
                 name="tax_rate"
                 type="number"
-                step="0.01"
+                step="1"
+                min="0"
                 value={settings.tax_rate || 0.0}
                 onChange={handleInputChange}
                 placeholder="Enter tax rate"
@@ -226,23 +315,41 @@ const Settings: React.FC = () => {
             </div>
             <div>
               <Label htmlFor="currency">Currency</Label>
-              <Input
-                id="currency"
+              <Select
                 name="currency"
                 value={settings.currency || ""}
-                onChange={handleInputChange}
-                placeholder="Enter currency (e.g., USD)"
-              />
+                onValueChange={(value) => handleSelectChange("currency", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  {currencies.map((currency) => (
+                    <SelectItem key={currency} value={currency}>
+                      {currency}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="timezone">Timezone</Label>
-              <Input
-                id="timezone"
+              <Select
                 name="timezone"
                 value={settings.timezone || ""}
-                onChange={handleInputChange}
-                placeholder="Enter timezone (e.g., UTC)"
-              />
+                onValueChange={(value) => handleSelectChange("timezone", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  {timezones.map((timezone) => (
+                    <SelectItem key={timezone} value={timezone}>
+                      {timezone}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col space-y-2 mb-6">
               <Label htmlFor="about_us">About Us</Label>
@@ -293,6 +400,7 @@ const Settings: React.FC = () => {
                 name="min_wallet_percentage"
                 type="number"
                 step="1"
+                min="0"
                 value={settings.min_wallet_percentage || 0.0}
                 onChange={handleInputChange}
                 placeholder="Enter minimum wallet percentage"
@@ -307,6 +415,31 @@ const Settings: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={unsavedDialogOpen} onOpenChange={setUnsavedDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unsaved Changes</DialogTitle>
+            <DialogDescription>
+              You have unsaved changes. Are you sure you want to leave without saving?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCancelNavigation}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-primary text-card"
+              onClick={handleConfirmNavigation}
+            >
+              Leave
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

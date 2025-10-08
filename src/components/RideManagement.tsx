@@ -632,6 +632,36 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
     // }
 
     let scheduledTime = null;
+    if(!formData.scheduled_time){
+      toast.error("Please select scheduled time", {
+        style: {
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    if (!formData.pickup_address) {
+      toast.error("Please enter pickup address", {
+        style: {
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    if (!formData.drop_address) {
+      toast.error("Please enter drop address", {
+        style: {  
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
+      });
+      setIsSubmitting(false);
+      return;
+    }
     if (formData.scheduled_time) {
       scheduledTime = new Date(formData.scheduled_time);
       if (isNaN(scheduledTime.getTime())) {
@@ -852,18 +882,27 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
     [searchTerm, statusFilter, debouncedFetchRides]
   );
 
-  const getStatusBadge = useCallback((status: string) => {
-    const variants = {
-      pending: { variant: "secondary" as const, text: "Pending" },
-      accepted: { variant: "default" as const, text: "Accepted" },
-      "on-route": { variant: "default" as const, text: "On-Route" },
-      completed: { variant: "default" as const, text: "Completed" },
-      cancelled: { variant: "secondary" as const, text: "Cancelled" }
-    };
-    const config =
-      variants[status as keyof typeof variants] || variants.pending;
-    return <Badge variant={config.variant}>{config.text}</Badge>;
-  }, []);
+ const getStatusBadge = useCallback((status: string) => {
+  type BadgeConfig = {
+    variant: "default" | "secondary";
+    text: string;
+    className?: string; // optional
+  };
+
+  const variants: Record<string, BadgeConfig> = {
+    pending: { variant: "secondary", text: "Pending", className: "bg-red-600 text-white hover:bg-red-600 hover:text-white " },
+    accepted: { variant: "default", text: "Accepted" },
+    "on-route": { variant: "default", text: "On-Route" },
+    completed: { variant: "default", text: "Completed" },
+    cancelled: { variant: "secondary", text: "Cancelled", className: "bg-green-600 text-white hover:bg-green-600 hover:text-white " },
+  };
+
+  const config = variants[status] || variants.pending;
+
+  return <Badge variant={config.variant} className={config.className}>{config.text}</Badge>;
+}, []);
+
+
 
   // if (
   //   isLoading.packages ||
@@ -1064,7 +1103,7 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               )}
             </div>
             <div>
-              <Label>Pickup Address</Label>
+              <Label>Pickup Address <span className="text-red-500">*</span></Label>
               <Input
                 value={formData.pickup_address}
                 onChange={(e) =>
@@ -1076,7 +1115,7 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               />
             </div>
             <div>
-              <Label>Drop Address</Label>
+              <Label>Drop Address <span className="text-red-500">*</span></Label>
               <Input
                 value={formData.drop_address}
                 onChange={(e) =>
@@ -1110,7 +1149,7 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               )}
             </div> */}
             <div>
-              <Label>Scheduled Time</Label>
+              <Label>Scheduled Time <span className="text-red-500">*</span></Label>
               <input
                 type="datetime-local"
                 className="w-full border rounded p-2 bg-[#FFF8EC]"
@@ -1187,7 +1226,7 @@ setFormData((prev) => ({
                 disabled
               />
             </div>
-            <div className="md:col-span-3">
+            {/* <div className="md:col-span-3">
               <Label>Notes</Label>
               <textarea
                 value={formData.notes}
@@ -1196,7 +1235,7 @@ setFormData((prev) => ({
                 }
                 className="w-full border rounded p-2 bg-[#FFF8EC]"
               />
-            </div>
+            </div> */}
           </div>
         </div>
         <div>

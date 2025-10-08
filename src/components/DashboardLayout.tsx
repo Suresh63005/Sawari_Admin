@@ -24,7 +24,9 @@ import Cookies from 'js-cookie';
 import logo from '../../public/logo.png';
 import Image from 'next/image';
 import Loader from '@/components/ui/Loader';
+import apiClient from '@/lib/apiClient'; // Import apiClient to fetch settings
 import type { UserPermissions } from '../lib/menu-list';
+
 export interface User {
   name: string;
   role: string;
@@ -47,8 +49,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [settings, setSettings] = useState<{ weblogo?: string; web_name?: string }>({});
+  const [loadingSettings, setLoadingSettings] = useState(true);
 
   useEffect(() => {
+    // Check authentication
     const token = getToken();
     if (!token) {
       setIsAuthenticated(false);
@@ -56,6 +61,31 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     } else {
       setIsAuthenticated(true);
     }
+
+    // Fetch settings
+    const fetchSettings = async () => {
+      try {
+        setLoadingSettings(true);
+        const response = await apiClient.get('/v1/admin/settings');
+        if (response.data.result) {
+          setSettings({
+            weblogo: response.data.result.weblogo,
+            web_name: response.data.result.web_name,
+          });
+        }
+      } catch (err: any) {
+        console.error('Fetch settings error:', err);
+        // Fallback to defaults if fetching fails
+        setSettings({
+          weblogo: logo.src, // Use default logo
+          web_name: 'Sawari',
+        });
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+
+    fetchSettings();
   }, [router]);
 
   const menuGroups = getMenuList(currentPage, user.permissions)
@@ -71,19 +101,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     return labels[role as keyof typeof labels] || role;
   };
 
-const getRoleBadgeVariant = (
-  role: string
-): "default" | "destructive" | "outline" | "secondary" => {
-  const variants = {
-    super_admin: "destructive",
-    admin: "default",
-    executive_admin: "secondary",
-    ride_manager: "outline",
-  } as const;
+  const getRoleBadgeVariant = (
+    role: string
+  ): 'default' | 'destructive' | 'outline' | 'secondary' => {
+    const variants = {
+      super_admin: 'destructive',
+      admin: 'default',
+      executive_admin: 'secondary',
+      ride_manager: 'outline',
+    } as const;
 
-  return variants[role as keyof typeof variants] ?? "default";
-};
-
+    return variants[role as keyof typeof variants] ?? 'default';
+  };
 
   const handleLogout = () => {
     Cookies.remove('token');
@@ -92,27 +121,35 @@ const getRoleBadgeVariant = (
     router.push('/');
   };
 
-  if (isAuthenticated === null) {
-    return <Loader />; // or a loading spinner
+  if (isAuthenticated === null || loadingSettings) {
+    return <Loader />;
   }
 
   if (!isAuthenticated) {
-    return "not Authenticated"; // or redirect to login
+    return 'Not Authenticated';
   }
 
   return (
     <div className="flex h-screen">
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-card s transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        'fixed inset-y-0 left-0 z-50 w-64 bg-card transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between p-3 border-b">
             <div className="flex items-center space-x-2">
               <div className="bg-primary text-primary-foreground p-2 rounded-lg">
-                <Image src={logo} alt="Logo" className="w-7 h-7" />
+                <Image
+                  src={settings.weblogo || logo} // Use fetched logo or fallback
+                  alt={settings.web_name || 'Sawari'}
+                  className="w-7 h-7"
+                  width={28}
+                  height={28}
+                />
               </div>
-              <span className="text-xl font-semibold text-primary">Sawari</span>
+              <span className="text-xl font-semibold text-primary">
+                {settings.web_name || 'Sawari'} {/* Use fetched name or fallback */}
+              </span>
             </div>
             <Button
               variant="ghost"
@@ -126,15 +163,15 @@ const getRoleBadgeVariant = (
 
           <div className="p-4 border-b bg-primary">
             <div className="flex items-center space-x-3">
-             <div className='bg-card rounded-full text-primary'>
-               <Avatar>
-                <AvatarFallback>
-                  {user?.name
-                    ? user.name.split(' ').map((n: string) => n[0]).join('')
-                    : 'U'}
-                </AvatarFallback>
-              </Avatar>
-             </div>
+              <div className="bg-card rounded-full text-primary">
+                <Avatar>
+                  <AvatarFallback>
+                    {user?.name
+                      ? user.name.split(' ').map((n: string) => n[0]).join('')
+                      : 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate text-card">
                   {user?.name ?? 'Unknown User'}
@@ -159,7 +196,7 @@ const getRoleBadgeVariant = (
                   return (
                     <Button
                       key={item.href}
-                      variant={item.active ? "default" : "ghost"}
+                      variant={item.active ? 'default' : 'ghost'}
                       className="w-full justify-start"
                       onClick={() => {
                         router.push(item.href);
@@ -200,7 +237,7 @@ const getRoleBadgeVariant = (
               <Bell className="w-4 h-4" />
             </Button>
             <Button variant="ghost" size="sm"
-            onClick={() => router.push('/settings')}>
+              onClick={() => router.push('/settings')}>
               <Settings className="w-4 h-4" />
             </Button>
             <Button

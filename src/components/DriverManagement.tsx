@@ -223,7 +223,7 @@ export default function DriverManagement() {
   const getStatusBadge = (driver: Driver) => {
     if (driver.status === 'rejected') return <Badge variant="destructive">Rejected</Badge>;
     if (driver.status === 'blocked') return <Badge variant="destructive">Blocked</Badge>;
-    if (driver.status === 'inactive' && !driver.is_approved) return <Badge variant="secondary">Pending</Badge>;
+    if (driver.status === 'inactive' && !driver.is_approved) return <Badge className='bg-red-600'>Pending</Badge>;
     if (driver.status === 'inactive' && driver.is_approved) return <Badge variant="outline">Inactive</Badge>;
     if (driver.status === 'active') return <Badge variant="default">Active</Badge>;
     return <Badge variant="outline">{driver.status}</Badge>;
@@ -402,7 +402,7 @@ export default function DriverManagement() {
                     <div className="flex space-x-2">
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => setSelectedDriver(driver)}>
+                          <Button variant="outline" size="sm" onClick={() => setSelectedDriver(driver)} title='View Details'>
                             <Eye className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
@@ -601,6 +601,7 @@ export default function DriverManagement() {
                               setConfirmDialog({ open: true, action: 'approve', driverId: driver.id });
                             }}
                             className="text-green-600 hover:text-green-700"
+                            title='Approve Driver'
                           >
                             <CheckCircle className="w-4 h-4" />
                           </Button>
@@ -609,6 +610,7 @@ export default function DriverManagement() {
                             size="sm"
                             onClick={() => setConfirmDialog({ open: true, action: 'reject', driverId: driver.id })}
                             className="text-red-600 hover:text-red-700"
+                            title='Reject Driver'
                           >
                             <XCircle className="w-4 h-4" />
                           </Button>
@@ -622,6 +624,7 @@ export default function DriverManagement() {
                               size="sm"
                               onClick={() => setConfirmDialog({ open: true, action: 'unblock', driverId: driver.id })}
                               className="text-green-600 hover:text-green-700"
+                              title='Unblock Driver'
                             >
                               <Unlock className="w-4 h-4" />
                             </Button>
@@ -631,6 +634,7 @@ export default function DriverManagement() {
                               size="sm"
                               onClick={() => setConfirmDialog({ open: true, action: 'block', driverId: driver.id })}
                               className="text-red-600 hover:text-red-700"
+                              title='Block Driver'
                             >
                               <Ban className="w-4 h-4" />
                             </Button>
@@ -643,6 +647,7 @@ export default function DriverManagement() {
                         onClick={() => {
                           router.push(`/vehicles?driverId=${driver.id}`);
                         }}
+                        title='View Vehicles'
                       >
                         <CarFront className="w-4 h-4" />
                       </Button>

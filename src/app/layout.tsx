@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   description: "Sawari Admin Panel for car rental management",
   icons: {
     icon: [
-      { url: "/logo.png", type: "image/png", sizes: "32x32" } // Correct type and cache-busting
+      { url: "/logo1.png", type: "image/png", sizes: "32x32" } // Correct type and cache-busting
     ]
   },
   alternates: {

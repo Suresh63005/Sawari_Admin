@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import Swal from "sweetalert2";
 import apiClient from "@/lib/apiClient";
 import {
   Dialog,
@@ -22,6 +21,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Eye, Search } from "lucide-react";
+import toast from 'react-hot-toast';
 
 interface Ticket {
   id: string;
@@ -35,6 +35,9 @@ interface Ticket {
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date | null;
+  driver_name?: string;
+  driver_phone?: string;
+  images?: string[];
 }
 
 interface PaginatedResponse {
@@ -50,26 +53,31 @@ export default function SupportManagement() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(5); // Default items per page
+  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
   const [totalItems, setTotalItems] = useState<number>(0);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const fetchOpenTickets = async () => {
     try {
       const response = await apiClient.get<PaginatedResponse>(
         `/v1/admin/ticket?status=${selectedStatus}&search=${searchTerm}&page=${currentPage}&limit=${itemsPerPage}`
       );
+      console.log(response, "Tickets Response");
       setTickets(response.data.data);
       setTotalItems(response.data.total);
     } catch (error: any) {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to fetch tickets",
-        confirmButtonColor: "#d33"
-      });
+      toast.error(
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to fetch tickets",
+        {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        }
+      );
     } finally {
       setLoading(false);
     }
@@ -78,24 +86,29 @@ export default function SupportManagement() {
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
       await apiClient.put(`/v1/admin/ticket/${id}/status`, { status });
-      Swal.fire({
-        icon: "success",
-        title: "Success",
-        text: `Ticket status updated to ${status}`,
-        confirmButtonColor: "#3085d6"
-      });
+      toast.success(
+        `Ticket status updated to ${status}`,
+        {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        }
+      );
       fetchOpenTickets();
       setIsModalOpen(false);
     } catch (error: any) {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to update ticket status",
-        confirmButtonColor: "#d33"
-      });
+      toast.error(
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to update ticket status",
+        {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        }
+      );
     }
   };
 
@@ -104,7 +117,11 @@ export default function SupportManagement() {
     setIsModalOpen(true);
   };
 
-  // Pagination calculations
+  const openImageModal = (image: string) => {
+    setSelectedImage(image);
+    setIsImageModalOpen(true);
+  };
+
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
@@ -144,7 +161,7 @@ export default function SupportManagement() {
               }
               onClick={() => {
                 setSelectedStatus(status);
-                setCurrentPage(1); // Reset to first page when status changes
+                setCurrentPage(1);
               }}
             >
               {status}
@@ -164,6 +181,8 @@ export default function SupportManagement() {
                 <TableHead>S.No</TableHead>
                 <TableHead>Ticket #</TableHead>
                 <TableHead>Issue</TableHead>
+                <TableHead>Raised By</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created at</TableHead>
@@ -173,13 +192,13 @@ export default function SupportManagement() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : tickets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     No tickets found
                   </TableCell>
                 </TableRow>
@@ -195,6 +214,8 @@ export default function SupportManagement() {
                     </TableCell>
                     <TableCell>#{ticket.ticket_number}</TableCell>
                     <TableCell>{ticket.title}</TableCell>
+                    <TableCell>{ticket.driver_name || 'Unknown'}</TableCell>
+                    <TableCell>{ticket.driver_phone || 'N/A'}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -210,7 +231,6 @@ export default function SupportManagement() {
                           ticket.priority.slice(1)}
                       </Badge>
                     </TableCell>
-
                     <TableCell>
                       <Badge variant="secondary">
                         {ticket.status.charAt(0).toUpperCase() +
@@ -233,64 +253,61 @@ export default function SupportManagement() {
             </TableBody>
           </Table>
 
-          {/* Pagination Controls placed outside and below the table */}
           {!loading && totalItems > 0 && (
-  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
-    <div className="mb-2 md:mb-0">
-      <label className="mr-2 text-sm text-primary">Items per page:</label>
-      <select
-        value={itemsPerPage}
-        onChange={(e) => {
-          setItemsPerPage(Number(e.target.value));
-          setCurrentPage(1);
-        }}
-        className="p-2 border border-primary rounded-md bg-card"
-      >
-        <option value={5}>5</option>
-        <option value={10}>10</option>
-        <option value={20}>20</option>
-      </select>
-    </div>
-    <div className="flex space-x-2">
-      <Button
-        onClick={() => paginate(currentPage - 1)}
-        disabled={currentPage === 1}
-        variant="outline"
-        className="text-primary"
-      >
-        Previous
-      </Button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-        <Button
-          key={page}
-          onClick={() => paginate(page)}
-          variant={currentPage === page ? 'default' : 'outline'}
-          className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
-        >
-          {page}
-        </Button>
-      ))}
-      <Button
-        onClick={() => paginate(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        variant="outline"
-        className="text-primary"
-      >
-        Next
-      </Button>
-    </div>
-    <span className="text-sm text-primary mt-2 md:mt-0">
-      Page {currentPage} of {totalPages}
-    </span>
-  </div>
-)}
-
+            <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+              <div className="mb-2 md:mb-0">
+                <label className="mr-2 text-sm text-primary">Items per page:</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="p-2 border border-primary rounded-md bg-card"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={() => paginate(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  className="text-primary"
+                >
+                  Previous
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    onClick={() => paginate(page)}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  onClick={() => paginate(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  variant="outline"
+                  className="text-primary"
+                >
+                  Next
+                </Button>
+              </div>
+              <span className="text-sm text-primary mt-2 md:mt-0">
+                Page {currentPage} of {totalPages}
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Ticket Details Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Ticket Details</DialogTitle>
           </DialogHeader>
@@ -301,6 +318,12 @@ export default function SupportManagement() {
               </p>
               <p>
                 <strong>Title:</strong> {selectedTicket.title}
+              </p>
+              <p>
+                <strong>Raised By:</strong> {selectedTicket.driver_name || 'Unknown'}
+              </p>
+              <p>
+                <strong>Phone:</strong> {selectedTicket.driver_phone || 'N/A'}
               </p>
               <p>
                 <strong>Description:</strong>{" "}
@@ -315,10 +338,28 @@ export default function SupportManagement() {
               <p>
                 <strong>Created At:</strong>{" "}
                 {new Date(selectedTicket.createdAt).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric"
-                      })}
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric"
+                })}
+              </p>
+              <p>
+                <strong>Images:</strong>
+                {selectedTicket.images && selectedTicket.images.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
+                    {selectedTicket.images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image}
+                        alt={`Ticket image ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-md cursor-pointer hover:opacity-80"
+                        onClick={() => openImageModal(image)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  " No images"
+                )}
               </p>
             </div>
           )}
@@ -359,6 +400,25 @@ export default function SupportManagement() {
               </Button>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+        <DialogContent className="p-0 border-0 bg-transparent max-w-[90vw] max-h-[90vh] sm:max-w-[80vw] sm:max-h-[80vh]">
+          <div className="relative">
+            <img
+              src={selectedImage || ''}
+              alt="Full-size ticket image"
+              className="w-full h-auto max-h-[80vh] object-contain rounded-md"
+            />
+            <Button
+              variant="outline"
+              className="absolute top-2 right-2 bg-card text-primary"
+              onClick={() => setIsImageModalOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

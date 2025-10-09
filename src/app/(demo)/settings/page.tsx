@@ -74,6 +74,8 @@ const Settings: React.FC = () => {
     privacy_policy: "",
     min_wallet_percentage: 0.0
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +93,7 @@ const Settings: React.FC = () => {
         if (response.data.result) {
           setSettings(response.data.result);
           setInitialSettings(response.data.result);
+          setLogoPreview(response.data.result.weblogo || null);
         }
       } catch (err: any) {
         console.error("Fetch settings error:", err);
@@ -157,12 +160,35 @@ const Settings: React.FC = () => {
     setIsDirty(JSON.stringify({ ...settings, [name]: value }) !== JSON.stringify(initialSettings));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      setLogoPreview(URL.createObjectURL(file));
+      setIsDirty(true);
+    }
+  };
+
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
-      const response = await apiClient.post("/v1/admin/settings", settings);
+      const formData = new FormData();
+      Object.entries(settings).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value.toString());
+        }
+      });
+      if (logoFile) {
+        formData.append("weblogo", logoFile);
+      }
+
+      const response = await apiClient.post("/v1/admin/settings", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
       setSettings(response.data.result);
       setInitialSettings(response.data.result);
+      setLogoPreview(response.data.result.weblogo || null);
+      setLogoFile(null);
       setIsDirty(false);
       toast.success(response.data.message, {
         style: {
@@ -196,6 +222,23 @@ const Settings: React.FC = () => {
     setPendingNavigation(null);
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+
+    if (!value.startsWith("+971")) {
+      value = "+971";
+    }
+
+    value = "+971" + value.slice(4).replace(/\D/g, "");
+
+    if (value.length > 13) {
+      value = value.slice(0, 13);
+    }
+
+    setSettings((prev) => ({ ...prev, contact_phone: value }));
+    setIsDirty(JSON.stringify({ ...settings, contact_phone: value }) !== JSON.stringify(initialSettings));
+  };
+
   const quillModules = {
     toolbar: [
       [{ header: [1, 2, 3, false] }],
@@ -217,23 +260,6 @@ const Settings: React.FC = () => {
     "link",
     "image"
   ];
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
-
-    if (!value.startsWith("+971")) {
-      value = "+971";
-    }
-
-    value = "+971" + value.slice(4).replace(/\D/g, "");
-
-    if (value.length > 13) {
-      value = value.slice(0, 13);
-    }
-
-    setSettings((prev) => ({ ...prev, contact_phone: value }));
-    setIsDirty(JSON.stringify({ ...settings, contact_phone: value }) !== JSON.stringify(initialSettings));
-  };
 
   if (error) {
     return (
@@ -259,17 +285,26 @@ const Settings: React.FC = () => {
         <CardContent>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="weblogo">Website Logo URL</Label>
+              <Label htmlFor="weblogo">Admin Panel Logo</Label>
               <Input
                 id="weblogo"
                 name="weblogo"
-                value={settings.weblogo || ""}
-                onChange={handleInputChange}
-                placeholder="Enter website logo URL"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
               />
+              {logoPreview && (
+                <div className="mt-2">
+                  <img
+                    src={logoPreview}
+                    alt="Logo Preview"
+                    className="h-20 w-auto object-contain"
+                  />
+                </div>
+              )}
             </div>
             <div>
-              <Label htmlFor="web_name">Website Name</Label>
+              <Label htmlFor="web_name">Admin Panel Name</Label>
               <Input
                 id="web_name"
                 name="web_name"

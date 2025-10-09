@@ -478,7 +478,7 @@ setIsSaving(true);
               Create Package Price
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>{newPackagePrice.id ? 'Edit Package Price' : 'Create New Package Price'}</DialogTitle>
               <DialogDescription>

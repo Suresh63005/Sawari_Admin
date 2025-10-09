@@ -261,7 +261,7 @@ setIsSaving(true);
               Create Package
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md" autoFocus={false} >
+          <DialogContent className="max-w-md" autoFocus={false} onPointerDownOutside={(e) => e.preventDefault()} >
             <DialogHeader>
               <DialogTitle>{newPackage.id ? 'Edit Package' : 'Create New Package'}</DialogTitle>
               <DialogDescription>

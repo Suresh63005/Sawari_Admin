@@ -299,7 +299,7 @@ setIsSaving(true);
               Create Car
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>{newCar.id ? 'Edit Car' : 'Create New Car'}</DialogTitle>
               <DialogDescription>

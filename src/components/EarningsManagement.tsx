@@ -121,7 +121,7 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
           ? `/v1/admin/earning/download-all?search=${encodeURIComponent(searchTerm)}`
           : `/v1/admin/earning/download-all?month=${selectedMonth}&search=${encodeURIComponent(searchTerm)}`;
       const response = await apiClient.get(endpoint, { responseType: 'blob' });
-      const filename = selectedMonth === 'all' ? 'all_earnings.xlsx' : `earnings_${selectedMonth}.xlsx`;
+      const filename = selectedMonth === 'all' ? 'All_Earnings.xlsx' : `Earnings_${selectedMonth}.xlsx`;
       const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
@@ -305,6 +305,7 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>S.No</TableHead>
                 <TableHead>Ride ID</TableHead>
                 <TableHead>Driver Name</TableHead> {/* Added Driver Name column */}
                 <TableHead>Customer</TableHead>
@@ -331,8 +332,9 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
                   </TableCell>
                 </TableRow>
               ) : (
-                earnings.map((earning) => (
+                earnings.map((earning,index) => (
                   <TableRow key={earning.id}>
+                    <TableCell> {(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                     <TableCell>{earning.ride_id.slice(0, 8)}</TableCell>
                     <TableCell>{earning.Ride?.driver_name || 'N/A'}</TableCell> {/* Added driver_name */}
                     <TableCell>

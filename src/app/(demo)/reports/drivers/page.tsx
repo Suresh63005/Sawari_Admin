@@ -362,6 +362,7 @@ const DriverReports: React.FC = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => downloadExcel(driver.id)}
+                          title="download"
                         >
                           <Download className="w-4 h-4" />
                         </Button>

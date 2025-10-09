@@ -433,6 +433,7 @@ setIsSaving(true);
                         variant="outline"
                         size="sm"
                         onClick={() => handleEditCar(car)}
+                        title='edit'
                       >
                         <Edit className="w-4 h-4 mr-1" />
                       
@@ -441,6 +442,7 @@ setIsSaving(true);
                         variant="outline"
                         size="sm"
                         onClick={() => setConfirmDelete({ open: true, carId: car.id })}
+                        title='delete'
                       >
                         <Trash2 className="w-4 h-4 mr-1 text-primary" />
                         

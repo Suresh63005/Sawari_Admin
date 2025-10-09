@@ -433,6 +433,7 @@ setIsSaving(true);
                           variant="outline"
                           size="sm"
                           onClick={() => handleEditSubPackage(sp)}
+                          title='edit'
                         >
                           <Edit className="w-4 h-4 mr-1" />
                         </Button>
@@ -451,6 +452,7 @@ setIsSaving(true);
                                   setDeleteSubPackageId(sp.id);
                                   setShowDeleteConfirm(true);
                                 }}
+                                title='delete'
                               >
                                 <Trash2 className="w-4 h-4 mr-1 text-primary" />
                               </Button>

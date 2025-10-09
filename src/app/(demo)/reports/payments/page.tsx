@@ -362,6 +362,7 @@ const PaymentReports: React.FC = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => downloadExcel(payment.id)}
+                          title="download"
                         >
                           <Download className="w-4 h-4" />
                         </Button>

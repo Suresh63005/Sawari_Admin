@@ -328,14 +328,14 @@ const Rides: React.FC = () => {
   }, [formData.package_id]);
 
   const formatDateForInput = (dateString: string | null): string => {
-  if (!dateString) return "";
-  try {
-    const date = parseISO(dateString);
-    return format(date, "yyyy-MM-dd'T'HH:mm");
-  } catch {
-    return "";
-  }
-};
+    if (!dateString) return "";
+    try {
+      const date = parseISO(dateString);
+      return format(date, "dd-MM-yyyy'T'HH:mm");
+    } catch {
+      return "";
+    }
+  };
 
   useEffect(() => {
     const fetchModalCarsAndPrice = async () => {
@@ -355,10 +355,10 @@ const Rides: React.FC = () => {
         console.log("Available cars response:", response.data);
         const availableCars: AvailableCar[] = response.data.data || [];
         if (availableCars.length > 0) {
-  setTaxRate(availableCars[0].tax_rate || 0);
-} else {
-  setTaxRate(0);
-}
+          setTaxRate(availableCars[0].tax_rate || 0);
+        } else {
+          setTaxRate(0);
+        }
 
         console.log("Parsed availableCars:", availableCars);
         const mappedCars = availableCars.map((item: AvailableCar) => ({
@@ -374,17 +374,33 @@ const Rides: React.FC = () => {
           if (packagePrice) {
             const baseFare = parseFloat(packagePrice.base_fare) || 0;
             const subtotal = isOneHourSubPackage
-  ? baseFare * formData.rider_hours
-  : baseFare;
+              ? baseFare * formData.rider_hours
+              : baseFare;
 
-const taxAmount = subtotal * (taxRate / 100);
-const totalWithTax = subtotal + taxAmount;
+            const taxAmount = subtotal * (taxRate / 100);
+            const totalWithTax = subtotal + taxAmount;
 
-console.log(totalWithTax, "Total (incl. tax) for car:", formData.car_id);
-setFormData((prev) => ({ ...prev, Price: baseFare, Total: totalWithTax }));
+            console.log(
+              totalWithTax,
+              "Total (incl. tax) for car:",
+              formData.car_id
+            );
+            setFormData((prev) => ({
+              ...prev,
+              Price: baseFare,
+              Total: totalWithTax
+            }));
 
-            console.log(totalWithTax, "Total calculated for car:", formData.car_id);
-            setFormData((prev) => ({ ...prev, Price: baseFare, Total: totalWithTax }));
+            console.log(
+              totalWithTax,
+              "Total calculated for car:",
+              formData.car_id
+            );
+            setFormData((prev) => ({
+              ...prev,
+              Price: baseFare,
+              Total: totalWithTax
+            }));
           } else if (!isEditModalOpen) {
             setFormData((prev) => ({
               ...prev,
@@ -531,23 +547,32 @@ setFormData((prev) => ({ ...prev, Price: baseFare, Total: totalWithTax }));
       setCurrentPage(pageNumber);
     }
   };
-const getVisiblePages = useCallback((currentPage: number, totalPages: number): number[] => {
-  const maxVisiblePages = 5;
+  const getVisiblePages = useCallback(
+    (currentPage: number, totalPages: number): number[] => {
+      const maxVisiblePages = 5;
 
-  if (totalPages <= maxVisiblePages) {
-    return Array.from({ length: totalPages }, (_, i) => i + 1);
-  }
+      if (totalPages <= maxVisiblePages) {
+        return Array.from({ length: totalPages }, (_, i) => i + 1);
+      }
 
-  let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-  let endPage = startPage + maxVisiblePages - 1;
+      let startPage = Math.max(
+        1,
+        currentPage - Math.floor(maxVisiblePages / 2)
+      );
+      let endPage = startPage + maxVisiblePages - 1;
 
-  if (endPage > totalPages) {
-    endPage = totalPages;
-    startPage = Math.max(1, endPage - maxVisiblePages + 1);
-  }
+      if (endPage > totalPages) {
+        endPage = totalPages;
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
 
-  return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-}, []);
+      return Array.from(
+        { length: endPage - startPage + 1 },
+        (_, i) => startPage + i
+      );
+    },
+    []
+  );
 
   const handleCreateModalOpenChange = useCallback((open: boolean) => {
     setIsCreateModalOpen(open);
@@ -632,7 +657,7 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
     // }
 
     let scheduledTime = null;
-    if(!formData.scheduled_time){
+    if (!formData.scheduled_time) {
       toast.error("Please select scheduled time", {
         style: {
           background: "#622A39",
@@ -654,7 +679,7 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
     }
     if (!formData.drop_address) {
       toast.error("Please enter drop address", {
-        style: {  
+        style: {
           background: "#622A39",
           color: "hsl(42, 51%, 91%)"
         }
@@ -808,43 +833,43 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
   ]);
 
   const openEditModal = useCallback((ride: Ride) => {
-  setSelectedRide(ride);
+    setSelectedRide(ride);
 
-  // Helper function to format date for datetime-local input
-  const formatDateForInput = (dateString: string | null): string => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "";
-    
-    // Format to YYYY-MM-DDTHH:mm for datetime-local input
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  };
+    // Helper function to format date for datetime-local input
+    const formatDateForInput = (dateString: string | null): string => {
+      if (!dateString) return "";
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "";
 
-  setFormData({
-    customer_name: ride.customer_name,
-    phone: ride.phone,
-    email: ride.email || "",
-    pickup_address: ride.pickup_address || "",
-    drop_address: ride.drop_address || "",
-    pickup_location: ride.pickup_location,
-    drop_location: ride.drop_location,
-    package_id: ride.package_id,
-    subpackage_id: ride.subpackage_id,
-    car_id: ride.car_id,
-    scheduled_time: formatDateForInput(ride.scheduled_time),
-    notes: ride.notes || "",
-    Price: ride.Price,
-    Total: ride.Total,
-    rider_hours: ride.rider_hours,
-  });
-  setIsEditModalOpen(true);
-}, []);
+      // Format to YYYY-MM-DDTHH:mm for datetime-local input
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    setFormData({
+      customer_name: ride.customer_name,
+      phone: ride.phone,
+      email: ride.email || "",
+      pickup_address: ride.pickup_address || "",
+      drop_address: ride.drop_address || "",
+      pickup_location: ride.pickup_location,
+      drop_location: ride.drop_location,
+      package_id: ride.package_id,
+      subpackage_id: ride.subpackage_id,
+      car_id: ride.car_id,
+      scheduled_time: formatDateForInput(ride.scheduled_time),
+      notes: ride.notes || "",
+      Price: ride.Price,
+      Total: ride.Total,
+      rider_hours: ride.rider_hours
+    });
+    setIsEditModalOpen(true);
+  }, []);
 
   const handleCancelRide = useCallback(
     async (rideId: string) => {
@@ -882,27 +907,38 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
     [searchTerm, statusFilter, debouncedFetchRides]
   );
 
- const getStatusBadge = useCallback((status: string) => {
-  type BadgeConfig = {
-    variant: "default" | "secondary";
-    text: string;
-    className?: string; // optional
-  };
+  const getStatusBadge = useCallback((status: string) => {
+    type BadgeConfig = {
+      variant: "default" | "secondary";
+      text: string;
+      className?: string; // optional
+    };
 
-  const variants: Record<string, BadgeConfig> = {
-    pending: { variant: "secondary", text: "Pending", className: "bg-red-600 text-white hover:bg-red-600 hover:text-white " },
-    accepted: { variant: "default", text: "Accepted" },
-    "on-route": { variant: "default", text: "On-Route" },
-    completed: { variant: "default", text: "Completed" },
-    cancelled: { variant: "secondary", text: "Cancelled", className: "bg-green-600 text-white hover:bg-green-600 hover:text-white " },
-  };
+    const variants: Record<string, BadgeConfig> = {
+      pending: {
+        variant: "secondary",
+        text: "Pending",
+        className: "bg-yellow-600 text-white hover:bg-yellow-600 hover:text-white "
+      },
+      accepted: { variant: "default", text: "Accepted",className: "bg-green-600 text-white hover:bg-green-600 hover:text-white " },
+      "on-route": { variant: "default", text: "On-Route", className: "bg-turquoise-600 text-white hover:bg-turquoise-600 hover:text-white " },
+      completed: { variant: "default", text: "Completed", className: "bg-green-600 text-white hover:bg-green-600 hover:text-white " },
+      cancelled: {
+        variant: "secondary",
+        text: "Cancelled",
+        className:
+          "bg-red-600 text-white hover:bg-red-600 hover:text-white"
+      }
+    };
 
-  const config = variants[status] || variants.pending;
+    const config = variants[status] || variants.pending;
 
-  return <Badge variant={config.variant} className={config.className}>{config.text}</Badge>;
-}, []);
-
-
+    return (
+      <Badge variant={config.variant} className={config.className}>
+        {config.text}
+      </Badge>
+    );
+  }, []);
 
   // if (
   //   isLoading.packages ||
@@ -914,7 +950,7 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
   // }
 
   const renderModalContent = (isEdit: boolean) => (
-    <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+    <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
       <DialogHeader>
         <DialogTitle>
           {isEdit ? `Edit Ride #${selectedRide?.id || ""}` : "Create New Ride"}
@@ -1068,7 +1104,7 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               </Label>
               <Input
                 value={formData.pickup_location}
-                placeholder='{"lat":"25.1949849","lng":"55.2784141"}'
+                placeholder= 'Enter Latitude and longitude'
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
@@ -1088,7 +1124,7 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               </Label>
               <Input
                 value={formData.drop_location}
-                placeholder='{"lat":"25.2048493","lng":"55.2707828"}'
+                placeholder='Enter Latitude and longitude'
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
@@ -1103,7 +1139,9 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               )}
             </div>
             <div>
-              <Label>Pickup Address <span className="text-red-500">*</span></Label>
+              <Label>
+                Pickup Address <span className="text-red-500">*</span>
+              </Label>
               <Input
                 value={formData.pickup_address}
                 onChange={(e) =>
@@ -1115,7 +1153,9 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               />
             </div>
             <div>
-              <Label>Drop Address <span className="text-red-500">*</span></Label>
+              <Label>
+                Drop Address <span className="text-red-500">*</span>
+              </Label>
               <Input
                 value={formData.drop_address}
                 onChange={(e) =>
@@ -1149,7 +1189,9 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               )}
             </div> */}
             <div>
-              <Label>Scheduled Time <span className="text-red-500">*</span></Label>
+              <Label>
+                Scheduled Time <span className="text-red-500">*</span>
+              </Label>
               <input
                 type="datetime-local"
                 className="w-full border rounded p-2 bg-[#FFF8EC]"
@@ -1172,19 +1214,19 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
               />
             </div>
             <div>
-  <Label>Tax (AED)</Label>
-  <Input
-    type="number"
-    value={(() => {
-      const subtotal = isOneHourSubPackage
-        ? formData.Price * formData.rider_hours
-        : formData.Price;
-      const taxAmount = subtotal * (taxRate / 100);
-      return taxAmount.toFixed(2);
-    })()}
-    disabled // 👈 keep disabled so user can’t edit
-  />
-</div>
+              <Label>Tax (AED)</Label>
+              <Input
+                type="number"
+                value={(() => {
+                  const subtotal = isOneHourSubPackage
+                    ? formData.Price * formData.rider_hours
+                    : formData.Price;
+                  const taxAmount = subtotal * (taxRate / 100);
+                  return taxAmount.toFixed(2);
+                })()}
+                disabled // 👈 keep disabled so user can’t edit
+              />
+            </div>
 
             {isOneHourSubPackage && (
               <div>
@@ -1199,15 +1241,14 @@ const getVisiblePages = useCallback((currentPage: number, totalPages: number): n
                     if (hours < 3) hours = 3;
 
                     const subtotal = formData.Price * hours;
-const taxAmount = subtotal * (taxRate / 100);
-const totalWithTax = subtotal + taxAmount;
+                    const taxAmount = subtotal * (taxRate / 100);
+                    const totalWithTax = subtotal + taxAmount;
 
-setFormData((prev) => ({
-  ...prev,
-  rider_hours: hours,
-  Total: totalWithTax
-}));
-
+                    setFormData((prev) => ({
+                      ...prev,
+                      rider_hours: hours,
+                      Total: totalWithTax
+                    }));
                   }}
                   min="3" // ✅ UI restriction
                 />
@@ -1494,20 +1535,25 @@ setFormData((prev) => ({
                         </div>
                       </div>
                     </TableCell>
-                   <TableCell>
-  <div>
-    <p className="text-sm">
-      {ride.scheduled_time
-        ? formatDateForInput(ride.scheduled_time).replace("T", " ")
-        : "-"}
-    </p>
-    <p className="text-sm text-muted-foreground">
-      {ride.ride_date
-        ? new Date(ride.ride_date).toLocaleDateString("en-GB")
-        : "-"}
-    </p>
-  </div>
-</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-sm">
+                          {ride.scheduled_time
+                            ? formatDateForInput(ride.scheduled_time).replace(
+                                "T",
+                                " "
+                              )
+                            : "-"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {ride.ride_date
+                            ? new Date(ride.ride_date).toLocaleDateString(
+                                "en-GB"
+                              )
+                            : "-"}
+                        </p>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <p className="text-sm">{ride.car_name || "-"}</p>
                       <p className="text-sm text-muted-foreground">
@@ -1540,6 +1586,7 @@ setFormData((prev) => ({
                               variant="outline"
                               size="sm"
                               onClick={() => setSelectedRide(ride)}
+                              title="View Details"
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
@@ -1556,19 +1603,28 @@ setFormData((prev) => ({
                                 <TabsList className="grid w-full grid-cols-3">
                                   <TabsTrigger
                                     value="details"
-                                    className="data-[state=active]:bg-primary data-[state=active]:text-card"
+                                    className="border border-transparent
+    data-[state=inactive]:border-primary
+    data-[state=active]:bg-primary data-[state=active]:text-card
+    rounded-[16px] px-4 py-2 transition-all mr-2"
                                   >
                                     Details
                                   </TabsTrigger>
                                   <TabsTrigger
                                     value="tracking"
-                                    className="data-[state=active]:bg-primary data-[state=active]:text-card"
+                                    className="border border-transparent
+    data-[state=inactive]:border-primary
+    data-[state=active]:bg-primary data-[state=active]:text-card
+    rounded-[16px] px-4 py-2 transition-all mr-2"
                                   >
                                     Tracking
                                   </TabsTrigger>
                                   <TabsTrigger
                                     value="history"
-                                    className="data-[state=active]:bg-primary data-[state=active]:text-card"
+                                    className="border border-transparent
+    data-[state=inactive]:border-primary
+    data-[state=active]:bg-primary data-[state=active]:text-card
+    rounded-[16px] px-4 py-2 transition-all mr-2"
                                   >
                                     History
                                   </TabsTrigger>
@@ -1611,14 +1667,14 @@ setFormData((prev) => ({
                                         Ride Information
                                       </label>
                                       <div className="space-y-1">
-                                        <p className="flex items-center text-sm">
+                                        {/* <p className="flex items-center text-sm">
                                           <Calendar className="w-4 h-4 mr-2" />
                                           {selectedRide.ride_date
                                             ? new Date(
                                                 selectedRide.ride_date
                                               ).toLocaleString("en-GB")
                                             : "-"}
-                                        </p>
+                                        </p> */}
                                         <p className="flex items-center text-sm">
                                           <Calendar className="w-4 h-4 mr-2" />
                                           {selectedRide.scheduled_time
@@ -1674,13 +1730,15 @@ setFormData((prev) => ({
                                       <div className="flex items-center text-sm">
                                         <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
                                         <span>
-                                          Pickup: {selectedRide.pickup_address || "-"}
+                                          Pickup:{" "}
+                                          {selectedRide.pickup_address || "-"}
                                         </span>
                                       </div>
                                       <div className="flex items-center text-sm">
                                         <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
                                         <span>
-                                          Drop: {selectedRide.drop_address || "-"}
+                                          Drop:{" "}
+                                          {selectedRide.drop_address || "-"}
                                         </span>
                                       </div>
                                     </div>
@@ -1793,6 +1851,7 @@ setFormData((prev) => ({
                             ride.status === "cancelled" ||
                             ride.status === "on-route"
                           }
+                          title="Edit Ride"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -1812,6 +1871,7 @@ setFormData((prev) => ({
                                 ride.status === "completed" ||
                                 ride.status === "cancelled"
                               }
+                              title="Cancel Ride"
                             >
                               <X className="w-4 h-4" />
                             </Button>
@@ -1859,62 +1919,70 @@ setFormData((prev) => ({
             </TableBody>
           </Table>
           {!isLoading.packages &&
-  !isLoading.subPackages &&
-  !isLoading.cars &&
-  !isLoading.baseFare &&
-  rides.length > 0 && (
-   <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
-  <div className="mb-2 md:mb-0">
-    <label className="mr-2 text-sm text-primary">Items per page:</label>
-    <select
-      value={itemsPerPage}
-      onChange={(e) => {
-        setItemsPerPage(Number(e.target.value));
-        setCurrentPage(1);
-      }}
-      className="p-2 border border-primary rounded-md bg-card"
-    >
-      <option value={5}>5</option>
-      <option value={10}>10</option>
-      <option value={20}>20</option>
-    </select>
-  </div>
-  <div className="flex items-center space-x-2">
-    <Button
-      onClick={() => paginate(currentPage - 1)}
-      disabled={currentPage === 1}
-      variant="outline"
-      className="text-primary"
-    >
-      Previous
-    </Button>
-    {getVisiblePages(currentPage, totalPages).map((page) => (
-      <Button
-        key={page}
-        onClick={() => paginate(page)}
-        variant={currentPage === page ? "default" : "outline"}
-        className={currentPage === page ? "bg-primary text-card" : "bg-card text-primary"}
-      >
-        {page}
-      </Button>
-    ))}
-    {totalPages > 5 && currentPage < totalPages - 2 && (
-      <span className="px-2 py-1 text-sm text-muted-foreground">...</span>
-    )}
-    <Button
-      onClick={() => paginate(currentPage + 1)}
-      disabled={currentPage === totalPages}
-      variant="outline"
-      className="text-primary"
-    >
-      Next
-    </Button>
-  </div>
-  <span className="text-sm text-primary mt-2 md:mt-0">
-    Page {currentPage} of {totalPages} ({totalItems} total items)
-  </span>
-</div>
-  )}
+            !isLoading.subPackages &&
+            !isLoading.cars &&
+            !isLoading.baseFare &&
+            rides.length > 0 && (
+              <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+                <div className="mb-2 md:mb-0">
+                  <label className="mr-2 text-sm text-primary">
+                    Items per page:
+                  </label>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="p-2 border border-primary rounded-md bg-card"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                  </select>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    onClick={() => paginate(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    variant="outline"
+                    className="text-primary"
+                  >
+                    Previous
+                  </Button>
+                  {getVisiblePages(currentPage, totalPages).map((page) => (
+                    <Button
+                      key={page}
+                      onClick={() => paginate(page)}
+                      variant={currentPage === page ? "default" : "outline"}
+                      className={
+                        currentPage === page
+                          ? "bg-primary text-card"
+                          : "bg-card text-primary"
+                      }
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <span className="px-2 py-1 text-sm text-muted-foreground">
+                      ...
+                    </span>
+                  )}
+                  <Button
+                    onClick={() => paginate(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    variant="outline"
+                    className="text-primary"
+                  >
+                    Next
+                  </Button>
+                </div>
+                <span className="text-sm text-primary mt-2 md:mt-0">
+                  Page {currentPage} of {totalPages} ({totalItems} total items)
+                </span>
+              </div>
+            )}
         </CardContent>
       </Card>
 

@@ -142,11 +142,11 @@ const getStatusBadge = useCallback((status: string) => {
   };
 
   const variants: Record<string, BadgeConfig> = {
-    pending: { variant: "secondary", text: "Pending", className: "bg-red-600 text-white" },
-    accepted: { variant: "default", text: "Accepted" },
-    "on-route": { variant: "default", text: "On-Route" },
+    pending: { variant: "secondary", text: "Pending", className: "bg-yellow-600 text-white" },
+    accepted: { variant: "default", text: "Accepted", className: "bg-green-600 text-white" },
+    "on-route": { variant: "default", text: "On-Route", className: "bg-turquoise-600 text-white" },
     completed: { variant: "default", text: "Completed", className: "bg-green-600 text-white" },
-    cancelled: { variant: "secondary", text: "Cancelled" },
+    cancelled: { variant: "secondary", text: "Cancelled", className: "bg-red-600 text-white" },
   };
 
   const config = variants[status] || variants.pending;

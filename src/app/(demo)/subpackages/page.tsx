@@ -310,7 +310,7 @@ setIsSaving(true);
               Create Sub-Package
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>{newSubPackage.id ? 'Edit Sub-Package' : 'Create New Sub-Package'}</DialogTitle>
               <DialogDescription>

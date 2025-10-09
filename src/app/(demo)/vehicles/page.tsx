@@ -615,7 +615,7 @@ export default function VehicleApproval() {
                               <Eye className="w-4 h-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
+                          <DialogContent className="max-w-2xl" onPointerDownOutside={(e) => e.preventDefault()}>
                             <DialogHeader>
                               <DialogTitle>Vehicle Details</DialogTitle>
                               <DialogDescription>
@@ -826,7 +826,9 @@ export default function VehicleApproval() {
                                                 Insurance Document
                                               </DialogTitle>
                                             </DialogHeader>
-                                            <img
+                                            <div>
+                                            </div>
+                                              <img
                                               src={
                                                 selectedVehicle.insurance_doc
                                               }

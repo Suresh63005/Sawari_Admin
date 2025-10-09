@@ -644,6 +644,7 @@ setIsSaving(true);
                           variant="outline"
                           size="sm"
                           onClick={() => handleEditPackagePrice(pp)}
+                          title='edit'
                         >
                           <Edit className="w-4 h-4 mr-1" />
                         </Button>
@@ -661,6 +662,7 @@ setIsSaving(true);
                                 setDeletePackagePriceId(pp.id);
                                 setShowDeleteConfirm(true);
                               }}
+                              title='delete'
                             >
                               <Trash2 className="w-4 h-4 mr-1 text-primary" />
                             </Button>

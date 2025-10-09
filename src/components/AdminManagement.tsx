@@ -519,7 +519,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
                       Create Admin
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-md">
+                  <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
                     <DialogHeader>
                       <DialogTitle>Create New Admin</DialogTitle>
                       <DialogDescription>
@@ -727,6 +727,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
                               size="sm"
                               onClick={() => handleEditClick(admin)}
                               disabled={admin.id === currentUser.id}
+                              title="edit"
                             >
                               <Pencil className="w-4 h-4" />
                             </Button>
@@ -742,11 +743,12 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
                                     permissions: admin.permissions || DEFAULT_PERMISSIONS
                                   })}
                                   disabled={admin.id === currentUser.id || admin.status === "blocked"}
+                                  title="view"
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
+                              <DialogContent className="max-w-2xl" onPointerDownOutside={(e) => e.preventDefault()}>
                                 {selectedAdmin && (
                                   <Tabs defaultValue="details" className="w-full">
                                     <TabsList className="grid w-full grid-cols-2">

@@ -385,6 +385,7 @@ const formatDateTime = (dateStr: string | null) => {
                           variant="outline"
                           size="sm"
                           onClick={() => downloadExcel(ride.id)}
+                          title="download"
                         >
                           <Download className="w-4 h-4" />
                         </Button>

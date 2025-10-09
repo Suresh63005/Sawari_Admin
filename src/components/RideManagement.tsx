@@ -1591,7 +1591,7 @@ const Rides: React.FC = () => {
                               <Eye className="w-4 h-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
+                          <DialogContent className="max-w-2xl" onPointerDownOutside={(e) => e.preventDefault()}>
                             <DialogHeader>
                               <DialogTitle>Ride Details</DialogTitle>
                               <DialogDescription>

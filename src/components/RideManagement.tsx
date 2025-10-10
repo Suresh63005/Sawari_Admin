@@ -90,6 +90,7 @@ interface AvailableCar {
 
 interface Ride {
   id: string;
+  ride_code: string;
   customer_name: string;
   phone: string;
   email: string | null;
@@ -918,16 +919,31 @@ const Rides: React.FC = () => {
       pending: {
         variant: "secondary",
         text: "Pending",
-        className: "bg-yellow-600 text-white hover:bg-yellow-600 hover:text-white "
+        className:
+          "bg-yellow-600 text-white hover:bg-yellow-600 hover:text-white "
       },
-      accepted: { variant: "default", text: "Accepted",className: "bg-green-600 text-white hover:bg-green-600 hover:text-white " },
-      "on-route": { variant: "default", text: "On-Route", className: "bg-turquoise-600 text-white hover:bg-turquoise-600 hover:text-white " },
-      completed: { variant: "default", text: "Completed", className: "bg-green-600 text-white hover:bg-green-600 hover:text-white " },
+      accepted: {
+        variant: "default",
+        text: "Accepted",
+        className:
+          "bg-green-600 text-white hover:bg-green-600 hover:text-white "
+      },
+      "on-route": {
+        variant: "secondary",
+        text: "On-Route",
+        className:
+          "text-white hover:text-white "
+      },
+      completed: {
+        variant: "default",
+        text: "Completed",
+        className:
+          "bg-green-600 text-white hover:bg-green-600 hover:text-white "
+      },
       cancelled: {
         variant: "secondary",
         text: "Cancelled",
-        className:
-          "bg-red-600 text-white hover:bg-red-600 hover:text-white"
+        className: "bg-red-600 text-white hover:bg-red-600 hover:text-white"
       }
     };
 
@@ -950,7 +966,10 @@ const Rides: React.FC = () => {
   // }
 
   const renderModalContent = (isEdit: boolean) => (
-    <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
+    <DialogContent
+      className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto"
+      onPointerDownOutside={(e) => e.preventDefault()}
+    >
       <DialogHeader>
         <DialogTitle>
           {isEdit ? `Edit Ride #${selectedRide?.id || ""}` : "Create New Ride"}
@@ -1104,7 +1123,7 @@ const Rides: React.FC = () => {
               </Label>
               <Input
                 value={formData.pickup_location}
-                placeholder= 'Enter Latitude and longitude'
+                placeholder="Enter Latitude and longitude"
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
@@ -1124,7 +1143,7 @@ const Rides: React.FC = () => {
               </Label>
               <Input
                 value={formData.drop_location}
-                placeholder='Enter Latitude and longitude'
+                placeholder="Enter Latitude and longitude"
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
@@ -1489,6 +1508,7 @@ const Rides: React.FC = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>S.NO</TableHead>
+                <TableHead>Ride ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Route</TableHead>
                 <TableHead>Schedule</TableHead>
@@ -1512,6 +1532,7 @@ const Rides: React.FC = () => {
                     <TableCell>
                       {(currentPage - 1) * itemsPerPage + index + 1}
                     </TableCell>
+                    <TableCell>{ride.ride_code}</TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{ride.customer_name}</p>
@@ -1591,11 +1612,15 @@ const Rides: React.FC = () => {
                               <Eye className="w-4 h-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl" onPointerDownOutside={(e) => e.preventDefault()}>
+                          <DialogContent
+                            className="max-w-2xl"
+                            onPointerDownOutside={(e) => e.preventDefault()}
+                          >
                             <DialogHeader>
                               <DialogTitle>Ride Details</DialogTitle>
                               <DialogDescription>
-                                Complete information about ride #{ride.id}
+                                Complete information about ride #
+                                {ride.ride_code}
                               </DialogDescription>
                             </DialogHeader>
                             {selectedRide && (

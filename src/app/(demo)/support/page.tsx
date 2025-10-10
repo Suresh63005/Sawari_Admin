@@ -319,101 +319,105 @@ export default function SupportManagement() {
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Ticket Details</DialogTitle>
-          </DialogHeader>
-          {selectedTicket && (
-            <div className="space-y-4">
-              <p>
-                <strong>Ticket #:</strong> {selectedTicket.ticket_number}
-              </p>
-              <p>
-                <strong>Title:</strong> {selectedTicket.title}
-              </p>
-              <p>
-                <strong>Raised By:</strong> {selectedTicket.driver_name || 'Unknown'}
-              </p>
-              <p>
-                <strong>Phone:</strong> {selectedTicket.driver_phone || 'N/A'}
-              </p>
-              <p>
-                <strong>Description:</strong>{" "}
-                {selectedTicket.description || "No description"}
-              </p>
-              <p>
-                <strong>Priority:</strong> {selectedTicket.priority}
-              </p>
-              <p>
-                <strong>Status:</strong> {selectedTicket.status}
-              </p>
-              <p>
-                <strong>Created At:</strong>{" "}
-                {new Date(selectedTicket.createdAt).toLocaleString("en-GB", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric"
-                })}
-              </p>
-              <p>
-                <strong>Images:</strong>
-                {selectedTicket.images && selectedTicket.images.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
-                    {selectedTicket.images.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`Ticket image ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-md cursor-pointer hover:opacity-80"
-                        onClick={() => openImageModal(image)}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  " No images"
-                )}
-              </p>
-            </div>
-          )}
-          <DialogFooter>
-            {selectedTicket?.status === "open" && (
-              <Button
-                onClick={() =>
-                  handleUpdateStatus(selectedTicket.id, "in_progress")
-                }
-              >
-                Start
-              </Button>
+  <DialogContent className="max-w-2xl">
+    <DialogHeader>
+      <DialogTitle>Ticket Details</DialogTitle>
+    </DialogHeader>
+
+    {selectedTicket && (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <p>
+            <strong>Ticket #:</strong> {selectedTicket.ticket_number}
+          </p>
+          <p>
+            <strong>Title:</strong> {selectedTicket.title}
+          </p>
+
+          <p>
+            <strong>Raised By:</strong> {selectedTicket.driver_name || "Unknown"}
+          </p>
+          <p>
+            <strong>Phone:</strong> {selectedTicket.driver_phone || "N/A"}
+          </p>
+
+          <p>
+            <strong>Priority:</strong> {selectedTicket.priority}
+          </p>
+          <p>
+            <strong>Status:</strong> {selectedTicket.status}
+          </p>
+
+          <p className="col-span-2">
+            <strong>Description:</strong>{" "}
+            {selectedTicket.description || "No description"}
+          </p>
+
+          <p className="col-span-2">
+            <strong>Created At:</strong>{" "}
+            {new Date(selectedTicket.createdAt).toLocaleString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })}
+          </p>
+
+          <p className="col-span-2">
+            <strong>Images:</strong>
+            {selectedTicket.images && selectedTicket.images.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
+                {selectedTicket.images.map((image, index) => (
+                  <img
+                    key={index}
+                    src={image}
+                    alt={`Ticket image ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-md cursor-pointer hover:opacity-80"
+                    onClick={() => openImageModal(image)}
+                  />
+                ))}
+              </div>
+            ) : (
+              " No images"
             )}
-            {selectedTicket?.status === "in_progress" && (
-              <>
-                <Button
-                  onClick={() =>
-                    handleUpdateStatus(selectedTicket.id, "resolved")
-                  }
-                  className="mr-2"
-                >
-                  Resolve
-                </Button>
-                <Button
-                  onClick={() =>
-                    handleUpdateStatus(selectedTicket.id, "closed")
-                  }
-                >
-                  Close
-                </Button>
-              </>
-            )}
-            {selectedTicket?.status === "resolved" && (
-              <Button
-                onClick={() => handleUpdateStatus(selectedTicket.id, "closed")}
-              >
-                Close
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </p>
+        </div>
+      </div>
+    )}
+
+    <DialogFooter>
+      {selectedTicket?.status === "open" && (
+        <Button
+          onClick={() => handleUpdateStatus(selectedTicket.id, "in_progress")}
+        >
+          Start
+        </Button>
+      )}
+      {selectedTicket?.status === "in_progress" && (
+        <>
+          <Button
+            onClick={() => handleUpdateStatus(selectedTicket.id, "resolved")}
+            className="mr-2"
+          >
+            Resolve
+          </Button>
+          <Button
+            onClick={() => handleUpdateStatus(selectedTicket.id, "closed")}
+          >
+            Close
+          </Button>
+        </>
+      )}
+      {selectedTicket?.status === "resolved" && (
+        <Button
+          onClick={() => handleUpdateStatus(selectedTicket.id, "closed")}
+        >
+          Close
+        </Button>
+      )}
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
 
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
         <DialogContent className="p-0 border-0 bg-transparent max-w-[90vw] max-h-[90vh] sm:max-w-[80vw] sm:max-h-[80vh]">

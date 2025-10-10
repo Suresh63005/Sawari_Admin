@@ -268,9 +268,13 @@ setIsSaving(true);
           background: '#622A39',
           color: 'hsl(42, 51%, 91%)',
         },
-      });
-      setIsSaving(false);
+      }
+    )
+      
     }
+    finally {
+    setIsSaving(false); // ✅ always reset loader
+  }
   };
 
   const handleDeletePackagePrice = async (packagePriceId: string) => {

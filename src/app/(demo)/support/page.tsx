@@ -59,29 +59,41 @@ export default function SupportManagement() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const fetchOpenTickets = async () => {
-    try {
-      const response = await apiClient.get<PaginatedResponse>(
-        `/v1/admin/ticket?status=${selectedStatus}&search=${searchTerm}&page=${currentPage}&limit=${itemsPerPage}`
-      );
-      console.log(response, "Tickets Response");
-      setTickets(response.data.data);
-      setTotalItems(response.data.total);
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to fetch tickets",
-        {
-          style: {
-            background: '#622A39',
-            color: 'hsl(42, 51%, 91%)',
-          },
-        }
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await apiClient.get<PaginatedResponse>(
+      `/v1/admin/ticket?status=${selectedStatus}&search=${searchTerm}&page=${currentPage}&limit=${itemsPerPage}`
+    );
+
+    console.log(response, "Tickets Response");
+
+    const normalizedTickets = response.data.data.map(ticket => ({
+      ...ticket,
+      images: ticket.images
+        ? Array.isArray(ticket.images)
+          ? ticket.images
+          : [ticket.images] // ✅ convert single string to array
+        : [], // ✅ fallback to empty array
+    }));
+
+    setTickets(normalizedTickets);
+    setTotalItems(response.data.total);
+  } catch (error: any) {
+    toast.error(
+      error.response?.data?.message ||
+      error.message ||
+      "Failed to fetch tickets",
+      {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      }
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {

@@ -21,6 +21,7 @@ import { debounce } from "lodash";
 
 interface Ride {
   id: string;
+  ride_code:string;
   customer_name: string | null;
   email: string | null;
   phone: string | null;
@@ -312,6 +313,7 @@ const formatDateTime = (dateStr: string | null) => {
             <TableHeader>
               <TableRow>
                 <TableHead>S.NO</TableHead>
+                <TableHead>Ride ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Route</TableHead>
                 <TableHead>Schedule</TableHead>
@@ -341,6 +343,7 @@ const formatDateTime = (dateStr: string | null) => {
                     <TableCell>
                       {(currentPage - 1) * itemsPerPage + index + 1}
                     </TableCell>
+                    <TableCell>{ride.ride_code}</TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{ride.customer_name || "-"}</p>

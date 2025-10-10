@@ -526,7 +526,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
                         Add a new admin account with specified permissions
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
   <div>
     <Label htmlFor="first_name">First Name</Label>
     <Input
@@ -752,8 +752,14 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
                                 {selectedAdmin && (
                                   <Tabs defaultValue="details" className="w-full">
                                     <TabsList className="grid w-full grid-cols-2">
-                                      <TabsTrigger value="details" className="data-[state=active]:bg-primary data-[state=active]:text-card">Details</TabsTrigger>
-                                      <TabsTrigger value="permissions" className="data-[state=active]:bg-primary data-[state=active]:text-card ">Permissions</TabsTrigger>
+                                      <TabsTrigger value="details" className="border border-transparent
+    data-[state=inactive]:border-primary
+    data-[state=active]:bg-primary data-[state=active]:text-card
+    rounded-[16px] px-4 py-2 transition-all mr-2">Details</TabsTrigger>
+                                      <TabsTrigger value="permissions" className="border border-transparent
+    data-[state=inactive]:border-primary
+    data-[state=active]:bg-primary data-[state=active]:text-card
+    rounded-[16px] px-4 py-2 transition-all mr-2 ">Permissions</TabsTrigger>
                                     </TabsList>
                                     <TabsContent value="details" className="space-y-4">
                                       <div className="grid grid-cols-2 gap-4">
@@ -1145,7 +1151,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
             <DialogDescription>Update admin details</DialogDescription>
           </DialogHeader>
           {editingAdmin && (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="first_name">First Name</Label>
                 <Input

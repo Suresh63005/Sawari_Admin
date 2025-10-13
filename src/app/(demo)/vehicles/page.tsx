@@ -897,10 +897,11 @@ export default function VehicleApproval() {
                                                     alt={`Vehicle Photo ${
                                                       index + 1
                                                     }`}
-                                                    className="w-full h-32 object-cover rounded cursor-pointer"
+                                                    className="w-full h-32 object-fill rounded cursor-pointer"
                                                     onClick={() =>
                                                       handleImageClick(photo)
                                                     }
+
                                                   />
                                                 )
                                               )}

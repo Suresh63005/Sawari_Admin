@@ -359,7 +359,6 @@ const formatDateTime = (dateStr: string | null) => {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="text-sm">{ride.ride_date ? formatDateTime(ride.ride_date) : "-"}</p>
                         <p className="text-sm text-muted-foreground">{ride.scheduled_time ? formatDateTime(ride.scheduled_time) : "-"}</p>
                       </div>
                     </TableCell>

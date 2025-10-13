@@ -971,6 +971,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
               </Label>
               <Input
                 value={formData.pickup_address}
+                placeholder="Enter pickup address"
                 onChange={(e) => setFormData((prev) => ({ ...prev, pickup_address: e.target.value }))}
               />
             </div>
@@ -980,6 +981,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
               </Label>
               <Input
                 value={formData.drop_address}
+                placeholder="Enter drop address"
                 onChange={(e) => setFormData((prev) => ({ ...prev, drop_address: e.target.value }))}
               />
             </div>
@@ -989,7 +991,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
               </Label>
               <input
                 type="datetime-local"
-                className="w-full border rounded p-2 bg-[#FFF8EC]"
+                className="w-full border rounded p-1 bg-[#FFF8EC]"
                 value={formData.scheduled_time}
                 onChange={(e) => setFormData((prev) => ({ ...prev, scheduled_time: e.target.value }))}
                 min={new Date().toISOString().slice(0, 16)}
@@ -1054,6 +1056,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
                 value={formData.customer_name}
                 onChange={(e) => setFormData((prev) => ({ ...prev, customer_name: e.target.value }))}
                 required
+                placeholder="Enter customer name"
               />
               {errors.customer_name && <p className="text-red-500 text-sm mt-1">{errors.customer_name}</p>}
             </div>
@@ -1072,6 +1075,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
                   }
                 }}
                 required
+                placeholder="Enter phone number"
                 maxLength={9}
               />
               {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
@@ -1084,6 +1088,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
                 value={formData.email}
                 onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                 required
+                placeholder="Enter email address"
               />
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>

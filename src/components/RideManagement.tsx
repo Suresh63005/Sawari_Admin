@@ -52,7 +52,45 @@ import toast from "react-hot-toast";
 import { debounce } from "lodash";
 import MapView from "./MapView";
 import Loader from "@/components/ui/Loader";
+import PlacesAutocomplete, {
+  geocodeByAddress,
+  getLatLng,
+  Suggestion, // Import Suggestion type from the library
+} from "react-places-autocomplete";
+import { LoadScript, GoogleMap, Marker } from "@react-google-maps/api";
 
+// ... (previous interfaces remain unchanged)
+interface AutocompleteSuggestion {
+  placeId: string;
+  description: string;
+  active?: boolean;
+  [key: string]: any;
+}
+
+// Update PlacesAutocompleteProps to align with react-places-autocomplete types
+interface PlacesAutocompleteProps {
+  getInputProps: <InputProps extends {}>(
+    options?: InputProps
+  ) => React.InputHTMLAttributes<HTMLInputElement> & InputProps;
+  suggestions: readonly Suggestion[]; // Use library's Suggestion type
+  getSuggestionItemProps: <SuggestionProps extends {}>(
+    suggestion: Suggestion,
+    options?: SuggestionProps
+  ) => SuggestionProps & { key: string | number };
+  loading: boolean;
+}
+
+// Add map container style
+const mapContainerStyle = {
+  height: "300px",
+  width: "100%",
+};
+
+// Default center for the map (e.g., Dubai coordinates)
+const defaultCenter = {
+  lat: 25.2048,
+  lng: 55.2708,
+};
 interface Package {
   id: string;
   name: string;
@@ -162,6 +200,10 @@ const Rides: React.FC = () => {
   const [taxRate, setTaxRate] = useState<number>(0);
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [dropCoords, setDropCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [isPickupFocused, setIsPickupFocused] = useState<boolean>(false);
+  const [isDropFocused, setIsDropFocused] = useState<boolean>(false);
   const [formData, setFormData] = useState<FormData>({
     customer_name: "",
     phone: "",
@@ -770,6 +812,49 @@ const formatDateForDisplay = (dateString: string | null): string => {
     [searchTerm, statusFilter, debouncedFetchRides]
   );
 
+
+  const handleSelectPickup = useCallback(async (address: string) => {
+    try {
+      const results = await geocodeByAddress(address);
+      const latLng = await getLatLng(results[0]);
+      setFormData((prev) => ({
+        ...prev,
+        pickup_address: address,
+        pickup_location: `${latLng.lat},${latLng.lng}`,
+      }));
+      setPickupCoords(latLng);
+    } catch (error) {
+      console.error("Error selecting pickup address:", error);
+      toast.error("Failed to geocode pickup address", {
+        style: {
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)",
+        },
+      });
+    }
+  }, []);
+
+  // Handler for selecting drop address
+  const handleSelectDrop = useCallback(async (address: string) => {
+    try {
+      const results = await geocodeByAddress(address);
+      const latLng = await getLatLng(results[0]);
+      setFormData((prev) => ({
+        ...prev,
+        drop_address: address,
+        drop_location: `${latLng.lat},${latLng.lng}`,
+      }));
+      setDropCoords(latLng);
+    } catch (error) {
+      console.error("Error selecting drop address:", error);
+      toast.error("Failed to geocode drop address", {
+        style: {
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)",
+        },
+      });
+    }
+  }, []);
   const getStatusBadge = useCallback((status: string) => {
     type BadgeConfig = {
       variant: "default" | "secondary";
@@ -823,227 +908,316 @@ const formatDateForDisplay = (dateString: string | null): string => {
       <div className="space-y-6">
         <div>
           <h3 className="text-lg font-semibold mb-2">Ride Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label>
-                Package <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={formData.package_id}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    package_id: value,
-                    subpackage_id: "",
-                    car_id: "",
-                    Price: 0,
-                    Total: 0,
-                  }))
-                }
-                disabled={isLoading.packages}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={isLoading.packages ? "Loading packages..." : "Select package first"}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {packages.length > 0 ? (
-                    packages.map((pkg) => (
-                      <SelectItem key={pkg.id} value={pkg.id}>
-                        {pkg.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem disabled value="no-packages">
-                      No packages found
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-              {errors.package_id && <p className="text-red-500 text-sm mt-1">{errors.package_id}</p>}
-            </div>
-            <div>
-              <Label>
-                Sub-Package <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={formData.subpackage_id}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    subpackage_id: value,
-                    car_id: "",
-                    Price: 0,
-                    Total: 0,
-                  }))
-                }
-                disabled={!formData.package_id || isLoading.subPackages}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      isLoading.subPackages
-                        ? "Loading sub-packages..."
-                        : formData.package_id
-                        ? "Select sub-package"
-                        : "Select a package first"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {subPackages.length > 0 ? (
-                    subPackages.map((sp) => (
-                      <SelectItem key={sp.id} value={sp.id}>
-                        {sp.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem disabled value="no-subpackages">
-                      No sub-packages available
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-              {errors.subpackage_id && <p className="text-red-500 text-sm mt-1">{errors.subpackage_id}</p>}
-            </div>
-            <div>
-              <Label>
-                Car <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={formData.car_id}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, car_id: value }))}
-                disabled={!formData.subpackage_id || isLoading.cars}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      isLoading.cars
-                        ? "Loading cars..."
-                        : formData.subpackage_id
-                        ? "Select car"
-                        : "Select a sub-package first"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {modalCars.length > 0 ? (
-                    modalCars.map((car) => (
-                      <SelectItem key={car.id} value={car.id}>
-                        {car.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem disabled value="no-cars">
-                      No cars available
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-              {errors.car_id && <p className="text-red-500 text-sm mt-1">{errors.car_id}</p>}
-            </div>
-            <div>
-              <Label>
-                Pickup Location <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={formData.pickup_location}
-                placeholder="Enter Latitude and longitude"
-                onChange={(e) => setFormData((prev) => ({ ...prev, pickup_location: e.target.value }))}
-              />
-              {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
-            </div>
-            <div>
-              <Label>
-                Drop Location <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={formData.drop_location}
-                placeholder="Enter Latitude and longitude"
-                onChange={(e) => setFormData((prev) => ({ ...prev, drop_location: e.target.value }))}
-              />
-              {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
-            </div>
-            <div>
-              <Label>
-                Pickup Address <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={formData.pickup_address}
-                placeholder="Enter pickup address"
-                onChange={(e) => setFormData((prev) => ({ ...prev, pickup_address: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>
-                Drop Address <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={formData.drop_address}
-                placeholder="Enter drop address"
-                onChange={(e) => setFormData((prev) => ({ ...prev, drop_address: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>
-                Scheduled Time <span className="text-red-500">*</span>
-              </Label>
-              <input
-                type="datetime-local"
-                className="w-full border rounded p-1 bg-[#FFF8EC]"
-                value={formData.scheduled_time}
-                onChange={(e) => setFormData((prev) => ({ ...prev, scheduled_time: e.target.value }))}
-                min={new Date().toISOString().slice(0, 16)}
-              />
-            </div>
-            <div>
-              <Label>Price (AED)</Label>
-              <Input type="number" value={Number(formData.Price).toFixed(2)} disabled />
-            </div>
-            <div>
-              <Label>Tax (AED)</Label>
-              <Input
-                type="number"
-                value={(() => {
-                  const subtotal = isOneHourSubPackage ? formData.Price * formData.rider_hours : formData.Price;
-                  const taxAmount = subtotal * (taxRate / 100);
-                  return taxAmount.toFixed(2);
-                })()}
-                disabled
-              />
-            </div>
-            {isOneHourSubPackage && (
+          <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""} libraries={["places"]}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label>Rider Hours</Label>
-                <Input
-                  type="number"
-                  value={formData.rider_hours}
-                  onChange={(e) => {
-                    let hours = parseInt(e.target.value) || 3;
-                    if (hours < 3) hours = 3;
-                    const subtotal = formData.Price * hours;
-                    const taxAmount = subtotal * (taxRate / 100);
-                    const totalWithTax = subtotal + taxAmount;
+                <Label>
+                  Package <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.package_id}
+                  onValueChange={(value: string) =>
                     setFormData((prev) => ({
                       ...prev,
-                      rider_hours: hours,
-                      Total: totalWithTax,
-                    }));
-                  }}
-                  min="3"
+                      package_id: value,
+                      subpackage_id: "",
+                      car_id: "",
+                      Price: 0,
+                      Total: 0,
+                    }))
+                  }
+                  disabled={isLoading.packages}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={isLoading.packages ? "Loading packages..." : "Select package first"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {packages.length > 0 ? (
+                      packages.map((pkg) => (
+                        <SelectItem key={pkg.id} value={pkg.id}>
+                          {pkg.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem disabled value="no-packages">
+                        No packages found
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.package_id && <p className="text-red-500 text-sm mt-1">{errors.package_id}</p>}
+              </div>
+              <div>
+                <Label>
+                  Sub-Package <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.subpackage_id}
+                  onValueChange={(value: string) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      subpackage_id: value,
+                      car_id: "",
+                      Price: 0,
+                      Total: 0,
+                    }))
+                  }
+                  disabled={!formData.package_id || isLoading.subPackages}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        isLoading.subPackages
+                          ? "Loading sub-packages..."
+                          : formData.package_id
+                          ? "Select sub-package"
+                          : "Select a package first"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subPackages.length > 0 ? (
+                      subPackages.map((sp) => (
+                        <SelectItem key={sp.id} value={sp.id}>
+                          {sp.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem disabled value="no-subpackages">
+                        No sub-packages available
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.subpackage_id && <p className="text-red-500 text-sm mt-1">{errors.subpackage_id}</p>}
+              </div>
+              <div>
+                <Label>
+                  Car <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.car_id}
+                  onValueChange={(value: string) => setFormData((prev) => ({ ...prev, car_id: value }))}
+                  disabled={!formData.subpackage_id || isLoading.cars}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        isLoading.cars
+                          ? "Loading cars..."
+                          : formData.subpackage_id
+                          ? "Select car"
+                          : "Select a sub-package first"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modalCars.length > 0 ? (
+                      modalCars.map((car) => (
+                        <SelectItem key={car.id} value={car.id}>
+                          {car.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem disabled value="no-cars">
+                        No cars available
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.car_id && <p className="text-red-500 text-sm mt-1">{errors.car_id}</p>}
+              </div>
+              <div>
+                <Label>
+                  Pickup Address <span className="text-red-500">*</span>
+                </Label>
+                <PlacesAutocomplete
+                  value={formData.pickup_address}
+                  onChange={(value: string) => setFormData((prev) => ({ ...prev, pickup_address: value }))}
+                  onSelect={handleSelectPickup}
+                >
+                  {({ getInputProps, suggestions, getSuggestionItemProps, loading }: PlacesAutocompleteProps) => (
+                    <div className="relative">
+                      <Input
+                        {...getInputProps({
+                          placeholder: "Enter pickup address",
+                          className: "w-full p-2 border rounded bg-[#FFF8EC]",
+                          onFocus: () => setIsPickupFocused(true),
+                          onBlur: () => setTimeout(() => setIsPickupFocused(false), 200),
+                        })}
+                      />
+                      <div className="absolute z-10 w-full bg-white border rounded mt-1">
+                        {loading && <div>Loading...</div>}
+                        {suggestions.map((suggestion) => (
+                          <div
+                            {...getSuggestionItemProps(suggestion, {
+                              className: `p-2 cursor-pointer ${suggestion.active ? "bg-gray-100" : ""}`,
+                            })}
+                            key={suggestion.placeId}
+                          >
+                            {suggestion.description}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </PlacesAutocomplete>
+                {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
+              </div>
+              <div>
+                <Label>
+                  Drop Address <span className="text-red-500">*</span>
+                </Label>
+                <PlacesAutocomplete
+                  value={formData.drop_address}
+                  onChange={(value: string) => setFormData((prev) => ({ ...prev, drop_address: value }))}
+                  onSelect={handleSelectDrop}
+                >
+                  {({ getInputProps, suggestions, getSuggestionItemProps, loading }: PlacesAutocompleteProps) => (
+                    <div className="relative">
+                      <Input
+                        {...getInputProps({
+                          placeholder: "Enter drop address",
+                          className: "w-full p-2 border rounded bg-[#FFF8EC]",
+                          onFocus: () => setIsDropFocused(true),
+                          onBlur: () => setTimeout(() => setIsDropFocused(false), 200),
+                        })}
+                      />
+                      <div className="absolute z-10 w-full bg-white border rounded mt-1">
+                        {loading && <div>Loading...</div>}
+                        {suggestions.map((suggestion) => (
+                          <div
+                            {...getSuggestionItemProps(suggestion, {
+                              className: `p-2 cursor-pointer ${suggestion.active ? "bg-gray-100" : ""}`,
+                            })}
+                            key={suggestion.placeId}
+                          >
+                            {suggestion.description}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </PlacesAutocomplete>
+                {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
+              </div>
+              <div>
+                <Label>
+                  Pickup Location <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={formData.pickup_location}
+                  placeholder="Enter Latitude and longitude"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, pickup_location: e.target.value }))}
+                  onFocus={() => setIsPickupFocused(true)}
+                  onBlur={() => setTimeout(() => setIsPickupFocused(false), 200)}
+                />
+                {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
+              </div>
+              <div>
+                <Label>
+                  Drop Location <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={formData.drop_location}
+                  placeholder="Enter Latitude and longitude"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, drop_location: e.target.value }))}
+                  onFocus={() => setIsDropFocused(true)}
+                  onBlur={() => setTimeout(() => setIsDropFocused(false), 200)}
+                />
+                {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
+              </div>
+              <div>
+                <Label>
+                  Scheduled Time <span className="text-red-500">*</span>
+                </Label>
+                <input
+                  type="datetime-local"
+                  className="w-full border rounded p-1 bg-[#FFF8EC]"
+                  value={formData.scheduled_time}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, scheduled_time: e.target.value }))}
+                  min={new Date().toISOString().slice(0, 16)}
                 />
               </div>
-            )}
-            <div>
-              <Label>Total (AED)</Label>
-              <Input
-                type="number"
-                value={Number(isOneHourSubPackage ? formData.Price * formData.rider_hours : formData.Total).toFixed(2)}
-                disabled
-              />
+              <div>
+                <Label>Price (AED)</Label>
+                <Input type="number" value={Number(formData.Price).toFixed(2)} disabled />
+              </div>
+              <div>
+                <Label>Tax (AED)</Label>
+                <Input
+                  type="number"
+                  value={(() => {
+                    const subtotal = isOneHourSubPackage ? formData.Price * formData.rider_hours : formData.Price;
+                    const taxAmount = subtotal * (taxRate / 100);
+                    return taxAmount.toFixed(2);
+                  })()}
+                  disabled
+                />
+              </div>
+              {isOneHourSubPackage && (
+                <div>
+                  <Label>Rider Hours</Label>
+                  <Input
+                    type="number"
+                    value={formData.rider_hours}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      let hours = parseInt(e.target.value) || 3;
+                      if (hours < 3) hours = 3;
+                      const subtotal = formData.Price * hours;
+                      const taxAmount = subtotal * (taxRate / 100);
+                      const totalWithTax = subtotal + taxAmount;
+                      setFormData((prev) => ({
+                        ...prev,
+                        rider_hours: hours,
+                        Total: totalWithTax,
+                      }));
+                    }}
+                    min="3"
+                  />
+                </div>
+              )}
+              <div>
+                <Label>Total (AED)</Label>
+                <Input
+                  type="number"
+                  value={Number(isOneHourSubPackage ? formData.Price * formData.rider_hours : formData.Total).toFixed(2)}
+                  disabled
+                />
+              </div>
             </div>
-          </div>
+            {(isPickupFocused || isDropFocused) && (
+              <div className="mt-4">
+                <Label>Map Preview</Label>
+                <GoogleMap
+                  mapContainerStyle={mapContainerStyle}
+                  center={pickupCoords || dropCoords || defaultCenter}
+                  zoom={12}
+                >
+                  {pickupCoords && (
+                    <Marker
+                      position={pickupCoords}
+                      label="P"
+                      icon={{
+                        url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                      }}
+                    />
+                  )}
+                  {dropCoords && (
+                    <Marker
+                      position={dropCoords}
+                      label="D"
+                      icon={{
+                        url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                      }}
+                    />
+                  )}
+                </GoogleMap>
+              </div>
+            )}
+          </LoadScript>
         </div>
         <div>
           <h3 className="text-lg font-semibold mb-2">Customer Details</h3>
@@ -1054,7 +1228,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
               </Label>
               <Input
                 value={formData.customer_name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, customer_name: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, customer_name: e.target.value }))}
                 required
                 placeholder="Enter customer name"
               />
@@ -1066,7 +1240,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
               </Label>
               <Input
                 value={formData.phone}
-                onChange={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   const value = e.target.value;
                   if (/^\d*$/.test(value)) {
                     if (value.length <= 10) {
@@ -1086,7 +1260,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
               </Label>
               <Input
                 value={formData.email}
-                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                 required
                 placeholder="Enter email address"
               />

@@ -9,6 +9,7 @@ import { getToken } from '@/lib/getToken';
 const apiClient: AxiosInstance = axios.create({
   // baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:4445/api",
   baseURL: process.env.NEXT_PUBLIC_API_URL || "https://sawari-api.innoitlabs.net/api",
+  // baseURL: process.env.NEXT_PUBLIC_API_URL || "https://sawari-server.vercel.app/api",
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

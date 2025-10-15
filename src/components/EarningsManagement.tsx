@@ -6,9 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Shield, Download } from 'lucide-react';
+import { Shield, Download, Search } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
-import { useToast } from './ui/use-toast';
+import toast from 'react-hot-toast';
 import { Admin } from './AdminManagement';
 import Loader from './ui/Loader';
 
@@ -31,10 +31,22 @@ interface Earning {
     phone: string;
     pickup_address: string;
     pickup_location: string;
+    drop_address: string;
     drop_location: string;
-    car_model: string;
-    ride_type: string;
     pickup_time: string;
+    dropoff_time: string;
+    ride_type: string;
+    rider_hours: number;
+    Price: string;
+    Total: string;
+    car_id: string;
+    driver_id: string;
+    driver_name: string; // Added driver_name
+  };
+  Car: {
+    id: string;
+    brand: string;
+    model: string;
   };
 }
 
@@ -49,16 +61,15 @@ interface EarningsManagementProps {
 }
 
 export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentUser }) => {
-  const { toast } = useToast();
   const [earnings, setEarnings] = useState<Earning[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
-const [currentPage, setCurrentPage] = useState<number>(1);
-const [itemsPerPage, setItemsPerPage] = useState<number>(5);
-const [totalItems, setTotalItems] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
+  const [totalItems, setTotalItems] = useState<number>(0);
 
   // Generate month options for the last 12 months
   const getMonthOptions = () => {
@@ -66,7 +77,7 @@ const [totalItems, setTotalItems] = useState<number>(0);
     const currentDate = new Date();
     for (let i = 0; i < 12; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const label = date.toLocaleString('default', { month: 'long', year: 'numeric' });
       options.push({ value, label });
     }
@@ -77,22 +88,24 @@ const [totalItems, setTotalItems] = useState<number>(0);
     const fetchEarnings = async () => {
       try {
         setLoading(true);
-       const endpoint =
-  selectedMonth === 'all'
-    ? `/v1/admin/earning/get-all-earnings-history?search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`
-    : `/v1/admin/earning/get-all-earnings-history?month=${selectedMonth}&search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`;
-const response = await apiClient.get(endpoint);
-console.log('Fetched earnings:', response.data);
-setEarnings(response.data.data);
-setTotalItems(response.data.total || 0);
-setSummary(response.data.summary);
+        const endpoint =
+          selectedMonth === 'all'
+            ? `/v1/admin/earning/get-all-earnings-history?search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`
+            : `/v1/admin/earning/get-all-earnings-history?month=${selectedMonth}&search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`;
+        const response = await apiClient.get(endpoint);
+        console.log('Fetched earnings:', response.data); // Debug log
+        setEarnings(response.data.data);
+        console.log(response.data.data, "Earnings Data");
+        setTotalItems(response.data.total || 0);
+        setSummary(response.data.summary);
       } catch (err: any) {
         console.error('Fetch earnings error:', err);
         setError(err.response?.data?.message || 'Failed to fetch earnings data');
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: err.response?.data?.message || 'Failed to fetch earnings data',
+        toast.error(err.response?.data?.message || 'Failed to fetch earnings data', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
         });
       } finally {
         setLoading(false);
@@ -101,90 +114,77 @@ setSummary(response.data.summary);
     fetchEarnings();
   }, [selectedMonth, searchTerm, currentPage, itemsPerPage]);
 
-  const downloadCSV = (data: Earning[], filename: string) => {
-    const headers = [
-      'Ride ID',
-      'Customer Name',
-      'Customer Email',
-      'Customer Phone',
-      'Amount (AED)',
-      'Commission (AED)',
-      'Percentage',
-      'Payment Method',
-      'Status',
-      'Created At',
-      'Pickup Address',
-      'Pickup Location',
-      'Drop Location',
-      'Car Model',
-      'Ride Type',
-      'Pickup Time',
-    ];
-    const rows = data.map((earning) => [
-      earning.ride_id,
-      earning.Ride.customer_name,
-      earning.Ride.email,
-      earning.Ride.phone,
-      parseFloat(earning.amount).toLocaleString(),
-      parseFloat(earning.commission).toLocaleString(),
-      earning.percentage,
-      earning.payment_method.replace('_', ' ').toUpperCase(),
-      earning.status,
-      new Date(earning.createdAt).toLocaleDateString(),
-      earning.Ride.pickup_address,
-      earning.Ride.pickup_location,
-      earning.Ride.drop_location,
-      earning.Ride.car_model,
-      earning.Ride.ride_type,
-      new Date(earning.Ride.pickup_time).toLocaleString(),
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleDownloadAll = () => {
-    if (earnings.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No earnings data available to download',
+  const handleDownloadAll = async () => {
+    try {
+      const endpoint =
+        selectedMonth === 'all'
+          ? `/v1/admin/earning/download-all?search=${encodeURIComponent(searchTerm)}`
+          : `/v1/admin/earning/download-all?month=${selectedMonth}&search=${encodeURIComponent(searchTerm)}`;
+      const response = await apiClient.get(endpoint, { responseType: 'blob' });
+      const filename = selectedMonth === 'all' ? 'All_Earnings.xlsx' : `Earnings_${selectedMonth}.xlsx`;
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Earnings data downloaded successfully', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
       });
-      return;
+    } catch (err: any) {
+      console.error('Download error:', err);
+      toast.error('Failed to download earnings data', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     }
-    const filename = selectedMonth === 'all' ? 'all_earnings.csv' : `earnings_${selectedMonth}.csv`;
-    downloadCSV(earnings, filename);
-    toast({
-      title: 'Success',
-      description: 'Earnings data downloaded successfully',
-    });
   };
 
-  const handleDownloadSingle = (earning: Earning) => {
-    downloadCSV([earning], `earning_${earning.id}.csv`);
-    toast({
-      title: 'Success',
-      description: 'Earning record downloaded successfully',
-    });
+  const handleDownloadSingle = async (earning: Earning) => {
+    try {
+      const response = await apiClient.get(`/v1/admin/earning/single-download/${earning.id}`, { responseType: 'blob' });
+      const filename = `earning_${earning.id}.xlsx`;
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Earning record downloaded successfully', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+    } catch (err: any) {
+      console.error('Download error:', err);
+      toast.error('Failed to download earning record', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+    }
   };
-const totalPages = Math.ceil(totalItems / itemsPerPage);
-const paginate = (pageNumber: number) => {
-  if (pageNumber >= 1 && pageNumber <= totalPages) {
-    setCurrentPage(pageNumber);
-  }
-};
+
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const paginate = (pageNumber: number) => {
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
+  };
+
   // Permission check
   if (!currentUser.permissions?.earnings) {
     return (
@@ -197,7 +197,6 @@ const paginate = (pageNumber: number) => {
       </div>
     );
   }
-
 
   if (error) {
     return (
@@ -221,47 +220,50 @@ const paginate = (pageNumber: number) => {
     }
   };
 
-  // if (loading) {
-  //   return <Loader />;
-  // }
-
   return (
     <div className="space-y-6">
+      {loading && <Loader />}
       <div className="bg-card p-4 rounded-lg border border-primary">
-  <div className="flex items-center space-x-4">
-    <div className="flex-1">
-      <label className="block text-sm font-medium text-primary">Search</label>
-      <input
-        type="text"
-        placeholder="Search by customer, ride ID..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="mt-1 block w-full p-2 border border-primary rounded-md bg-card"
-      />
-    </div>
-    <div className="flex items-center space-x-4 mt-5">
-      <Select value={selectedMonth} onValueChange={(value) => {
-        setSelectedMonth(value);
-        setCurrentPage(1);
-      }}>
-        <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Select month" />
-        </SelectTrigger>
-        <SelectContent>
-          {getMonthOptions().map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button onClick={handleDownloadAll} variant="outline">
-        <Download className="w-4 h-4 mr-2" />
-        Download All
-      </Button>
-    </div>
-  </div>
-</div>
+        <div className="flex items-center space-x-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-primary">Search</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search by customer, driver name, ride ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="mt-1 block w-full p-2 border border-primary rounded-md bg-card"
+              />
+              <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-center space-x-4 mt-5">
+            <Select
+              value={selectedMonth}
+              onValueChange={(value) => {
+                setSelectedMonth(value);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent>
+                {getMonthOptions().map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleDownloadAll} variant="outline">
+              <Download className="w-4 h-4 mr-2" />
+              Download All
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -303,105 +305,131 @@ const paginate = (pageNumber: number) => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>S.No</TableHead>
                 <TableHead>Ride ID</TableHead>
+                <TableHead>Driver Name</TableHead> {/* Added Driver Name column */}
                 <TableHead>Customer</TableHead>
                 <TableHead>Amount (AED)</TableHead>
                 <TableHead>Commission (AED)</TableHead>
                 <TableHead>Percentage</TableHead>
                 <TableHead>Payment Method</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Car Details</TableHead>
+                <TableHead>Pickup Time</TableHead>
+                <TableHead>Dropoff Time</TableHead>
+                <TableHead>Rider Hours</TableHead>
+                <TableHead>Price (AED)</TableHead>
+                <TableHead>Total (AED)</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {earnings.length === 0 ? (
-  <TableRow>
-    <TableCell colSpan={9} className="text-center">
-      No earnings found
-    </TableCell>
-  </TableRow>
-) : (
-  earnings.map((earning) => (
-    <TableRow key={earning.id}>
-      <TableCell>{earning.ride_id.slice(0,8)}</TableCell>
-      <TableCell>
-        <div>
-          <p className="font-medium">{earning.Ride.customer_name}</p>
-          <p className="text-sm text-muted-foreground">{earning.Ride.email}</p>
-          <p className="text-sm text-muted-foreground">{earning.Ride.phone}</p>
-        </div>
-      </TableCell>
-      <TableCell>{parseFloat(earning.amount).toLocaleString()}</TableCell>
-      <TableCell>{parseFloat(earning.commission).toLocaleString()}</TableCell>
-      <TableCell>{earning.percentage}%</TableCell>
-      <TableCell>{earning.payment_method.replace('_', ' ').toUpperCase()}</TableCell>
-      <TableCell>{getStatusBadge(earning.status)}</TableCell>
-      <TableCell>{new Date(earning.createdAt).toLocaleDateString()}</TableCell>
-      <TableCell>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleDownloadSingle(earning)}
-        >
-          <Download className="w-4 h-4" />
-        </Button>
-      </TableCell>
-    </TableRow>
-  ))
-)}
+                <TableRow>
+                  <TableCell colSpan={16} className="text-center">
+                    {searchTerm ? 'No data found for the current search' : 'No earnings found'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                earnings.map((earning,index) => (
+                  <TableRow key={earning.id}>
+                    <TableCell> {(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                    <TableCell>{earning.ride_id.slice(0, 8)}</TableCell>
+                    <TableCell>{earning.Ride?.driver_name || 'N/A'}</TableCell> {/* Added driver_name */}
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{earning.Ride?.customer_name || 'N/A'}</p>
+                        <p className="text-sm text-muted-foreground">{earning.Ride?.email || 'N/A'}</p>
+                        <p className="text-sm text-muted-foreground">{earning.Ride?.phone || 'N/A'}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{parseFloat(earning.amount).toLocaleString()}</TableCell>
+                    <TableCell>{parseFloat(earning.commission).toLocaleString()}</TableCell>
+                    <TableCell>{earning.percentage}%</TableCell>
+                    <TableCell>
+                      {earning.payment_method ? earning.payment_method.replace('_', ' ').toUpperCase() : 'N/A'}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(earning.status)}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{earning.Car?.brand || 'N/A'} {earning.Car?.model || ''}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {earning.Ride?.pickup_time ? new Date(earning.Ride.pickup_time).toLocaleString() : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {earning.Ride?.dropoff_time ? new Date(earning.Ride.dropoff_time).toLocaleString() : 'N/A'}
+                    </TableCell>
+                    <TableCell>{earning.Ride?.rider_hours || 'N/A'}</TableCell>
+                    <TableCell>{earning.Ride?.Price ? parseFloat(earning.Ride.Price).toLocaleString() : 'N/A'}</TableCell>
+                    <TableCell>{earning.Ride?.Total ? parseFloat(earning.Ride.Total).toLocaleString() : 'N/A'}</TableCell>
+                    <TableCell>{new Date(earning.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadSingle(earning)}
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
           {!loading && earnings.length > 0 && (
-  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
-    <div className="mb-2 md:mb-0">
-      <label className="mr-2 text-sm text-primary">Items per page:</label>
-      <select
-        value={itemsPerPage}
-        onChange={(e) => {
-          setItemsPerPage(Number(e.target.value));
-          setCurrentPage(1);
-        }}
-        className="p-2 border border-primary rounded-md bg-card"
-      >
-        <option value={5}>5</option>
-        <option value={10}>10</option>
-        <option value={20}>20</option>
-      </select>
-    </div>
-    <div className="flex space-x-2">
-      <Button
-        onClick={() => paginate(currentPage - 1)}
-        disabled={currentPage === 1}
-        variant="outline"
-        className="text-primary"
-      >
-        Previous
-      </Button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-        <Button
-          key={page}
-          onClick={() => paginate(page)}
-          variant={currentPage === page ? 'default' : 'outline'}
-          className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
-        >
-          {page}
-        </Button>
-      ))}
-      <Button
-        onClick={() => paginate(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        variant="outline"
-        className="text-primary"
-      >
-        Next
-      </Button>
-    </div>
-    <span className="text-sm text-primary mt-2 md:mt-0">
-      Page {currentPage} of {totalPages}
-    </span>
-  </div>
-)}
+            <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+              <div className="mb-2 md:mb-0">
+                <label className="mr-2 text-sm text-primary">Items per page:</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="p-2 border border-primary rounded-md bg-card"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={() => paginate(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  className="text-primary"
+                >
+                  Previous
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    onClick={() => paginate(page)}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  onClick={() => paginate(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  variant="outline"
+                  className="text-primary"
+                >
+                  Next
+                </Button>
+              </div>
+              <span className="text-sm text-primary mt-2 md:mt-0">
+                Page {currentPage} of {totalPages}
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

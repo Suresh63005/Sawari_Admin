@@ -45,18 +45,19 @@ export default function EarningsManagementPage() {
     fetchCurrentUser();
   }, [router]);
 
-  if (loading) {
-    return <Loader />;
-  }
+  // if (loading) {
+  //   return <Loader />;
+  // }
 
   if (error || !currentUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h2 className="text-red-600 text-xl font-semibold">Error</h2>
+      <div className="min-h-screen flex items-center justify-center bg-card">
+        {loading && <Loader />}
+        <div className="bg-card p-6 rounded-lg shadow-lg">
+          <h2 className="text-primary text-xl font-semibold">Error</h2>
           <p className="text-gray-700 mt-2">{error || 'User not authenticated'}</p>
           <button
-            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="mt-4 bg-primary text-white px-4 py-2 rounded hover:bg-blue-700"
             onClick={() => router.push('/')}
           >
             Go to Login

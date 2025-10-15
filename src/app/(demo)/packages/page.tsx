@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,13 +7,16 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
-import { useToast } from '@/components/ui/use-toast';
+import toast from 'react-hot-toast';
 import { debounce } from 'lodash';
-import Loader from '@/components/ui/Loader'; // Assuming you have a Loader component
+import Loader from '@/components/ui/Loader';
+import { Loader2 } from 'lucide-react';
+
+
 interface Package {
   id: string;
   name: string;
@@ -23,88 +26,96 @@ interface Package {
 }
 
 const Packages: React.FC = () => {
-  const { toast } = useToast();
   const [packages, setPackages] = useState<Package[]>([]);
-const [showPackageForm, setShowPackageForm] = useState(false);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState<string | null>(null);
-const [searchQuery, setSearchQuery] = useState<string>(''); // For wild search
-const [isSearching, setIsSearching] = useState(false);
-const [currentPage, setCurrentPage] = useState<number>(1); // Pagination: current page
-const [itemsPerPage, setItemsPerPage] = useState<number>(10); // Pagination: items per page
-const [totalItems, setTotalItems] = useState<number>(0); // Pagination: total items
-
+  const [showPackageForm, setShowPackageForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [totalItems, setTotalItems] = useState<number>(0);
+  const nameInputRef = React.useRef<HTMLInputElement>(null);
   const [newPackage, setNewPackage] = useState({
     id: '',
     name: '',
     description: '',
     status: 'active' as 'active' | 'inactive',
   });
-
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; packageId: string }>({ open: false, packageId: '' });
+const [isSaving, setIsSaving] = useState(false);
+const [isDeleting, setIsDeleting] = useState(false);
   // Memoize the debounced fetchPackages function
- const debouncedFetchPackages = useCallback(
-  debounce(async (query: string, page: number, limit: number) => {
-    try {
-      setIsSearching(true);
-      const response = await apiClient.get('/v1/admin/package', {
-        params: { search: query, page, limit },
-      });
-      setPackages(response.data.result.data);
-      setTotalItems(response.data.result.total); // Set total items from API response
-    } catch (err: any) {
-      console.error('Fetch packages error:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.error || 'Failed to fetch packages',
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  }, 500),
-  []
-);
+  const debouncedFetchPackages = useCallback(
+    debounce(async (query: string, page: number, limit: number) => {
+      try {
+        setIsSearching(true);
+        const response = await apiClient.get('/v1/admin/package', {
+          params: { search: query, page, limit },
+        });
+        setPackages(response.data.result.data || []);
+        setTotalItems(response.data.result.total || 0);
+      } catch (err: any) {
+        console.error('Fetch packages error:', err);
+        toast.error(err.response?.data?.error || 'Failed to fetch packages', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500),
+    []
+  );
 
   // Initial fetch and search updates
   useEffect(() => {
-  const fetchInitialPackages = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get('/v1/admin/package', {
-        params: { search: searchQuery, page: currentPage, limit: itemsPerPage },
-      });
-      setPackages(response.data.result.data);
-      setTotalItems(response.data.result.total);
-    } catch (err: any) {
-      console.error('Fetch packages error:', err);
-      setError(err.response?.data?.error || 'Failed to fetch packages');
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.response?.data?.error || 'Failed to fetch packages',
-      });
-    } finally {
-      setLoading(false);
+    const fetchInitialPackages = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.get('/v1/admin/package', {
+          params: { search: searchQuery, page: currentPage, limit: itemsPerPage },
+        });
+        setPackages(response.data.result.data || []);
+        setTotalItems(response.data.result.total || 0);
+      } catch (err: any) {
+        console.error('Fetch packages error:', err);
+        setError(err.response?.data?.error || 'Failed to fetch packages');
+        toast.error(err.response?.data?.error || 'Failed to fetch packages', {
+          style: {
+            background: '#622A39',
+            color: 'hsl(42, 51%, 91%)',
+          },
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (loading) {
+      fetchInitialPackages();
+    } else {
+      debouncedFetchPackages(searchQuery, currentPage, itemsPerPage);
     }
-  };
 
-  if (loading) {
-    fetchInitialPackages();
-  } else {
-    debouncedFetchPackages(searchQuery, currentPage, itemsPerPage);
-  }
-
-  return () => {
-    debouncedFetchPackages.cancel(); // Prevent memory leaks
-  };
-}, [searchQuery, currentPage, itemsPerPage, debouncedFetchPackages, loading]);
+    return () => {
+      debouncedFetchPackages.cancel();
+    };
+  }, [searchQuery, currentPage, itemsPerPage, debouncedFetchPackages, loading]);
 
   const handleUpsertPackage = async () => {
     if (!newPackage.name || !newPackage.description) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Name and description are required' });
+      toast.error('Name and description are required', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
       return;
     }
-
+setIsSaving(true);
     try {
       const response = await apiClient.post('/v1/admin/package/upsert', newPackage);
 
@@ -116,21 +127,47 @@ const [totalItems, setTotalItems] = useState<number>(0); // Pagination: total it
 
       setNewPackage({ id: '', name: '', description: '', status: 'active' });
       setShowPackageForm(false);
-      toast({ title: 'Success', description: response.data.message });
+      toast.success(response.data.message, {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     } catch (err: any) {
       console.error('Upsert package error:', err);
-      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.error || 'Failed to upsert package' });
+      toast.error(err.response?.data?.error || 'Failed to upsert package', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDeletePackage = async (packageId: string) => {
+    setIsDeleting(true);
     try {
       const response = await apiClient.delete(`/v1/admin/package/${packageId}`);
       setPackages(packages.filter(pkg => pkg.id !== packageId));
-      toast({ title: 'Success', description: response.data.message });
+      toast.success(response.data.message, {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     } catch (err: any) {
       console.error('Delete package error:', err);
-      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.error || 'Failed to delete package' });
+      toast.error(err.response?.data?.error || 'Failed to delete package', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
+    } finally {
+      setConfirmDelete({ open: false, packageId: '' });
+      setIsDeleting(false);
     }
   };
 
@@ -138,10 +175,20 @@ const [totalItems, setTotalItems] = useState<number>(0); // Pagination: total it
     try {
       const response = await apiClient.patch(`/v1/admin/package/${packageId}/status`);
       setPackages(packages.map(pkg => (pkg.id === packageId ? response.data.data : pkg)));
-      toast({ title: 'Success', description: response.data.message });
+      toast.success(response.data.message, {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     } catch (err: any) {
       console.error('Update status error:', err);
-      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.error || 'Failed to update status' });
+      toast.error(err.response?.data?.error || 'Failed to update status', {
+        style: {
+          background: '#622A39',
+          color: 'hsl(42, 51%, 91%)',
+        },
+      });
     }
   };
 
@@ -170,10 +217,17 @@ const [totalItems, setTotalItems] = useState<number>(0); // Pagination: total it
         return <Badge variant="secondary">Inactive</Badge>;
     }
   };
-
-if (loading) {
-    return <Loader />;
+  useEffect(() => {
+  if (showPackageForm && newPackage.id && nameInputRef.current) {
+    // move caret to end without selection
+    const len = nameInputRef.current.value.length;
+    nameInputRef.current.setSelectionRange(len, len);
   }
+}, [showPackageForm, newPackage.id]);
+
+  // if (loading) {
+  //   return <Loader />;
+  // }
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -186,8 +240,8 @@ if (loading) {
   }
 
   return (
-    
     <div className="space-y-6">
+      {loading && <Loader />}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center w-1/3">
           <div className="relative w-full">
@@ -207,7 +261,7 @@ if (loading) {
               Create Package
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md" autoFocus={false} onPointerDownOutside={(e) => e.preventDefault()} >
             <DialogHeader>
               <DialogTitle>{newPackage.id ? 'Edit Package' : 'Create New Package'}</DialogTitle>
               <DialogDescription>
@@ -218,11 +272,12 @@ if (loading) {
               <div>
                 <Label htmlFor="name">Name</Label>
                 <Input
-                  id="name"
-                  value={newPackage.name}
-                  onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
-                  placeholder="Enter package name"
-                />
+  ref={nameInputRef}
+  id="name"
+  value={newPackage.name}
+  onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
+  placeholder="Enter package name"
+/>
               </div>
               <div>
                 <Label htmlFor="description">Description</Label>
@@ -247,9 +302,10 @@ if (loading) {
                 <Button variant="outline" onClick={() => setShowPackageForm(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleUpsertPackage}>
-                  {newPackage.id ? 'Update Package' : 'Create Package'}
-                </Button>
+                <Button onClick={handleUpsertPackage} disabled={isSaving}>
+  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+  {newPackage.id ? 'Update Package' : 'Create Package'}
+</Button>
               </div>
             </div>
           </DialogContent>
@@ -261,126 +317,159 @@ if (loading) {
           <CardTitle>Packages ({packages.length})</CardTitle>
         </CardHeader>
         <CardContent>
-  {isSearching && (
-    <div className="flex justify-center items-center mb-4">
-      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-900"></div>
-    </div>
-  )}
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Name</TableHead>
-        <TableHead>Description</TableHead>
-        <TableHead>Status</TableHead>
-        <TableHead>Created</TableHead>
-        <TableHead>Actions</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {loading ? (
-        <TableRow>
-          <TableCell colSpan={5} className="text-center">Loading...</TableCell>
-        </TableRow>
-      ) : packages.length === 0 ? (
-        <TableRow>
-          <TableCell colSpan={5} className="text-center">No packages found</TableCell>
-        </TableRow>
-      ) : (
-        packages.map((pkg: Package) => (
-          <TableRow key={pkg.id}>
-            <TableCell>
-              <div className="font-medium">{pkg.name}</div>
-            </TableCell>
-            <TableCell>{pkg.description}</TableCell>
-            <TableCell>
-              <div className="flex items-center space-x-2">
-                {getStatusBadge(pkg.status)}
-                <Switch
-                  checked={pkg.status === 'active'}
-                  onCheckedChange={(checked) => handleStatusSwitch(pkg.id, checked)}
-                />
+          {isSearching && (
+            <div className="flex justify-center items-center mb-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-900"></div>
+            </div>
+          )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>S.No</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {packages.length === 0 && !isSearching ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">No packages found</TableCell>
+                </TableRow>
+              ) : (
+                packages.map((pkg: Package, index: number) => (
+                  <TableRow key={pkg.id}>
+                    <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{pkg.name}</div>
+                    </TableCell>
+                    <TableCell>{pkg.description}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        {getStatusBadge(pkg.status)}
+                        <Switch
+                          checked={pkg.status === 'active'}
+                          onCheckedChange={(checked) => handleStatusSwitch(pkg.id, checked)}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(pkg.createdAt).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditPackage(pkg)}
+                          title='edit'
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setConfirmDelete({ open: true, packageId: pkg.id })}
+                          title='delete'
+                        >
+                          <Trash2 className="w-4 h-4 mr-1 text-primary" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+
+          {!loading && totalItems > 0 && (
+            <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+              <div className="mb-2 md:mb-0">
+                <label className="mr-2 text-sm text-primary">Items per page:</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="p-2 border border-primary rounded-md bg-card"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
               </div>
-            </TableCell>
-            <TableCell>{new Date(pkg.createdAt).toLocaleDateString()}</TableCell>
-            <TableCell>
               <div className="flex space-x-2">
                 <Button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
                   variant="outline"
-                  size="sm"
-                  onClick={() => handleEditPackage(pkg)}
+                  className="text-primary"
                 >
-                  <Edit className="w-4 h-4 mr-1" />
-                  Edit
+                  Previous
                 </Button>
+                {Array.from({ length: Math.ceil(totalItems / itemsPerPage) }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
+                  >
+                    {page}
+                  </Button>
+                ))}
                 <Button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
                   variant="outline"
-                  size="sm"
-                  onClick={() => handleDeletePackage(pkg.id)}
+                  className="text-primary"
                 >
-                  <Trash2 className="w-4 h-4 mr-1 text-red-500" />
-                  Delete
+                  Next
                 </Button>
               </div>
-            </TableCell>
-          </TableRow>
-        ))
-      )}
-    </TableBody>
-  </Table>
-
-  {/* Pagination Controls */}
-  {!loading && totalItems > 0 && (
-    <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
-      <div className="mb-2 md:mb-0">
-        <label className="mr-2 text-sm text-primary">Items per page:</label>
-        <select
-          value={itemsPerPage}
-          onChange={(e) => {
-            setItemsPerPage(Number(e.target.value));
-            setCurrentPage(1); // Reset to first page when items per page changes
-          }}
-          className="p-2 border border-primary rounded-md bg-card"
-        >
-          <option value={5}>5</option>
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-        </select>
-      </div>
-      <div className="flex space-x-2">
-        <Button
-          onClick={() => setCurrentPage(currentPage - 1)}
-          disabled={currentPage === 1}
-          variant="outline"
-          className="text-primary"
-        >
-          Previous
-        </Button>
-        {Array.from({ length: Math.ceil(totalItems / itemsPerPage) }, (_, i) => i + 1).map((page) => (
-          <Button
-            key={page}
-            onClick={() => setCurrentPage(page)}
-            variant={currentPage === page ? 'default' : 'outline'}
-            className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
-          >
-            {page}
-          </Button>
-        ))}
-        <Button
-          onClick={() => setCurrentPage(currentPage + 1)}
-          disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
-          variant="outline"
-          className="text-primary"
-        >
-          Next
-        </Button>
-      </div>
-      <span className="text-sm text-primary mt-2 md:mt-0">
-        Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
-      </span>
-    </div>
-  )}
-</CardContent>
+              <span className="text-sm text-primary mt-2 md:mt-0">
+                Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
+              </span>
+            </div>
+          )}
+        </CardContent>
       </Card>
+
+      <Dialog open={confirmDelete.open} onOpenChange={() => setConfirmDelete({ open: false, packageId: '' })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this package? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDelete({ open: false, packageId: '' })}
+            >
+              Cancel
+            </Button>
+          <Button
+  className="bg-primary text-card"
+  onClick={() => handleDeletePackage(confirmDelete.packageId)}
+  disabled={isDeleting}
+>
+  {isDeleting && (
+    <span className="inline-block h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+  )}
+  Delete
+</Button>
+
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

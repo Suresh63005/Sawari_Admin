@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
@@ -11,6 +11,7 @@ import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 import { Admin } from './AdminManagement';
 import Loader from './ui/Loader';
+import { debounce } from "lodash";
 
 interface Earning {
   id: string;
@@ -26,6 +27,7 @@ interface Earning {
   deletedAt: string | null;
   Ride: {
     id: string;
+    ride_code: string;
     customer_name: string;
     email: string;
     phone: string;
@@ -60,6 +62,16 @@ interface EarningsManagementProps {
   currentUser: Admin;
 }
 
+interface EarningsResponse {
+  data: Earning[];
+  total: number;
+  summary: Summary;
+}
+
+interface ApiErrorResponse {
+  message: string;
+}
+
 export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentUser }) => {
   const [earnings, setEarnings] = useState<Earning[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -70,6 +82,7 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
   const [totalItems, setTotalItems] = useState<number>(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Generate month options for the last 12 months
   const getMonthOptions = () => {
@@ -84,24 +97,65 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
     return options;
   };
 
-  useEffect(() => {
-    const fetchEarnings = async () => {
+  // useEffect(() => {
+  //   const fetchEarnings = async () => {
+  //     try {
+  //       setLoading(true);
+  //       const endpoint =
+  //         selectedMonth === 'all'
+  //           ? `/v1/admin/earning/get-all-earnings-history?search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`
+  //           : `/v1/admin/earning/get-all-earnings-history?month=${selectedMonth}&search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`;
+  //       const response = await apiClient.get(endpoint);
+  //       console.log('Fetched earnings:', response.data); // Debug log
+  //       setEarnings(response.data.data);
+  //       console.log(response.data.data, "Earnings Data");
+  //       setTotalItems(response.data.total || 0);
+  //       setSummary(response.data.summary);
+  //     } catch (err: any) {
+  //       console.error('Fetch earnings error:', err);
+  //       setError(err.response?.data?.message || 'Failed to fetch earnings data');
+  //       toast.error(err.response?.data?.message || 'Failed to fetch earnings data', {
+  //         style: {
+  //           background: '#622A39',
+  //           color: 'hsl(42, 51%, 91%)',
+  //         },
+  //       });
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+  //   fetchEarnings();
+  // }, [selectedMonth, searchTerm, currentPage, itemsPerPage]);
+
+
+  // Debounced fetchEarnings function
+  const fetchEarnings = useCallback(
+    async (search: string, month: string, page: number, limit: number) => {
       try {
         setLoading(true);
+        setError(null); // Clear previous errors
         const endpoint =
-          selectedMonth === 'all'
-            ? `/v1/admin/earning/get-all-earnings-history?search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`
-            : `/v1/admin/earning/get-all-earnings-history?month=${selectedMonth}&search=${encodeURIComponent(searchTerm)}&page=${currentPage}&limit=${itemsPerPage}`;
+          month === 'all'
+            ? `/v1/admin/earning/get-all-earnings-history?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`
+            : `/v1/admin/earning/get-all-earnings-history?month=${month}&search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`;
         const response = await apiClient.get(endpoint);
         console.log('Fetched earnings:', response.data); // Debug log
         setEarnings(response.data.data);
-        console.log(response.data.data, "Earnings Data");
         setTotalItems(response.data.total || 0);
         setSummary(response.data.summary);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Fetch earnings error:', err);
-        setError(err.response?.data?.message || 'Failed to fetch earnings data');
-        toast.error(err.response?.data?.message || 'Failed to fetch earnings data', {
+        let errorMessage = 'Failed to fetch earnings data';
+        if (err instanceof Error && 'response' in err) {
+          // Type guard for custom apiClient error with response
+          const apiError = err as { response?: { data?: ApiErrorResponse } };
+          errorMessage = apiError.response?.data?.message || errorMessage;
+        } else if (err instanceof Error) {
+          // Handle standard Error objects
+          errorMessage = err.message;
+        }
+        setError(errorMessage);
+        toast.error(errorMessage, {
           style: {
             background: '#622A39',
             color: 'hsl(42, 51%, 91%)',
@@ -110,9 +164,32 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
       } finally {
         setLoading(false);
       }
+    },
+    [] // Empty dependency array since apiClient and toast are assumed to be stable
+  );
+
+  // Create debounced version of fetchEarnings
+  const debouncedFetchEarnings = useCallback(
+    debounce((search, month, page, limit) => {
+      fetchEarnings(search, month, page, limit);
+    }, 500), // 500ms debounce delay
+    [fetchEarnings]
+  );
+
+  // Effect to handle fetching earnings
+  useEffect(() => {
+    debouncedFetchEarnings(searchTerm, selectedMonth, currentPage, itemsPerPage);
+
+    // Focus the search input if it's not already focused
+    if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+
+    // Cleanup to cancel debounce on unmount
+    return () => {
+      debouncedFetchEarnings.cancel();
     };
-    fetchEarnings();
-  }, [selectedMonth, searchTerm, currentPage, itemsPerPage]);
+  }, [searchTerm, selectedMonth, currentPage, itemsPerPage, debouncedFetchEarnings]);
 
   const handleDownloadAll = async () => {
     try {
@@ -230,6 +307,7 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
             <div className="relative">
               <input
                 type="text"
+                ref={searchInputRef}
                 placeholder="Search by customer, driver name, ride ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -332,10 +410,11 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
                   </TableCell>
                 </TableRow>
               ) : (
-                earnings.map((earning,index) => (
+                earnings.map((earning, index) => (
                   <TableRow key={earning.id}>
                     <TableCell> {(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                    <TableCell>{earning.ride_id.slice(0, 8)}</TableCell>
+                    {/* <TableCell>{earning.ride_id.slice(0, 8)}</TableCell> */}
+                    <TableCell>{earning.Ride?.ride_code}</TableCell>
                     <TableCell>{earning.Ride?.driver_name || 'N/A'}</TableCell> {/* Added driver_name */}
                     <TableCell>
                       <div>

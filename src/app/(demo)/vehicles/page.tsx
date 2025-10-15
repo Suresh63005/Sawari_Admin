@@ -128,14 +128,14 @@ export default function VehicleApproval() {
                   status === "all"
                     ? undefined
                     : status === "pending"
-                    ? "inactive"
-                    : status,
+                      ? "inactive"
+                      : status,
                 is_approved:
                   status === "pending"
                     ? false
                     : status === "approved"
-                    ? true
-                    : undefined
+                      ? true
+                      : undefined
               }
             });
             console.log("All Vehicles Response:", response.data);
@@ -398,13 +398,12 @@ export default function VehicleApproval() {
     } catch (err: any) {
       toast.error(
         err.response?.data?.message ||
-          `Failed to ${action.split("-")[0]} ${
-            action.includes("rc")
-              ? "RC document"
-              : action.includes("insurance")
-              ? "insurance document"
-              : "vehicle"
-          }`,
+        `Failed to ${action.split("-")[0]} ${action.includes("rc")
+          ? "RC document"
+          : action.includes("insurance")
+            ? "insurance document"
+            : "vehicle"
+        }`,
         {
           style: {
             background: "card",
@@ -760,46 +759,46 @@ export default function VehicleApproval() {
                                                 className="w-[400px] h-[250px] object-contain rounded cursor-pointer"
                                                 onClick={() =>
                                                   handleImageClick(
-                                                    selectedVehicle.rc_doc
+                                                    selectedVehicle.rc_doc_back
                                                   )
                                                 }
                                               />
                                             </div>
                                             {selectedVehicle.rc_doc_status ===
                                               "pending" && (
-                                              <div className="flex justify-end space-x-2 mt-4">
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() =>
-                                                    setConfirmDialog({
-                                                      open: true,
-                                                      action: "rc-verify",
-                                                      vehicleId:
-                                                        selectedVehicle.id
-                                                    })
-                                                  }
-                                                  className="text-green-600 hover:text-green-700"
-                                                >
-                                                  Verify
-                                                </Button>
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() =>
-                                                    setConfirmDialog({
-                                                      open: true,
-                                                      action: "rc-reject",
-                                                      vehicleId:
-                                                        selectedVehicle.id
-                                                    })
-                                                  }
-                                                  className="text-card bg-primary"
-                                                >
-                                                  Reject
-                                                </Button>
-                                              </div>
-                                            )}
+                                                <div className="flex justify-end space-x-2 mt-4">
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                      setConfirmDialog({
+                                                        open: true,
+                                                        action: "rc-verify",
+                                                        vehicleId:
+                                                          selectedVehicle.id
+                                                      })
+                                                    }
+                                                    className="text-green-600 hover:text-green-700"
+                                                  >
+                                                    Verify
+                                                  </Button>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                      setConfirmDialog({
+                                                        open: true,
+                                                        action: "rc-reject",
+                                                        vehicleId:
+                                                          selectedVehicle.id
+                                                      })
+                                                    }
+                                                    className="text-card bg-primary"
+                                                  >
+                                                    Reject
+                                                  </Button>
+                                                </div>
+                                              )}
                                           </DialogContent>
                                         </Dialog>
                                         <div className="flex items-center space-x-2">
@@ -828,7 +827,7 @@ export default function VehicleApproval() {
                                             </DialogHeader>
                                             <div>
                                             </div>
-                                              <img
+                                            <img
                                               src={
                                                 selectedVehicle.insurance_doc
                                               }
@@ -842,41 +841,41 @@ export default function VehicleApproval() {
                                             />
                                             {selectedVehicle.insurance_doc_status ===
                                               "pending" && (
-                                              <div className="flex justify-end space-x-2 mt-4">
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() =>
-                                                    setConfirmDialog({
-                                                      open: true,
-                                                      action:
-                                                        "insurance-verify",
-                                                      vehicleId:
-                                                        selectedVehicle.id
-                                                    })
-                                                  }
-                                                  className="text-green-600 hover:text-green-700"
-                                                >
-                                                  Verify
-                                                </Button>
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() =>
-                                                    setConfirmDialog({
-                                                      open: true,
-                                                      action:
-                                                        "insurance-reject",
-                                                      vehicleId:
-                                                        selectedVehicle.id
-                                                    })
-                                                  }
-                                                  className="text-red-600 hover:text-red-700"
-                                                >
-                                                  Reject
-                                                </Button>
-                                              </div>
-                                            )}
+                                                <div className="flex justify-end space-x-2 mt-4">
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                      setConfirmDialog({
+                                                        open: true,
+                                                        action:
+                                                          "insurance-verify",
+                                                        vehicleId:
+                                                          selectedVehicle.id
+                                                      })
+                                                    }
+                                                    className="text-green-600 hover:text-green-700"
+                                                  >
+                                                    Verify
+                                                  </Button>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                      setConfirmDialog({
+                                                        open: true,
+                                                        action:
+                                                          "insurance-reject",
+                                                        vehicleId:
+                                                          selectedVehicle.id
+                                                      })
+                                                    }
+                                                    className="text-red-600 hover:text-red-700"
+                                                  >
+                                                    Reject
+                                                  </Button>
+                                                </div>
+                                              )}
                                           </DialogContent>
                                         </Dialog>
                                         <div className="space-y-2">
@@ -886,7 +885,7 @@ export default function VehicleApproval() {
                                           {Array.isArray(
                                             selectedVehicle.car_photos
                                           ) &&
-                                          selectedVehicle.car_photos.length >
+                                            selectedVehicle.car_photos.length >
                                             0 ? (
                                             <div className="grid grid-cols-3 gap-2">
                                               {selectedVehicle.car_photos.map(
@@ -894,9 +893,8 @@ export default function VehicleApproval() {
                                                   <img
                                                     key={index}
                                                     src={photo}
-                                                    alt={`Vehicle Photo ${
-                                                      index + 1
-                                                    }`}
+                                                    alt={`Vehicle Photo ${index + 1
+                                                      }`}
                                                     className="w-full h-32 object-fill rounded cursor-pointer"
                                                     onClick={() =>
                                                       handleImageClick(photo)
@@ -1105,45 +1103,43 @@ export default function VehicleApproval() {
               {confirmDialog.action.includes("verify")
                 ? "Confirm Verification"
                 : confirmDialog.action.includes("reject")
-                ? "Confirm Rejection"
-                : confirmDialog.action === "approve"
-                ? "Confirm Approval"
-                : "Confirm Rejection"}
+                  ? "Confirm Rejection"
+                  : confirmDialog.action === "approve"
+                    ? "Confirm Approval"
+                    : "Confirm Rejection"}
             </DialogTitle>
             <DialogDescription>
               {confirmDialog.action.includes("verify")
-                ? `Are you sure you want to verify the ${
-                    confirmDialog.action.includes("rc") ? "RC" : "insurance"
-                  } document?`
+                ? `Are you sure you want to verify the ${confirmDialog.action.includes("rc") ? "RC" : "insurance"
+                } document?`
                 : confirmDialog.action === "reject" ||
                   confirmDialog.action.includes("rc-reject") ||
                   confirmDialog.action.includes("insurance-reject")
-                ? `Please provide a reason for rejecting the ${
-                    confirmDialog.action.includes("rc")
-                      ? "RC document"
-                      : confirmDialog.action.includes("insurance")
+                  ? `Please provide a reason for rejecting the ${confirmDialog.action.includes("rc")
+                    ? "RC document"
+                    : confirmDialog.action.includes("insurance")
                       ? "insurance document"
                       : "vehicle"
                   }.`
-                : confirmDialog.action === "approve"
-                ? "Are you sure you want to approve this vehicle?"
-                : "Are you sure you want to reject this vehicle?"}
+                  : confirmDialog.action === "approve"
+                    ? "Are you sure you want to approve this vehicle?"
+                    : "Are you sure you want to reject this vehicle?"}
             </DialogDescription>
           </DialogHeader>
           {(confirmDialog.action === "reject" ||
             confirmDialog.action.includes("rc-reject") ||
             confirmDialog.action.includes("insurance-reject")) && (
-            <div className="space-y-2">
-              <Label htmlFor="reject-reason">Rejection Reason</Label>
-              <Textarea
-                id="reject-reason"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Enter reason for rejection"
-                className="w-full bg-card"
-              />
-            </div>
-          )}
+              <div className="space-y-2">
+                <Label htmlFor="reject-reason">Rejection Reason</Label>
+                <Textarea
+                  id="reject-reason"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Enter reason for rejection"
+                  className="w-full bg-card"
+                />
+              </div>
+            )}
           <DialogFooter>
             <Button
               variant="outline"
@@ -1157,7 +1153,7 @@ export default function VehicleApproval() {
               className="bg-primary text-card"
               variant={
                 confirmDialog.action.includes("verify") ||
-                confirmDialog.action === "approve"
+                  confirmDialog.action === "approve"
                   ? "default"
                   : "destructive"
               }
@@ -1174,10 +1170,10 @@ export default function VehicleApproval() {
               {confirmDialog.action.includes("verify")
                 ? "Verify"
                 : confirmDialog.action.includes("reject")
-                ? "Reject"
-                : confirmDialog.action === "approve"
-                ? "Approve"
-                : "Reject"}
+                  ? "Reject"
+                  : confirmDialog.action === "approve"
+                    ? "Approve"
+                    : "Reject"}
             </Button>
           </DialogFooter>
         </DialogContent>

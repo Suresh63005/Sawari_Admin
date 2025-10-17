@@ -41,7 +41,10 @@ interface VerifiedBy {
 interface Vehicle {
   id: string;
   driver_id: string;
-  driver_name: string;
+  driver: {
+    id: string;
+    name: string;
+  };
   car_model: string;
   car_brand: string;
   license_plate: string;
@@ -598,7 +601,7 @@ export default function VehicleApproval() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{vehicle.driver_name}</TableCell>
+                    <TableCell>{vehicle.driver.name}</TableCell>
                     <TableCell>{vehicle.license_plate}</TableCell>
                     <TableCell>{getStatusBadge(vehicle)}</TableCell>
                     <TableCell>

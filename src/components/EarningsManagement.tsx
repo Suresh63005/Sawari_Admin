@@ -261,6 +261,17 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
       setCurrentPage(pageNumber);
     }
   };
+const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
 
   // Permission check
   if (!currentUser.permissions?.earnings) {
@@ -436,15 +447,15 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
                       </div>
                     </TableCell>
                     <TableCell>
-                      {earning.Ride?.pickup_time ? new Date(earning.Ride.pickup_time).toLocaleString() : 'N/A'}
+                      {earning.Ride?.pickup_time ? formatDate(earning.Ride.pickup_time) : 'N/A'}
                     </TableCell>
                     <TableCell>
-                      {earning.Ride?.dropoff_time ? new Date(earning.Ride.dropoff_time).toLocaleString() : 'N/A'}
+                      {earning.Ride?.dropoff_time ? formatDate(earning.Ride.dropoff_time) : 'N/A'}
                     </TableCell>
                     <TableCell>{earning.Ride?.rider_hours || 'N/A'}</TableCell>
                     <TableCell>{earning.Ride?.Price ? parseFloat(earning.Ride.Price).toLocaleString() : 'N/A'}</TableCell>
                     <TableCell>{earning.Ride?.Total ? parseFloat(earning.Ride.Total).toLocaleString() : 'N/A'}</TableCell>
-                    <TableCell>{new Date(earning.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDate(earning.createdAt)}</TableCell>
                     <TableCell>
                       <Button
                         variant="outline"

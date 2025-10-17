@@ -820,7 +820,7 @@ export default function VehicleApproval() {
                                           open={insuranceModalOpen}
                                           onOpenChange={setInsuranceModalOpen}
                                         >
-                                          <DialogContent className="max-w-4xl">
+                                          <DialogContent className="w-fit">
                                             <DialogHeader>
                                               <DialogTitle>
                                                 Insurance Document
@@ -888,7 +888,7 @@ export default function VehicleApproval() {
                                           ) &&
                                           selectedVehicle.car_photos.length >
                                             0 ? (
-                                            <div className="grid grid-cols-3 gap-2">
+                                            <div className="grid grid-cols-5 gap-2">
                                               {selectedVehicle.car_photos.map(
                                                 (photo, index) => (
                                                   <img

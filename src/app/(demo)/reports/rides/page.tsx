@@ -306,7 +306,7 @@ const formatDateTime = (dateStr: string | null) => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Rides ({rides.length})</CardTitle>
+          <CardTitle>Rides ({totalItems})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>

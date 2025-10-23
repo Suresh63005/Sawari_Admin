@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -158,15 +159,31 @@ interface RideSummary {
   cancelled: number;
   totalRevenue: number;
 }
-
+interface FormErrors {
+  customer_name?: string;
+  phone?: string;
+  email?: string;
+  pickup_address?: string;
+  drop_address?: string;
+  pickup_location?: string; // String for error message
+  drop_location?: string; // String for error message
+  package_id?: string;
+  subpackage_id?: string;
+  car_id?: string;
+  scheduled_time?: string;
+  notes?: string;
+  Price?: string;
+  Total?: string;
+  rider_hours?: string;
+}
 interface FormData {
   customer_name: string;
   phone: string;
   email: string;
   pickup_address: string;
   drop_address: string;
-  pickup_location: string;
-  drop_location: string;
+ pickup_location: { lat: string; lng: string };
+  drop_location: { lat: string; lng: string };
   package_id: string;
   subpackage_id: string;
   car_id: string;
@@ -210,8 +227,8 @@ const Rides: React.FC = () => {
     email: "",
     pickup_address: "",
     drop_address: "",
-    pickup_location: "",
-    drop_location: "",
+   pickup_location: { lat: "", lng: "" },
+  drop_location: { lat: "", lng: "" },
     package_id: "",
     subpackage_id: "",
     car_id: "",
@@ -233,12 +250,14 @@ const Rides: React.FC = () => {
     baseFare: false,
   });
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [errors, setErrors] = useState<Partial<FormData>>({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [rideToCancel, setRideToCancel] = useState<any | null>(null);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Check if selected sub-package is 1-hour
   const isOneHourSubPackage = useMemo(() => {
@@ -247,18 +266,36 @@ const Rides: React.FC = () => {
   }, [subPackages, formData.subpackage_id]);
 
   const validateForm = useCallback(() => {
-    const newErrors: Partial<FormData> = {};
-    if (!formData.customer_name) newErrors.customer_name = "Customer name is required";
-    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
-      newErrors.email = "Valid email is required";
-    if (!formData.pickup_location) newErrors.pickup_location = "Pickup location is required";
-    if (!formData.drop_location) newErrors.drop_location = "Drop location is required";
-    if (!formData.package_id) newErrors.package_id = "Package is required";
-    if (!formData.subpackage_id) newErrors.subpackage_id = "Sub-package is required";
-    if (!formData.car_id) newErrors.car_id = "Car is required";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  const newErrors: FormErrors = {};
+  if (!formData.customer_name) newErrors.customer_name = "Customer name is required";
+  if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
+    newErrors.email = "Valid email is required";
+  // Only validate pickup_location if both lat and lng are empty or invalid
+  if (
+  !formData.pickup_location ||
+  !formData.pickup_location.lat ||
+  !formData.pickup_location.lng ||
+  formData.pickup_location.lat.trim() === "" ||
+  formData.pickup_location.lng.trim() === ""
+) {
+  newErrors.pickup_location = "Pickup location is required";
+}
+
+if (
+  !formData.drop_location ||
+  !formData.drop_location.lat ||
+  !formData.drop_location.lng ||
+  formData.drop_location.lat.trim() === "" ||
+  formData.drop_location.lng.trim() === ""
+) {
+  newErrors.drop_location = "Drop location is required";
+}
+  if (!formData.package_id) newErrors.package_id = "Package is required";
+  if (!formData.subpackage_id) newErrors.subpackage_id = "Sub-package is required";
+  if (!formData.car_id) newErrors.car_id = "Car is required";
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+}, [formData]);
 
   // Format database date (YYYY-MM-DD hh:mm:ss) for datetime-local input (YYYY-MM-DDThh:mm)
  // Remove these functions
@@ -271,14 +308,21 @@ const formatDateForInput = (dateString: string | null): string => {
   }
 };
 
-const formatDateForDisplay = (dateString: string | null): string => {
-  if (!dateString) return "";
+const formatDateTime = (dateString: string | null): string => {
+  if (!dateString) return "-";
   try {
-    const [datePart, timePart] = dateString.split(" ");
-    const [year, month, day] = datePart.split("-");
-    return `${day}-${month}-${year} ${timePart}`;
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "-";
+    return date.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).replace(",", "");
   } catch {
-    return "";
+    return "-";
   }
 };
 
@@ -511,6 +555,30 @@ const formatDateForDisplay = (dateString: string | null): string => {
     debouncedFetchRides(searchTerm, statusFilter, currentPage, itemsPerPage);
     return () => debouncedFetchRides.cancel();
   }, [searchTerm, statusFilter, currentPage, itemsPerPage, debouncedFetchRides]);
+  useEffect(() => {
+  if (formData.pickup_location.lat && formData.pickup_location.lng) {
+    setPickupCoords({
+      lat: parseFloat(formData.pickup_location.lat),
+      lng: parseFloat(formData.pickup_location.lng),
+    });
+  }
+  if (formData.drop_location.lat && formData.drop_location.lng) {
+    setDropCoords({
+      lat: parseFloat(formData.drop_location.lat),
+      lng: parseFloat(formData.drop_location.lng),
+    });
+  }
+}, [formData.pickup_location, formData.drop_location]);
+
+useEffect(() => {
+    const queryStatus = searchParams.get("status");
+    if (queryStatus && ["all", "pending", "accepted", "on-route", "completed", "cancelled"].includes(queryStatus)) {
+      setStatusFilter(queryStatus);
+      setCurrentPage(1); // Reset to page 1 when status filter changes
+    } else {
+      setStatusFilter("all"); // Default to "all" if invalid or no status
+    }
+  }, [searchParams]);
 
   // Pagination calculations
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -542,8 +610,8 @@ const formatDateForDisplay = (dateString: string | null): string => {
         email: "",
         pickup_address: "",
         drop_address: "",
-        pickup_location: "",
-        drop_location: "",
+        pickup_location: { lat: "", lng: "" },
+        drop_location: { lat: "", lng: "" },
         package_id: "",
         subpackage_id: "",
         car_id: "",
@@ -569,8 +637,8 @@ const formatDateForDisplay = (dateString: string | null): string => {
         email: "",
         pickup_address: "",
         drop_address: "",
-        pickup_location: "",
-        drop_location: "",
+        pickup_location: { lat: "", lng: "" },
+        drop_location: { lat: "", lng: "" },
         package_id: "",
         subpackage_id: "",
         car_id: "",
@@ -586,7 +654,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
     }
   }, []);
 
-  const handleCreateRide = useCallback(async () => {
+const handleCreateRide = useCallback(async () => {
   console.log("handleCreateRide triggered with formData:", formData);
   setIsSubmitting(true);
 
@@ -635,11 +703,9 @@ const formatDateForDisplay = (dateString: string | null): string => {
   // Format scheduled_time as YYYY-MM-DDThh:mm:ss
   let scheduledTime = formData.scheduled_time;
   if (scheduledTime) {
-    // Ensure format is YYYY-MM-DDThh:mm:ss (append :00 for seconds if needed)
     if (scheduledTime.length === 16) {
       scheduledTime = `${scheduledTime}:00`;
     }
-    // Validate format
     const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
     if (!regex.test(scheduledTime)) {
       toast.error("Invalid scheduled time format", {
@@ -657,13 +723,17 @@ const formatDateForDisplay = (dateString: string | null): string => {
   try {
     console.log("Sending create ride request:", {
       ...formData,
+      pickup_location: JSON.stringify(formData.pickup_location),
+      drop_location: JSON.stringify(formData.drop_location),
       status: "pending",
       payment_status: "pending",
-      accept_time: new Date().toISOString().replace(/Z$/, "").slice(0, 19), // YYYY-MM-DDThh:mm:ss
+      accept_time: new Date().toISOString().replace(/Z$/, "").slice(0, 19),
       scheduled_time: scheduledTime,
     });
     const response = await apiClient.post("/v1/admin/ride", {
       ...formData,
+      pickup_location: JSON.stringify(formData.pickup_location),
+      drop_location: JSON.stringify(formData.drop_location),
       status: "pending",
       payment_status: "pending",
       accept_time: new Date().toISOString().replace(/Z$/, "").slice(0, 19),
@@ -693,7 +763,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
   }
 }, [formData, searchTerm, statusFilter, handleCreateModalOpenChange, debouncedFetchRides, validateForm]);
 
-  const handleEditRide = useCallback(async () => {
+const handleEditRide = useCallback(async () => {
   if (!selectedRide) return;
 
   if (!validateForm()) {
@@ -707,14 +777,11 @@ const formatDateForDisplay = (dateString: string | null): string => {
     return;
   }
 
-  // Format scheduled_time as YYYY-MM-DDThh:mm:ss
   let scheduledTime = formData.scheduled_time;
   if (scheduledTime) {
-    // Ensure format is YYYY-MM-DDThh:mm:ss (append :00 for seconds if needed)
     if (scheduledTime.length === 16) {
       scheduledTime = `${scheduledTime}:00`;
     }
-    // Validate format
     const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
     if (!regex.test(scheduledTime)) {
       toast.error("Invalid scheduled time format", {
@@ -732,6 +799,8 @@ const formatDateForDisplay = (dateString: string | null): string => {
   try {
     const response = await apiClient.put(`/v1/admin/ride/${selectedRide.id}`, {
       ...formData,
+      pickup_location: JSON.stringify(formData.pickup_location),
+      drop_location: JSON.stringify(formData.drop_location),
       accept_time: selectedRide.accept_time,
       scheduled_time: scheduledTime,
     });
@@ -759,7 +828,24 @@ const formatDateForDisplay = (dateString: string | null): string => {
   }
 }, [selectedRide, formData, searchTerm, statusFilter, handleEditModalOpenChange, debouncedFetchRides, validateForm]);
 
-  const openEditModal = useCallback((ride: Ride) => {
+ const openEditModal = useCallback((ride: Ride) => {
+  let pickupLocation = { lat: "", lng: "" };
+  let dropLocation = { lat: "", lng: "" };
+
+  try {
+    pickupLocation = JSON.parse(ride.pickup_location);
+  } catch {
+    const [lat, lng] = ride.pickup_location.split(",");
+    pickupLocation = { lat: lat || "", lng: lng || "" };
+  }
+
+  try {
+    dropLocation = JSON.parse(ride.drop_location);
+  } catch {
+    const [lat, lng] = ride.drop_location.split(",");
+    dropLocation = { lat: lat || "", lng: lng || "" };
+  }
+
   setSelectedRide(ride);
   setFormData({
     customer_name: ride.customer_name,
@@ -767,12 +853,12 @@ const formatDateForDisplay = (dateString: string | null): string => {
     email: ride.email || "",
     pickup_address: ride.pickup_address || "",
     drop_address: ride.drop_address || "",
-    pickup_location: ride.pickup_location,
-    drop_location: ride.drop_location,
+    pickup_location: pickupLocation,
+    drop_location: dropLocation,
     package_id: ride.package_id,
     subpackage_id: ride.subpackage_id,
     car_id: ride.car_id,
-    scheduled_time: ride.scheduled_time || "", // Use raw database string
+    scheduled_time: ride.scheduled_time || "",
     notes: ride.notes || "",
     Price: ride.Price,
     Total: ride.Total,
@@ -814,47 +900,47 @@ const formatDateForDisplay = (dateString: string | null): string => {
 
 
   const handleSelectPickup = useCallback(async (address: string) => {
-    try {
-      const results = await geocodeByAddress(address);
-      const latLng = await getLatLng(results[0]);
-      setFormData((prev) => ({
-        ...prev,
-        pickup_address: address,
-        pickup_location: `${latLng.lat},${latLng.lng}`,
-      }));
-      setPickupCoords(latLng);
-    } catch (error) {
-      console.error("Error selecting pickup address:", error);
-      toast.error("Failed to geocode pickup address", {
-        style: {
-          background: "#622A39",
-          color: "hsl(42, 51%, 91%)",
-        },
-      });
-    }
-  }, []);
+  try {
+    const results = await geocodeByAddress(address);
+    const latLng = await getLatLng(results[0]);
+    setFormData((prev) => ({
+      ...prev,
+      pickup_address: address,
+      pickup_location: { lat: latLng.lat.toString(), lng: latLng.lng.toString() },
+    }));
+    setPickupCoords(latLng);
+  } catch (error) {
+    console.error("Error selecting pickup address:", error);
+    toast.error("Failed to geocode pickup address", {
+      style: {
+        background: "#622A39",
+        color: "hsl(42, 51%, 91%)",
+      },
+    });
+  }
+}, []);
 
-  // Handler for selecting drop address
-  const handleSelectDrop = useCallback(async (address: string) => {
-    try {
-      const results = await geocodeByAddress(address);
-      const latLng = await getLatLng(results[0]);
-      setFormData((prev) => ({
-        ...prev,
-        drop_address: address,
-        drop_location: `${latLng.lat},${latLng.lng}`,
-      }));
-      setDropCoords(latLng);
-    } catch (error) {
-      console.error("Error selecting drop address:", error);
-      toast.error("Failed to geocode drop address", {
-        style: {
-          background: "#622A39",
-          color: "hsl(42, 51%, 91%)",
-        },
-      });
-    }
-  }, []);
+const handleSelectDrop = useCallback(async (address: string) => {
+  try {
+    const results = await geocodeByAddress(address);
+    const latLng = await getLatLng(results[0]);
+    setFormData((prev) => ({
+      ...prev,
+      drop_address: address,
+      drop_location: { lat: latLng.lat.toString(), lng: latLng.lng.toString() },
+    }));
+    setDropCoords(latLng);
+  } catch (error) {
+    console.error("Error selecting drop address:", error);
+    toast.error("Failed to geocode drop address", {
+      style: {
+        background: "#622A39",
+        color: "hsl(42, 51%, 91%)",
+      },
+    });
+  }
+}, []);
+
   const getStatusBadge = useCallback((status: string) => {
     type BadgeConfig = {
       variant: "default" | "secondary";
@@ -1030,123 +1116,158 @@ const formatDateForDisplay = (dateString: string | null): string => {
                 {errors.car_id && <p className="text-red-500 text-sm mt-1">{errors.car_id}</p>}
               </div>
               <div>
-                <Label>
-                  Pickup Address <span className="text-red-500">*</span>
-                </Label>
-                <PlacesAutocomplete
-                  value={formData.pickup_address}
-                  onChange={(value: string) => setFormData((prev) => ({ ...prev, pickup_address: value }))}
-                  onSelect={handleSelectPickup}
-                >
-                  {({ getInputProps, suggestions, getSuggestionItemProps, loading }: PlacesAutocompleteProps) => (
-                    <div className="relative">
-                      <Input
-                        {...getInputProps({
-                          placeholder: "Enter pickup address",
-                          className: "w-full p-2 border rounded bg-[#FFF8EC]",
-                          onFocus: () => setIsPickupFocused(true),
-                          onBlur: () => setTimeout(() => setIsPickupFocused(false), 200),
-                        })}
-                      />
-                      <div className="absolute z-10 w-full bg-white border rounded mt-1">
-                        {loading && <div>Loading...</div>}
-                        {suggestions.map((suggestion) => (
-                          <div
-                            {...getSuggestionItemProps(suggestion, {
-                              className: `p-2 cursor-pointer ${suggestion.active ? "bg-gray-100" : ""}`,
-                            })}
-                            key={suggestion.placeId}
-                          >
-                            {suggestion.description}
-                          </div>
-                        ))}
-                      </div>
+              <Label>
+                Pickup Address <span className="text-red-500">*</span>
+              </Label>
+              <PlacesAutocomplete
+                value={formData.pickup_address}
+                onChange={(value: string) => setFormData((prev) => ({ ...prev, pickup_address: value }))}
+                onSelect={handleSelectPickup}
+              >
+                {({ getInputProps, suggestions, getSuggestionItemProps, loading }: PlacesAutocompleteProps) => (
+                  <div className="relative">
+                    <Input
+                      {...getInputProps({
+                        placeholder: "Enter pickup address",
+                        className: "w-full p-2 border rounded bg-[#FFF8EC]",
+                        onFocus: () => setIsPickupFocused(true),
+                        onBlur: () => setTimeout(() => setIsPickupFocused(false), 200),
+                      })}
+                    />
+                    <div className="absolute z-10 w-full bg-white border rounded mt-1">
+                      {loading && <div>Loading...</div>}
+                      {suggestions.map((suggestion) => (
+                        <div
+                          {...getSuggestionItemProps(suggestion, {
+                            className: `p-2 cursor-pointer ${suggestion.active ? "bg-gray-100" : ""}`,
+                          })}
+                          key={suggestion.placeId}
+                        >
+                          {suggestion.description}
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </PlacesAutocomplete>
-                {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
-              </div>
+                  </div>
+                )}
+              </PlacesAutocomplete>
+              {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
+            </div>
+
               <div>
-                <Label>
-                  Drop Address <span className="text-red-500">*</span>
-                </Label>
-                <PlacesAutocomplete
-                  value={formData.drop_address}
-                  onChange={(value: string) => setFormData((prev) => ({ ...prev, drop_address: value }))}
-                  onSelect={handleSelectDrop}
-                >
-                  {({ getInputProps, suggestions, getSuggestionItemProps, loading }: PlacesAutocompleteProps) => (
-                    <div className="relative">
-                      <Input
-                        {...getInputProps({
-                          placeholder: "Enter drop address",
-                          className: "w-full p-2 border rounded bg-[#FFF8EC]",
-                          onFocus: () => setIsDropFocused(true),
-                          onBlur: () => setTimeout(() => setIsDropFocused(false), 200),
-                        })}
-                      />
-                      <div className="absolute z-10 w-full bg-white border rounded mt-1">
-                        {loading && <div>Loading...</div>}
-                        {suggestions.map((suggestion) => (
-                          <div
-                            {...getSuggestionItemProps(suggestion, {
-                              className: `p-2 cursor-pointer ${suggestion.active ? "bg-gray-100" : ""}`,
-                            })}
-                            key={suggestion.placeId}
-                          >
-                            {suggestion.description}
-                          </div>
-                        ))}
-                      </div>
+              <Label>
+                Drop Address <span className="text-red-500">*</span>
+              </Label>
+              <PlacesAutocomplete
+                value={formData.drop_address}
+                onChange={(value: string) => setFormData((prev) => ({ ...prev, drop_address: value }))}
+                onSelect={handleSelectDrop}
+              >
+                {({ getInputProps, suggestions, getSuggestionItemProps, loading }: PlacesAutocompleteProps) => (
+                  <div className="relative">
+                    <Input
+                      {...getInputProps({
+                        placeholder: "Enter drop address",
+                        className: "w-full p-2 border rounded bg-[#FFF8EC]",
+                        onFocus: () => setIsDropFocused(true),
+                        onBlur: () => setTimeout(() => setIsDropFocused(false), 200),
+                      })}
+                    />
+                    <div className="absolute z-10 w-full bg-white border rounded mt-1">
+                      {loading && <div>Loading...</div>}
+                      {suggestions.map((suggestion) => (
+                        <div
+                          {...getSuggestionItemProps(suggestion, {
+                            className: `p-2 cursor-pointer ${suggestion.active ? "bg-gray-100" : ""}`,
+                          })}
+                          key={suggestion.placeId}
+                        >
+                          {suggestion.description}
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </PlacesAutocomplete>
-                {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
-              </div>
+                  </div>
+                )}
+              </PlacesAutocomplete>
+              {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
+            </div>
+    <div>
+              <Label>
+                Pickup Location <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                value={JSON.stringify(formData.pickup_location)}
+                placeholder='{"lat":","lng":"}'
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  try {
+                    const parsed = JSON.parse(e.target.value);
+                    if (parsed.lat && parsed.lng) {
+                      setFormData((prev) => ({ ...prev, pickup_location: parsed }));
+                    }
+                  } catch {
+                    // Ignore invalid JSON
+                  }
+                }}
+                onFocus={() => setIsPickupFocused(true)}
+                onBlur={() => setTimeout(() => setIsPickupFocused(false), 200)}
+              />
+              {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
+            </div>
+<div>
+              <Label>
+                Drop Location <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                value={JSON.stringify(formData.drop_location)}
+                placeholder='{"lat":"25.213243382398073","lng":"55.27104936540127"}'
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  try {
+                    const parsed = JSON.parse(e.target.value);
+                    if (parsed.lat && parsed.lng) {
+                      setFormData((prev) => ({ ...prev, drop_location: parsed }));
+                    }
+                  } catch {
+                    // Ignore invalid JSON
+                  }
+                }}
+                onFocus={() => setIsDropFocused(true)}
+                onBlur={() => setTimeout(() => setIsDropFocused(false), 200)}
+              />
+              {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
+            </div>
               <div>
-                <Label>
-                  Pickup Location <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  value={formData.pickup_location}
-                  placeholder="Enter Latitude and longitude"
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, pickup_location: e.target.value }))}
-                  onFocus={() => setIsPickupFocused(true)}
-                  onBlur={() => setTimeout(() => setIsPickupFocused(false), 200)}
-                />
-                {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
-              </div>
-              <div>
-                <Label>
-                  Drop Location <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  value={formData.drop_location}
-                  placeholder="Enter Latitude and longitude"
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, drop_location: e.target.value }))}
-                  onFocus={() => setIsDropFocused(true)}
-                  onBlur={() => setTimeout(() => setIsDropFocused(false), 200)}
-                />
-                {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
-              </div>
-              <div>
-                <Label>
-                  Scheduled Time <span className="text-red-500">*</span>
-                </Label>
-                <input
-                  type="datetime-local"
-                  className="w-full border rounded p-1 bg-[#FFF8EC]"
-                  value={formData.scheduled_time}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, scheduled_time: e.target.value }))}
-                  min={new Date().toISOString().slice(0, 16)}
-                />
-              </div>
+  <Label>
+    Scheduled Time <span className="text-red-500">*</span>
+  </Label>
+  <input
+    type="datetime-local"
+    className="w-full border rounded p-2 bg-[#FFF8EC] text-sm"
+    value={formData.scheduled_time}
+    onChange={(e) => {
+      const selected = e.target.value;
+      const now = new Date();
+      const selectedDate = new Date(selected);
+
+      // Prevent past selection
+      if (selectedDate < now) {
+        toast.error("Scheduled time must be in the future", {
+          style: { background: "#622A39", color: "hsl(42, 51%, 91%)" },
+        });
+        return;
+      }
+
+      setFormData((prev) => ({ ...prev, scheduled_time: selected }));
+    }}
+    min={new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16)} // At least 1 min ahead
+    required
+  />
+  {errors.scheduled_time && <p className="text-red-500 text-sm mt-1">{errors.scheduled_time}</p>}
+</div>
               <div>
                 <Label>Price (AED)</Label>
                 <Input type="number" value={Number(formData.Price).toFixed(2)} disabled />
               </div>
               <div>
-                <Label>Tax (AED)</Label>
+                <Label>Admin Charges (AED)</Label>
                 <Input
                   type="number"
                   value={(() => {
@@ -1190,33 +1311,33 @@ const formatDateForDisplay = (dateString: string | null): string => {
             </div>
             {(isPickupFocused || isDropFocused) && (
               <div className="mt-4">
-                <Label>Map Preview</Label>
-                <GoogleMap
-                  mapContainerStyle={mapContainerStyle}
-                  center={pickupCoords || dropCoords || defaultCenter}
-                  zoom={12}
-                >
-                  {pickupCoords && (
-                    <Marker
-                      position={pickupCoords}
-                      label="P"
-                      icon={{
-                        url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                      }}
-                    />
-                  )}
-                  {dropCoords && (
-                    <Marker
-                      position={dropCoords}
-                      label="D"
-                      icon={{
-                        url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
-                      }}
-                    />
-                  )}
-                </GoogleMap>
-              </div>
-            )}
+              <Label>Map Preview</Label>
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={pickupCoords || dropCoords || defaultCenter}
+                zoom={12}
+              >
+                {pickupCoords && (
+                  <Marker
+                    position={pickupCoords}
+                    label="P"
+                    icon={{
+                      url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                    }}
+                  />
+                )}
+                {dropCoords && (
+                  <Marker
+                    position={dropCoords}
+                    label="D"
+                    icon={{
+                      url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                    }}
+                  />
+                )}
+              </GoogleMap>
+            </div>
+          )}
           </LoadScript>
         </div>
         <div>
@@ -1385,7 +1506,7 @@ const formatDateForDisplay = (dateString: string | null): string => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Rides ({rides.length})</CardTitle>
+          <CardTitle>Rides ({totalItems})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -1436,9 +1557,9 @@ const formatDateForDisplay = (dateString: string | null): string => {
         </TableCell>
         <TableCell>
           <div>
-            <p className="text-sm">{ride.scheduled_time || "-"}</p>
+            <p className="text-sm">{formatDateTime(ride.scheduled_time) || "-"}</p>
             <p className="text-sm text-muted-foreground">
-              {ride.ride_date ? ride.ride_date : "-"}
+              {ride.ride_date ? formatDateTime(ride.ride_date) : "-"}
             </p>
           </div>
         </TableCell>

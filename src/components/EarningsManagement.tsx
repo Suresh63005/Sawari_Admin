@@ -1,16 +1,29 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Shield, Download, Search } from 'lucide-react';
-import apiClient from '@/lib/apiClient';
-import toast from 'react-hot-toast';
-import { Admin } from './AdminManagement';
-import Loader from './ui/Loader';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "./ui/table";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "./ui/select";
+import { Shield, Download, Search } from "lucide-react";
+import apiClient from "@/lib/apiClient";
+import toast from "react-hot-toast";
+import { Admin } from "./AdminManagement";
+import Loader from "./ui/Loader";
 import { debounce } from "lodash";
 
 interface Earning {
@@ -21,7 +34,7 @@ interface Earning {
   commission: string;
   percentage: string;
   payment_method: string;
-  status: 'pending' | 'processed';
+  status: "pending" | "processed";
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -72,13 +85,15 @@ interface ApiErrorResponse {
   message: string;
 }
 
-export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentUser }) => {
+export const EarningsManagement: React.FC<EarningsManagementProps> = ({
+  currentUser
+}) => {
   const [earnings, setEarnings] = useState<Earning[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
   const [totalItems, setTotalItems] = useState<number>(0);
@@ -86,12 +101,21 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
 
   // Generate month options for the last 12 months
   const getMonthOptions = () => {
-    const options = [{ value: 'all', label: 'All Months' }];
+    const options = [{ value: "all", label: "All Months" }];
     const currentDate = new Date();
     for (let i = 0; i < 12; i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const label = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+      const date = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() - i,
+        1
+      );
+      const value = `${date.getFullYear()}-${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}`;
+      const label = date.toLocaleString("default", {
+        month: "long",
+        year: "numeric"
+      });
       options.push({ value, label });
     }
     return options;
@@ -127,7 +151,6 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
   //   fetchEarnings();
   // }, [selectedMonth, searchTerm, currentPage, itemsPerPage]);
 
-
   // Debounced fetchEarnings function
   const fetchEarnings = useCallback(
     async (search: string, month: string, page: number, limit: number) => {
@@ -135,18 +158,22 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
         setLoading(true);
         setError(null); // Clear previous errors
         const endpoint =
-          month === 'all'
-            ? `/v1/admin/earning/get-all-earnings-history?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`
-            : `/v1/admin/earning/get-all-earnings-history?month=${month}&search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`;
+          month === "all"
+            ? `/v1/admin/earning/get-all-earnings-history?search=${encodeURIComponent(
+                search
+              )}&page=${page}&limit=${limit}`
+            : `/v1/admin/earning/get-all-earnings-history?month=${month}&search=${encodeURIComponent(
+                search
+              )}&page=${page}&limit=${limit}`;
         const response = await apiClient.get(endpoint);
-        console.log('Fetched earnings:', response.data); // Debug log
+        console.log("Fetched earnings:", response.data); // Debug log
         setEarnings(response.data.data);
         setTotalItems(response.data.total || 0);
         setSummary(response.data.summary);
       } catch (err: unknown) {
-        console.error('Fetch earnings error:', err);
-        let errorMessage = 'Failed to fetch earnings data';
-        if (err instanceof Error && 'response' in err) {
+        console.error("Fetch earnings error:", err);
+        let errorMessage = "Failed to fetch earnings data";
+        if (err instanceof Error && "response" in err) {
           // Type guard for custom apiClient error with response
           const apiError = err as { response?: { data?: ApiErrorResponse } };
           errorMessage = apiError.response?.data?.message || errorMessage;
@@ -157,9 +184,9 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
         setError(errorMessage);
         toast.error(errorMessage, {
           style: {
-            background: '#622A39',
-            color: 'hsl(42, 51%, 91%)',
-          },
+            background: "#622A39",
+            color: "hsl(42, 51%, 91%)"
+          }
         });
       } finally {
         setLoading(false);
@@ -178,10 +205,18 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
 
   // Effect to handle fetching earnings
   useEffect(() => {
-    debouncedFetchEarnings(searchTerm, selectedMonth, currentPage, itemsPerPage);
+    debouncedFetchEarnings(
+      searchTerm,
+      selectedMonth,
+      currentPage,
+      itemsPerPage
+    );
 
     // Focus the search input if it's not already focused
-    if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
+    if (
+      searchInputRef.current &&
+      document.activeElement !== searchInputRef.current
+    ) {
       searchInputRef.current.focus();
     }
 
@@ -189,68 +224,89 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
     return () => {
       debouncedFetchEarnings.cancel();
     };
-  }, [searchTerm, selectedMonth, currentPage, itemsPerPage, debouncedFetchEarnings]);
+  }, [
+    searchTerm,
+    selectedMonth,
+    currentPage,
+    itemsPerPage,
+    debouncedFetchEarnings
+  ]);
 
   const handleDownloadAll = async () => {
     try {
       const endpoint =
-        selectedMonth === 'all'
-          ? `/v1/admin/earning/download-all?search=${encodeURIComponent(searchTerm)}`
-          : `/v1/admin/earning/download-all?month=${selectedMonth}&search=${encodeURIComponent(searchTerm)}`;
-      const response = await apiClient.get(endpoint, { responseType: 'blob' });
-      const filename = selectedMonth === 'all' ? 'All_Earnings.xlsx' : `Earnings_${selectedMonth}.xlsx`;
-      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const link = document.createElement('a');
+        selectedMonth === "all"
+          ? `/v1/admin/earning/download-all?search=${encodeURIComponent(
+              searchTerm
+            )}`
+          : `/v1/admin/earning/download-all?month=${selectedMonth}&search=${encodeURIComponent(
+              searchTerm
+            )}`;
+      const response = await apiClient.get(endpoint, { responseType: "blob" });
+      const filename =
+        selectedMonth === "all"
+          ? "All_Earnings.xlsx"
+          : `Earnings_${selectedMonth}.xlsx`;
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+      const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Earnings data downloaded successfully', {
+      toast.success("Earnings data downloaded successfully", {
         style: {
-          background: '#622A39',
-          color: 'hsl(42, 51%, 91%)',
-        },
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
       });
     } catch (err: any) {
-      console.error('Download error:', err);
-      toast.error('Failed to download earnings data', {
+      console.error("Download error:", err);
+      toast.error("Failed to download earnings data", {
         style: {
-          background: '#622A39',
-          color: 'hsl(42, 51%, 91%)',
-        },
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
       });
     }
   };
+  // Define pagination window (max 5 pages visible)
 
   const handleDownloadSingle = async (earning: Earning) => {
     try {
-      const response = await apiClient.get(`/v1/admin/earning/single-download/${earning.id}`, { responseType: 'blob' });
+      const response = await apiClient.get(
+        `/v1/admin/earning/single-download/${earning.id}`,
+        { responseType: "blob" }
+      );
       const filename = `earning_${earning.id}.xlsx`;
-      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const link = document.createElement('a');
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+      const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Earning record downloaded successfully', {
+      toast.success("Earning record downloaded successfully", {
         style: {
-          background: '#622A39',
-          color: 'hsl(42, 51%, 91%)',
-        },
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
       });
     } catch (err: any) {
-      console.error('Download error:', err);
-      toast.error('Failed to download earning record', {
+      console.error("Download error:", err);
+      toast.error("Failed to download earning record", {
         style: {
-          background: '#622A39',
-          color: 'hsl(42, 51%, 91%)',
-        },
+          background: "#622A39",
+          color: "hsl(42, 51%, 91%)"
+        }
       });
     }
   };
@@ -261,17 +317,29 @@ export const EarningsManagement: React.FC<EarningsManagementProps> = ({ currentU
       setCurrentPage(pageNumber);
     }
   };
-const formatDate = (dateString: string | null | undefined) => {
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
-
+ const getVisiblePages = useCallback((currentPage: number, totalPages: number): number[] => {
+  const maxVisiblePages = 5;
+  if (totalPages <= maxVisiblePages) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+  let endPage = startPage + maxVisiblePages - 1;
+  if (endPage > totalPages) {
+    endPage = totalPages;
+    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+  }
+  return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+}, []);
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  };
 
   // Permission check
   if (!currentUser.permissions?.earnings) {
@@ -279,8 +347,12 @@ const formatDate = (dateString: string | null | undefined) => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Shield className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-lg font-medium text-gray-900">Access Restricted</h3>
-          <p className="text-sm text-gray-500">You don&apos;t have permission to view earnings data.</p>
+          <h3 className="text-lg font-medium text-gray-900">
+            Access Restricted
+          </h3>
+          <p className="text-sm text-gray-500">
+            You don&apos;t have permission to view earnings data.
+          </p>
         </div>
       </div>
     );
@@ -297,11 +369,11 @@ const formatDate = (dateString: string | null | undefined) => {
     );
   }
 
-  const getStatusBadge = (status: 'pending' | 'processed') => {
+  const getStatusBadge = (status: "pending" | "processed") => {
     switch (status) {
-      case 'processed':
+      case "processed":
         return <Badge variant="default">Completed</Badge>;
-      case 'pending':
+      case "pending":
         return <Badge variant="secondary">Pending</Badge>;
       default:
         return <Badge variant="secondary">Pending</Badge>;
@@ -314,7 +386,9 @@ const formatDate = (dateString: string | null | undefined) => {
       <div className="bg-card p-4 rounded-lg border border-primary">
         <div className="flex items-center space-x-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-primary">Search</label>
+            <label className="block text-sm font-medium text-primary">
+              Search
+            </label>
             <div className="relative">
               <input
                 type="text"
@@ -361,7 +435,9 @@ const formatDate = (dateString: string | null | undefined) => {
             <CardTitle>Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">AED {summary?.processedTotal.toLocaleString() || '0'}</p>
+            <p className="text-3xl font-bold">
+              AED {summary?.processedTotal.toLocaleString() || "0"}
+            </p>
             <p className="text-sm text-muted-foreground">Processed Earnings</p>
           </CardContent>
         </Card>
@@ -370,8 +446,12 @@ const formatDate = (dateString: string | null | undefined) => {
             <CardTitle>Commission Earned</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">AED {summary?.commissionTotal.toLocaleString() || '0'}</p>
-            <p className="text-sm text-muted-foreground">{summary?.commissionTotal ? '10% average' : 'No commissions'}</p>
+            <p className="text-3xl font-bold">
+              AED {summary?.commissionTotal.toLocaleString() || "0"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {summary?.commissionTotal ? "10% average" : "No commissions"}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -379,7 +459,9 @@ const formatDate = (dateString: string | null | undefined) => {
             <CardTitle>Pending Payouts</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">AED {summary?.pendingTotal.toLocaleString() || '0'}</p>
+            <p className="text-3xl font-bold">
+              AED {summary?.pendingTotal.toLocaleString() || "0"}
+            </p>
             <p className="text-sm text-muted-foreground">Pending for drivers</p>
           </CardContent>
         </Card>
@@ -388,7 +470,7 @@ const formatDate = (dateString: string | null | undefined) => {
       {/* Earnings Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Earnings History ({earnings.length})</CardTitle>
+          <CardTitle>Earnings History ({totalItems})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -396,7 +478,8 @@ const formatDate = (dateString: string | null | undefined) => {
               <TableRow>
                 <TableHead>S.No</TableHead>
                 <TableHead>Ride ID</TableHead>
-                <TableHead>Driver Name</TableHead> {/* Added Driver Name column */}
+                <TableHead>Driver Name</TableHead>{" "}
+                {/* Added Driver Name column */}
                 <TableHead>Customer</TableHead>
                 <TableHead>Amount (AED)</TableHead>
                 <TableHead>Commission (AED)</TableHead>
@@ -417,44 +500,79 @@ const formatDate = (dateString: string | null | undefined) => {
               {earnings.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={16} className="text-center">
-                    {searchTerm ? 'No data found for the current search' : 'No earnings found'}
+                    {searchTerm
+                      ? "No data found for the current search"
+                      : "No earnings found"}
                   </TableCell>
                 </TableRow>
               ) : (
                 earnings.map((earning, index) => (
                   <TableRow key={earning.id}>
-                    <TableCell> {(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                    <TableCell>
+                      {" "}
+                      {(currentPage - 1) * itemsPerPage + index + 1}
+                    </TableCell>
                     {/* <TableCell>{earning.ride_id.slice(0, 8)}</TableCell> */}
                     <TableCell>{earning.Ride?.ride_code}</TableCell>
-                    <TableCell>{earning.Ride?.driver_name || 'N/A'}</TableCell> {/* Added driver_name */}
+                    <TableCell>
+                      {earning.Ride?.driver_name || "N/A"}
+                    </TableCell>{" "}
+                    {/* Added driver_name */}
                     <TableCell>
                       <div>
-                        <p className="font-medium">{earning.Ride?.customer_name || 'N/A'}</p>
-                        <p className="text-sm text-muted-foreground">{earning.Ride?.email || 'N/A'}</p>
-                        <p className="text-sm text-muted-foreground">{earning.Ride?.phone || 'N/A'}</p>
+                        <p className="font-medium">
+                          {earning.Ride?.customer_name || "N/A"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {earning.Ride?.email || "N/A"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {earning.Ride?.phone || "N/A"}
+                        </p>
                       </div>
                     </TableCell>
-                    <TableCell>{parseFloat(earning.amount).toLocaleString()}</TableCell>
-                    <TableCell>{parseFloat(earning.commission).toLocaleString()}</TableCell>
+                    <TableCell>
+                      {parseFloat(earning.amount).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      {parseFloat(earning.commission).toLocaleString()}
+                    </TableCell>
                     <TableCell>{earning.percentage}%</TableCell>
                     <TableCell>
-                      {earning.payment_method ? earning.payment_method.replace('_', ' ').toUpperCase() : 'N/A'}
+                      {earning.payment_method
+                        ? earning.payment_method.replace("_", " ").toUpperCase()
+                        : "N/A"}
                     </TableCell>
                     <TableCell>{getStatusBadge(earning.status)}</TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{earning.Car?.brand || 'N/A'} {earning.Car?.model || ''}</p>
+                        <p className="font-medium">
+                          {earning.Car?.brand || "N/A"}{" "}
+                          {earning.Car?.model || ""}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {earning.Ride?.pickup_time ? formatDate(earning.Ride.pickup_time) : 'N/A'}
+                      {earning.Ride?.pickup_time
+                        ? formatDate(earning.Ride.pickup_time)
+                        : "N/A"}
                     </TableCell>
                     <TableCell>
-                      {earning.Ride?.dropoff_time ? formatDate(earning.Ride.dropoff_time) : 'N/A'}
+                      {earning.Ride?.dropoff_time
+                        ? formatDate(earning.Ride.dropoff_time)
+                        : "N/A"}
                     </TableCell>
-                    <TableCell>{earning.Ride?.rider_hours || 'N/A'}</TableCell>
-                    <TableCell>{earning.Ride?.Price ? parseFloat(earning.Ride.Price).toLocaleString() : 'N/A'}</TableCell>
-                    <TableCell>{earning.Ride?.Total ? parseFloat(earning.Ride.Total).toLocaleString() : 'N/A'}</TableCell>
+                    <TableCell>{earning.Ride?.rider_hours || "N/A"}</TableCell>
+                    <TableCell>
+                      {earning.Ride?.Price
+                        ? parseFloat(earning.Ride.Price).toLocaleString()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {earning.Ride?.Total
+                        ? parseFloat(earning.Ride.Total).toLocaleString()
+                        : "N/A"}
+                    </TableCell>
                     <TableCell>{formatDate(earning.createdAt)}</TableCell>
                     <TableCell>
                       <Button
@@ -470,56 +588,68 @@ const formatDate = (dateString: string | null | undefined) => {
               )}
             </TableBody>
           </Table>
-          {!loading && earnings.length > 0 && (
-            <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
-              <div className="mb-2 md:mb-0">
-                <label className="mr-2 text-sm text-primary">Items per page:</label>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="p-2 border border-primary rounded-md bg-card"
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                </select>
-              </div>
-              <div className="flex space-x-2">
-                <Button
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  variant="outline"
-                  className="text-primary"
-                >
-                  Previous
-                </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <Button
-                    key={page}
-                    onClick={() => paginate(page)}
-                    variant={currentPage === page ? 'default' : 'outline'}
-                    className={currentPage === page ? 'bg-primary text-card' : 'bg-card text-primary'}
-                  >
-                    {page}
-                  </Button>
-                ))}
-                <Button
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  variant="outline"
-                  className="text-primary"
-                >
-                  Next
-                </Button>
-              </div>
-              <span className="text-sm text-primary mt-2 md:mt-0">
-                Page {currentPage} of {totalPages}
-              </span>
-            </div>
-          )}
+
+{!loading && earnings.length > 0 && (
+  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+    {/* Items per page */}
+    <div className="mb-2 md:mb-0">
+      <label className="mr-2 text-sm text-primary">Items per page:</label>
+      <select
+        value={itemsPerPage}
+        onChange={(e) => {
+          setItemsPerPage(Number(e.target.value));
+          setCurrentPage(1);
+        }}
+        className="p-2 border border-primary rounded-md bg-card"
+      >
+        <option value={5}>5</option>
+        <option value={10}>10</option>
+        <option value={20}>20</option>
+      </select>
+    </div>
+
+    {/* Page Buttons */}
+    <div className="flex items-center space-x-2">
+      <Button
+        onClick={() => paginate(currentPage - 1)}
+        disabled={currentPage === 1}
+        variant="outline"
+        className="text-primary"
+      >
+        Previous
+      </Button>
+
+      {getVisiblePages(currentPage, totalPages).map((page) => (
+        <Button
+          key={page}
+          onClick={() => paginate(page)}
+          variant={currentPage === page ? "default" : "outline"}
+          className={currentPage === page ? "bg-primary text-card" : "bg-card text-primary"}
+        >
+          {page}
+        </Button>
+      ))}
+
+      {totalPages > 5 && currentPage < totalPages - 2 && (
+        <span className="px-2 py-1 text-sm text-muted-foreground">...</span>
+      )}
+
+      <Button
+        onClick={() => paginate(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        variant="outline"
+        className="text-primary"
+      >
+        Next
+      </Button>
+    </div>
+
+    {/* Page Info */}
+    <span className="text-sm text-primary mt-2 md:mt-0">
+      Page {currentPage} of {totalPages} ({totalItems} total items)
+    </span>
+  </div>
+)}
         </CardContent>
       </Card>
     </div>

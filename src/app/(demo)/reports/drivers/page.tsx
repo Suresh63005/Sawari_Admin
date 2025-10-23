@@ -21,6 +21,7 @@ import { debounce } from "lodash";
 
 interface Driver {
   id: string;
+  driver_code: string;
   first_name: string | null;
   last_name: string | null;
   email: string | null;
@@ -288,13 +289,14 @@ const DriverReports: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Drivers ({drivers.length})</CardTitle>
+          <CardTitle>Drivers ({totalItems})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>S.NO</TableHead>
+                <TableHead>Driver ID</TableHead>
                 <TableHead>Driver</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Vehicles</TableHead>
@@ -321,6 +323,7 @@ const DriverReports: React.FC = () => {
                     <TableCell>
                       {(currentPage - 1) * itemsPerPage + index + 1}
                     </TableCell>
+                    <TableCell>{driver.driver_code}</TableCell>
                     <TableCell>
                       <div>
   <p className="font-medium">

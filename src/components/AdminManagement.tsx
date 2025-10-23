@@ -671,7 +671,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
             </div>
             <Card>
               <CardHeader>
-                <CardTitle>Admin List</CardTitle>
+                <CardTitle>Admins ({totalItems})</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>

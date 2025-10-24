@@ -214,6 +214,7 @@ const Rides: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState<boolean>(false);
   const [taxRate, setTaxRate] = useState<number>(0);
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -265,34 +266,38 @@ const Rides: React.FC = () => {
     return subPackage?.name.toLowerCase().includes("1 hour") || false;
   }, [subPackages, formData.subpackage_id]);
 
-  const validateForm = useCallback(() => {
+  
+const validateForm = useCallback(() => {
   const newErrors: FormErrors = {};
   if (!formData.customer_name) newErrors.customer_name = "Customer name is required";
   if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
     newErrors.email = "Valid email is required";
-  // Only validate pickup_location if both lat and lng are empty or invalid
+  if (!formData.phone || !/^\d{9}$/.test(formData.phone))
+    newErrors.phone = "Valid 9-digit phone number is required";
+  if (!formData.pickup_address) newErrors.pickup_address = "Pickup address is required";
+  if (!formData.drop_address) newErrors.drop_address = "Drop address is required";
   if (
-  !formData.pickup_location ||
-  !formData.pickup_location.lat ||
-  !formData.pickup_location.lng ||
-  formData.pickup_location.lat.trim() === "" ||
-  formData.pickup_location.lng.trim() === ""
-) {
-  newErrors.pickup_location = "Pickup location is required";
-}
-
-if (
-  !formData.drop_location ||
-  !formData.drop_location.lat ||
-  !formData.drop_location.lng ||
-  formData.drop_location.lat.trim() === "" ||
-  formData.drop_location.lng.trim() === ""
-) {
-  newErrors.drop_location = "Drop location is required";
-}
+    !formData.pickup_location ||
+    !formData.pickup_location.lat ||
+    !formData.pickup_location.lng ||
+    formData.pickup_location.lat.trim() === "" ||
+    formData.pickup_location.lng.trim() === ""
+  ) {
+    newErrors.pickup_location = "Pickup location coordinates are required";
+  }
+  if (
+    !formData.drop_location ||
+    !formData.drop_location.lat ||
+    !formData.drop_location.lng ||
+    formData.drop_location.lat.trim() === "" ||
+    formData.drop_location.lng.trim() === ""
+  ) {
+    newErrors.drop_location = "Drop location coordinates are required";
+  }
   if (!formData.package_id) newErrors.package_id = "Package is required";
   if (!formData.subpackage_id) newErrors.subpackage_id = "Sub-package is required";
   if (!formData.car_id) newErrors.car_id = "Car is required";
+  if (!formData.scheduled_time) newErrors.scheduled_time = "Scheduled time is required";
   setErrors(newErrors);
   return Object.keys(newErrors).length === 0;
 }, [formData]);
@@ -654,6 +659,7 @@ useEffect(() => {
     }
   }, []);
 
+
 const handleCreateRide = useCallback(async () => {
   console.log("handleCreateRide triggered with formData:", formData);
   setIsSubmitting(true);
@@ -669,59 +675,15 @@ const handleCreateRide = useCallback(async () => {
     return;
   }
 
-  if (!formData.scheduled_time) {
-    toast.error("Please select scheduled time", {
-      style: {
-        background: "#622A39",
-        color: "hsl(42, 51%, 91%)",
-      },
-    });
-    setIsSubmitting(false);
-    return;
-  }
-  if (!formData.pickup_address) {
-    toast.error("Please enter pickup address", {
-      style: {
-        background: "#622A39",
-        color: "hsl(42, 51%, 91%)",
-      },
-    });
-    setIsSubmitting(false);
-    return;
-  }
-  if (!formData.drop_address) {
-    toast.error("Please enter drop address", {
-      style: {
-        background: "#622A39",
-        color: "hsl(42, 51%, 91%)",
-      },
-    });
-    setIsSubmitting(false);
-    return;
-  }
-
-  // Format scheduled_time as YYYY-MM-DDThh:mm:ss
+  // Format scheduled_time as YYYY-MM-DD hh:mm:ss
   let scheduledTime = formData.scheduled_time;
-  if (scheduledTime) {
-    if (scheduledTime.length === 16) {
-      scheduledTime = `${scheduledTime}:00`;
-    }
-    const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
-    if (!regex.test(scheduledTime)) {
-      toast.error("Invalid scheduled time format", {
-        style: {
-          background: "#622A39",
-          color: "hsl(42, 51%, 91%)",
-        },
-      });
-      setIsSubmitting(false);
-      return;
-    }
+  if (scheduledTime && scheduledTime.length === 16) {
+    scheduledTime = `${scheduledTime}:00`;
   }
 
   setIsSaving(true);
   try {
-    console.log("Sending create ride request:", {
+    const payload = {
       ...formData,
       pickup_location: JSON.stringify(formData.pickup_location),
       drop_location: JSON.stringify(formData.drop_location),
@@ -729,16 +691,9 @@ const handleCreateRide = useCallback(async () => {
       payment_status: "pending",
       accept_time: new Date().toISOString().replace(/Z$/, "").slice(0, 19),
       scheduled_time: scheduledTime,
-    });
-    const response = await apiClient.post("/v1/admin/ride", {
-      ...formData,
-      pickup_location: JSON.stringify(formData.pickup_location),
-      drop_location: JSON.stringify(formData.drop_location),
-      status: "pending",
-      payment_status: "pending",
-      accept_time: new Date().toISOString().replace(/Z$/, "").slice(0, 19),
-      scheduled_time: scheduledTime,
-    });
+    };
+    console.log("Sending create ride request:", payload);
+    const response = await apiClient.post("/v1/admin/ride", payload);
     console.log("Ride created:", response.data);
     handleCreateModalOpenChange(false);
     debouncedFetchRides(searchTerm, statusFilter, currentPage, itemsPerPage);
@@ -899,10 +854,12 @@ const handleEditRide = useCallback(async () => {
   );
 
 
-  const handleSelectPickup = useCallback(async (address: string) => {
+  // In Rides.tsx, update handleSelectPickup:
+const handleSelectPickup = useCallback(async (address: string) => {
   try {
     const results = await geocodeByAddress(address);
     const latLng = await getLatLng(results[0]);
+    console.log("Selected pickup address:", address, "Coordinates:", latLng); // Add logging
     setFormData((prev) => ({
       ...prev,
       pickup_address: address,
@@ -920,10 +877,12 @@ const handleEditRide = useCallback(async () => {
   }
 }, []);
 
+// Update handleSelectDrop:
 const handleSelectDrop = useCallback(async (address: string) => {
   try {
     const results = await geocodeByAddress(address);
     const latLng = await getLatLng(results[0]);
+    console.log("Selected drop address:", address, "Coordinates:", latLng); // Add logging
     setFormData((prev) => ({
       ...prev,
       drop_address: address,
@@ -986,139 +945,143 @@ const handleSelectDrop = useCallback(async (address: string) => {
   }, []);
 
   const renderModalContent = (isEdit: boolean) => (
-    <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
-      <DialogHeader>
-        <DialogTitle>{isEdit ? `Edit Ride #${selectedRide?.id || ""}` : "Create New Ride"}</DialogTitle>
-        <DialogDescription>{isEdit ? "Update the details for this ride." : "Fill in the details to create a new ride."}</DialogDescription>
-      </DialogHeader>
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Ride Details</h3>
-          <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""} libraries={["places"]}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>
-                  Package <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={formData.package_id}
-                  onValueChange={(value: string) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      package_id: value,
-                      subpackage_id: "",
-                      car_id: "",
-                      Price: 0,
-                      Total: 0,
-                    }))
+  <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
+    <DialogHeader>
+      <DialogTitle>{isEdit ? `Edit Ride #${selectedRide?.id || ""}` : "Create New Ride"}</DialogTitle>
+      <DialogDescription>{isEdit ? "Update the details for this ride." : "Fill in the details to create a new ride."}</DialogDescription>
+    </DialogHeader>
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold mb-2">Ride Details</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Package Field */}
+          <div>
+            <Label>
+              Package <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              value={formData.package_id}
+              onValueChange={(value: string) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  package_id: value,
+                  subpackage_id: "",
+                  car_id: "",
+                  Price: 0,
+                  Total: 0,
+                }))
+              }
+              disabled={isLoading.packages}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={isLoading.packages ? "Loading packages..." : "Select package first"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {packages.length > 0 ? (
+                  packages.map((pkg) => (
+                    <SelectItem key={pkg.id} value={pkg.id}>
+                      {pkg.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem disabled value="no-packages">
+                    No packages found
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            {errors.package_id && <p className="text-red-500 text-sm mt-1">{errors.package_id}</p>}
+          </div>
+          {/* Sub-Package Field */}
+          <div>
+            <Label>
+              Sub-Package <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              value={formData.subpackage_id}
+              onValueChange={(value: string) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  subpackage_id: value,
+                  car_id: "",
+                  Price: 0,
+                  Total: 0,
+                }))
+              }
+              disabled={!formData.package_id || isLoading.subPackages}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    isLoading.subPackages
+                      ? "Loading sub-packages..."
+                      : formData.package_id
+                      ? "Select sub-package"
+                      : "Select a package first"
                   }
-                  disabled={isLoading.packages}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={isLoading.packages ? "Loading packages..." : "Select package first"}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {packages.length > 0 ? (
-                      packages.map((pkg) => (
-                        <SelectItem key={pkg.id} value={pkg.id}>
-                          {pkg.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem disabled value="no-packages">
-                        No packages found
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                {errors.package_id && <p className="text-red-500 text-sm mt-1">{errors.package_id}</p>}
-              </div>
-              <div>
-                <Label>
-                  Sub-Package <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={formData.subpackage_id}
-                  onValueChange={(value: string) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      subpackage_id: value,
-                      car_id: "",
-                      Price: 0,
-                      Total: 0,
-                    }))
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {subPackages.length > 0 ? (
+                  subPackages.map((sp) => (
+                    <SelectItem key={sp.id} value={sp.id}>
+                      {sp.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem disabled value="no-subpackages">
+                    No sub-packages available
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            {errors.subpackage_id && <p className="text-red-500 text-sm mt-1">{errors.subpackage_id}</p>}
+          </div>
+          {/* Car Field */}
+          <div>
+            <Label>
+              Car <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              value={formData.car_id}
+              onValueChange={(value: string) => setFormData((prev) => ({ ...prev, car_id: value }))}
+              disabled={!formData.subpackage_id || isLoading.cars}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    isLoading.cars
+                      ? "Loading cars..."
+                      : formData.subpackage_id
+                      ? "Select car"
+                      : "Select a sub-package first"
                   }
-                  disabled={!formData.package_id || isLoading.subPackages}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        isLoading.subPackages
-                          ? "Loading sub-packages..."
-                          : formData.package_id
-                          ? "Select sub-package"
-                          : "Select a package first"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subPackages.length > 0 ? (
-                      subPackages.map((sp) => (
-                        <SelectItem key={sp.id} value={sp.id}>
-                          {sp.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem disabled value="no-subpackages">
-                        No sub-packages available
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                {errors.subpackage_id && <p className="text-red-500 text-sm mt-1">{errors.subpackage_id}</p>}
-              </div>
-              <div>
-                <Label>
-                  Car <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={formData.car_id}
-                  onValueChange={(value: string) => setFormData((prev) => ({ ...prev, car_id: value }))}
-                  disabled={!formData.subpackage_id || isLoading.cars}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        isLoading.cars
-                          ? "Loading cars..."
-                          : formData.subpackage_id
-                          ? "Select car"
-                          : "Select a sub-package first"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {modalCars.length > 0 ? (
-                      modalCars.map((car) => (
-                        <SelectItem key={car.id} value={car.id}>
-                          {car.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem disabled value="no-cars">
-                        No cars available
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                {errors.car_id && <p className="text-red-500 text-sm mt-1">{errors.car_id}</p>}
-              </div>
-              <div>
-              <Label>
-                Pickup Address <span className="text-red-500">*</span>
-              </Label>
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {modalCars.length > 0 ? (
+                  modalCars.map((car) => (
+                    <SelectItem key={car.id} value={car.id}>
+                      {car.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem disabled value="no-cars">
+                    No cars available
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            {errors.car_id && <p className="text-red-500 text-sm mt-1">{errors.car_id}</p>}
+          </div>
+          {/* Pickup Address Field */}
+          <div>
+            <Label>
+              Pickup Address <span className="text-red-500">*</span>
+            </Label>
+            {isGoogleMapsLoaded ? (
               <PlacesAutocomplete
                 value={formData.pickup_address}
                 onChange={(value: string) => setFormData((prev) => ({ ...prev, pickup_address: value }))}
@@ -1135,7 +1098,7 @@ const handleSelectDrop = useCallback(async (address: string) => {
                       })}
                     />
                     <div className="absolute z-10 w-full bg-white border rounded mt-1">
-                      {loading && <div>Loading...</div>}
+                      {loading && <div className="p-2">Loading...</div>}
                       {suggestions.map((suggestion) => (
                         <div
                           {...getSuggestionItemProps(suggestion, {
@@ -1150,13 +1113,19 @@ const handleSelectDrop = useCallback(async (address: string) => {
                   </div>
                 )}
               </PlacesAutocomplete>
-              {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
-            </div>
-
-              <div>
-              <Label>
-                Drop Address <span className="text-red-500">*</span>
-              </Label>
+            ) : (
+              <div className="flex items-center justify-center p-2">
+                <Loader />
+              </div>
+            )}
+            {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
+          </div>
+          {/* Drop Address Field */}
+          <div>
+            <Label>
+              Drop Address <span className="text-red-500">*</span>
+            </Label>
+            {isGoogleMapsLoaded ? (
               <PlacesAutocomplete
                 value={formData.drop_address}
                 onChange={(value: string) => setFormData((prev) => ({ ...prev, drop_address: value }))}
@@ -1173,7 +1142,7 @@ const handleSelectDrop = useCallback(async (address: string) => {
                       })}
                     />
                     <div className="absolute z-10 w-full bg-white border rounded mt-1">
-                      {loading && <div>Loading...</div>}
+                      {loading && <div className="p-2">Loading...</div>}
                       {suggestions.map((suggestion) => (
                         <div
                           {...getSuggestionItemProps(suggestion, {
@@ -1188,227 +1157,248 @@ const handleSelectDrop = useCallback(async (address: string) => {
                   </div>
                 )}
               </PlacesAutocomplete>
-              {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
-            </div>
-    <div>
-              <Label>
-                Pickup Location <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={JSON.stringify(formData.pickup_location)}
-                placeholder='{"lat":","lng":"}'
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  try {
-                    const parsed = JSON.parse(e.target.value);
-                    if (parsed.lat && parsed.lng) {
-                      setFormData((prev) => ({ ...prev, pickup_location: parsed }));
-                    }
-                  } catch {
-                    // Ignore invalid JSON
+            ) : (
+              <div className="flex items-center justify-center p-2">
+                <Loader />
+              </div>
+            )}
+            {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
+          </div>
+          {/* Pickup Location Field */}
+          <div>
+            <Label>
+              Pickup Location <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              value={JSON.stringify(formData.pickup_location)}
+              placeholder='{"lat":"", "lng":""}'
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                try {
+                  const parsed = JSON.parse(e.target.value);
+                  if (parsed.lat && parsed.lng) {
+                    setFormData((prev) => ({ ...prev, pickup_location: parsed }));
                   }
-                }}
-                onFocus={() => setIsPickupFocused(true)}
-                onBlur={() => setTimeout(() => setIsPickupFocused(false), 200)}
-              />
-              {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
-            </div>
-<div>
-              <Label>
-                Drop Location <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={JSON.stringify(formData.drop_location)}
-                placeholder='{"lat":"25.213243382398073","lng":"55.27104936540127"}'
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  try {
-                    const parsed = JSON.parse(e.target.value);
-                    if (parsed.lat && parsed.lng) {
-                      setFormData((prev) => ({ ...prev, drop_location: parsed }));
-                    }
-                  } catch {
-                    // Ignore invalid JSON
+                } catch {
+                  // Ignore invalid JSON
+                }
+              }}
+              onFocus={() => setIsPickupFocused(true)}
+              onBlur={() => setTimeout(() => setIsPickupFocused(false), 200)}
+            />
+            {errors.pickup_location && <p className="text-red-500 text-sm mt-1">{errors.pickup_location}</p>}
+          </div>
+          {/* Drop Location Field */}
+          <div>
+            <Label>
+              Drop Location <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              value={JSON.stringify(formData.drop_location)}
+              placeholder='{"lat":"25.213243382398073","lng":"55.27104936540127"}'
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                try {
+                  const parsed = JSON.parse(e.target.value);
+                  if (parsed.lat && parsed.lng) {
+                    setFormData((prev) => ({ ...prev, drop_location: parsed }));
                   }
+                } catch {
+                  // Ignore invalid JSON
+                }
+              }}
+              onFocus={() => setIsDropFocused(true)}
+              onBlur={() => setTimeout(() => setIsDropFocused(false), 200)}
+            />
+            {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
+          </div>
+          {/* Scheduled Time Field */}
+          <div>
+            <Label>
+              Scheduled Time <span className="text-red-500">*</span>
+            </Label>
+            <input
+              type="datetime-local"
+              className="w-full border rounded p-2 bg-[#FFF8EC] text-sm"
+              value={formData.scheduled_time}
+              onChange={(e) => {
+                const selected = e.target.value;
+                const now = new Date();
+                const selectedDate = new Date(selected);
+                if (selectedDate < now) {
+                  toast.error("Scheduled time must be in the future", {
+                    style: { background: "#622A39", color: "hsl(42, 51%, 91%)" },
+                  });
+                  return;
+                }
+                setFormData((prev) => ({ ...prev, scheduled_time: selected }));
+              }}
+              min={new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16)}
+              required
+            />
+            {errors.scheduled_time && <p className="text-red-500 text-sm mt-1">{errors.scheduled_time}</p>}
+          </div>
+          {/* Price Field */}
+          <div>
+            <Label>Price (AED)</Label>
+            <Input type="number" value={Number(formData.Price).toFixed(2)} disabled />
+          </div>
+          {/* Admin Charges Field */}
+          <div>
+            <Label>Admin Charges (AED)</Label>
+            <Input
+              type="number"
+              value={(() => {
+                const subtotal = isOneHourSubPackage ? formData.Price * formData.rider_hours : formData.Price;
+                const taxAmount = subtotal * (taxRate / 100);
+                return taxAmount.toFixed(2);
+              })()}
+              disabled
+            />
+          </div>
+          {/* Rider Hours Field (Conditional) */}
+          {isOneHourSubPackage && (
+            <div>
+              <Label>Rider Hours</Label>
+              <Input
+                type="number"
+                value={formData.rider_hours}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  let hours = parseInt(e.target.value) || 3;
+                  if (hours < 3) hours = 3;
+                  const subtotal = formData.Price * hours;
+                  const taxAmount = subtotal * (taxRate / 100);
+                  const totalWithTax = subtotal + taxAmount;
+                  setFormData((prev) => ({
+                    ...prev,
+                    rider_hours: hours,
+                    Total: totalWithTax,
+                  }));
                 }}
-                onFocus={() => setIsDropFocused(true)}
-                onBlur={() => setTimeout(() => setIsDropFocused(false), 200)}
+                min="3"
               />
-              {errors.drop_location && <p className="text-red-500 text-sm mt-1">{errors.drop_location}</p>}
-            </div>
-              <div>
-  <Label>
-    Scheduled Time <span className="text-red-500">*</span>
-  </Label>
-  <input
-    type="datetime-local"
-    className="w-full border rounded p-2 bg-[#FFF8EC] text-sm"
-    value={formData.scheduled_time}
-    onChange={(e) => {
-      const selected = e.target.value;
-      const now = new Date();
-      const selectedDate = new Date(selected);
-
-      // Prevent past selection
-      if (selectedDate < now) {
-        toast.error("Scheduled time must be in the future", {
-          style: { background: "#622A39", color: "hsl(42, 51%, 91%)" },
-        });
-        return;
-      }
-
-      setFormData((prev) => ({ ...prev, scheduled_time: selected }));
-    }}
-    min={new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16)} // At least 1 min ahead
-    required
-  />
-  {errors.scheduled_time && <p className="text-red-500 text-sm mt-1">{errors.scheduled_time}</p>}
-</div>
-              <div>
-                <Label>Price (AED)</Label>
-                <Input type="number" value={Number(formData.Price).toFixed(2)} disabled />
-              </div>
-              <div>
-                <Label>Admin Charges (AED)</Label>
-                <Input
-                  type="number"
-                  value={(() => {
-                    const subtotal = isOneHourSubPackage ? formData.Price * formData.rider_hours : formData.Price;
-                    const taxAmount = subtotal * (taxRate / 100);
-                    return taxAmount.toFixed(2);
-                  })()}
-                  disabled
-                />
-              </div>
-              {isOneHourSubPackage && (
-                <div>
-                  <Label>Rider Hours</Label>
-                  <Input
-                    type="number"
-                    value={formData.rider_hours}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      let hours = parseInt(e.target.value) || 3;
-                      if (hours < 3) hours = 3;
-                      const subtotal = formData.Price * hours;
-                      const taxAmount = subtotal * (taxRate / 100);
-                      const totalWithTax = subtotal + taxAmount;
-                      setFormData((prev) => ({
-                        ...prev,
-                        rider_hours: hours,
-                        Total: totalWithTax,
-                      }));
-                    }}
-                    min="3"
-                  />
-                </div>
-              )}
-              <div>
-                <Label>Total (AED)</Label>
-                <Input
-                  type="number"
-                  value={Number(isOneHourSubPackage ? formData.Price * formData.rider_hours : formData.Total).toFixed(2)}
-                  disabled
-                />
-              </div>
-            </div>
-            {(isPickupFocused || isDropFocused) && (
-              <div className="mt-4">
-              <Label>Map Preview</Label>
-              <GoogleMap
-                mapContainerStyle={mapContainerStyle}
-                center={pickupCoords || dropCoords || defaultCenter}
-                zoom={12}
-              >
-                {pickupCoords && (
-                  <Marker
-                    position={pickupCoords}
-                    label="P"
-                    icon={{
-                      url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                    }}
-                  />
-                )}
-                {dropCoords && (
-                  <Marker
-                    position={dropCoords}
-                    label="D"
-                    icon={{
-                      url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
-                    }}
-                  />
-                )}
-              </GoogleMap>
             </div>
           )}
-          </LoadScript>
+          {/* Total Field */}
+          <div>
+            <Label>Total (AED)</Label>
+            <Input
+              type="number"
+              value={Number(isOneHourSubPackage ? formData.Price * formData.rider_hours : formData.Total).toFixed(2)}
+              disabled
+            />
+          </div>
         </div>
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Customer Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label>
-                Customer Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={formData.customer_name}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, customer_name: e.target.value }))}
-                required
-                placeholder="Enter customer name"
-              />
-              {errors.customer_name && <p className="text-red-500 text-sm mt-1">{errors.customer_name}</p>}
-            </div>
-            <div>
-              <Label>
-                Phone <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={formData.phone}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  const value = e.target.value;
-                  if (/^\d*$/.test(value)) {
-                    if (value.length <= 10) {
-                      setFormData((prev) => ({ ...prev, phone: value }));
-                    }
+        {/* Map Preview (Conditional) */}
+        {isGoogleMapsLoaded && (isPickupFocused || isDropFocused) && (
+          <div className="mt-4">
+            <Label>Map Preview</Label>
+            <GoogleMap
+              mapContainerStyle={mapContainerStyle}
+              center={pickupCoords || dropCoords || defaultCenter}
+              zoom={12}
+            >
+              {pickupCoords && (
+                <Marker
+                  position={pickupCoords}
+                  label="P"
+                  icon={{
+                    url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                  }}
+                />
+              )}
+              {dropCoords && (
+                <Marker
+                  position={dropCoords}
+                  label="D"
+                  icon={{
+                    url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                  }}
+                />
+              )}
+            </GoogleMap>
+          </div>
+        )}
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold mb-2">Customer Details</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Customer Name Field */}
+          <div>
+            <Label>
+              Customer Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              value={formData.customer_name}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, customer_name: e.target.value }))}
+              required
+              placeholder="Enter customer name"
+            />
+            {errors.customer_name && <p className="text-red-500 text-sm mt-1">{errors.customer_name}</p>}
+          </div>
+          {/* Phone Field */}
+          <div>
+            <Label>
+              Phone <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              value={formData.phone}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const value = e.target.value;
+                if (/^\d*$/.test(value)) {
+                  if (value.length <= 10) {
+                    setFormData((prev) => ({ ...prev, phone: value }));
                   }
-                }}
-                required
-                placeholder="Enter phone number"
-                maxLength={9}
-              />
-              {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
-            </div>
-            <div>
-              <Label>
-                Email <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={formData.email}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                required
-                placeholder="Enter email address"
-              />
-              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
-            </div>
+                }
+              }}
+              required
+              placeholder="Enter phone number"
+              maxLength={9}
+            />
+            {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+          </div>
+          {/* Email Field */}
+          <div>
+            <Label>
+              Email <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              value={formData.email}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+              required
+              placeholder="Enter email address"
+            />
+            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
           </div>
         </div>
       </div>
-      <DialogFooter className="mt-4">
-        <Button variant="outline" onClick={() => (isEdit ? handleEditModalOpenChange(false) : handleCreateModalOpenChange(false))}>
-          Cancel
-        </Button>
-        <Button
-          disabled={isSaving}
-          onClick={() => {
-            console.log("Create/Save button clicked, isEdit:", isEdit);
-            isEdit ? handleEditRide() : handleCreateRide();
-          }}
-        >
-          {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {isSaving ? "Processing..." : isEdit ? "Save Changes" : "Create"}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  );
+    </div>
+    <DialogFooter className="mt-4">
+      <Button variant="outline" onClick={() => (isEdit ? handleEditModalOpenChange(false) : handleCreateModalOpenChange(false))}>
+        Cancel
+      </Button>
+      <Button
+        disabled={isSaving}
+        onClick={() => {
+          console.log("Create/Save button clicked, isEdit:", isEdit);
+          isEdit ? handleEditRide() : handleCreateRide();
+        }}
+      >
+        {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+        {isSaving ? "Processing..." : isEdit ? "Save Changes" : "Create"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+);
 
-  return (
+ // File: Rides.tsx
+// Replace the entire return statement of the Rides component with this:
+
+return (
+  <LoadScript
+    googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
+    libraries={["places"]}
+    loadingElement={<Loader />}
+    onLoad={() => setIsGoogleMapsLoaded(true)} // Add this
+  >
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
@@ -1525,292 +1515,292 @@ const handleSelectDrop = useCallback(async (address: string) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-  {rides.length === 0 ? (
-    <TableRow>
-      <TableCell colSpan={8} className="text-center">
-        No rides found
-      </TableCell>
-    </TableRow>
-  ) : (
-    rides.map((ride, index) => (
-      <TableRow key={ride.id}>
-        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-        <TableCell>{ride.ride_code}</TableCell>
-        <TableCell>
-          <div>
-            <p className="font-medium">{ride.customer_name}</p>
-            <p className="text-sm text-muted-foreground">{ride.phone}</p>
-            <p className="text-sm text-muted-foreground">{ride.email || "-"}</p>
-          </div>
-        </TableCell>
-        <TableCell>
-          <div className="space-y-1">
-            <div className="flex items-center text-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-              {ride.pickup_address}
-            </div>
-            <div className="flex items-center text-sm text-muted-foreground">
-              <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-              {ride.drop_address || "-"}
-            </div>
-          </div>
-        </TableCell>
-        <TableCell>
-          <div>
-            <p className="text-sm">{formatDateTime(ride.scheduled_time) || "-"}</p>
-            <p className="text-sm text-muted-foreground">
-              {ride.ride_date ? formatDateTime(ride.ride_date) : "-"}
-            </p>
-          </div>
-        </TableCell>
-        <TableCell>
-          <p className="text-sm">{ride.car_name || "-"}</p>
-          <p className="text-sm text-muted-foreground">
-            {ride.package_name || "-"} - {ride.subpackage_name || "-"}
-          </p>
-        </TableCell>
-        <TableCell>{getStatusBadge(ride.status)}</TableCell>
-        <TableCell>
-          <span className="font-medium">AED {ride.Price != null ? Number(ride.Price).toFixed(2) : "N/A"}</span>
-        </TableCell>
-        <TableCell>
-          <span className="font-medium">AED {ride.Total != null ? Number(ride.Total).toFixed(2) : "N/A"}</span>
-        </TableCell>
-        <TableCell>
-          <div className="flex space-x-2">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" onClick={() => setSelectedRide(ride)} title="View Details">
-                  <Eye className="w-4 h-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl" onPointerDownOutside={(e) => e.preventDefault()}>
-                <DialogHeader>
-                  <DialogTitle>Ride Details</DialogTitle>
-                  <DialogDescription>Complete information about ride #{ride.ride_code}</DialogDescription>
-                </DialogHeader>
-                {selectedRide && (
-                  <Tabs defaultValue="details" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger
-                        value="details"
-                        className="border border-transparent data-[state=inactive]:border-primary data-[state=active]:bg-primary data-[state=active]:text-card rounded-[16px] px-4 py-2 transition-all mr-2"
-                      >
-                        Details
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="tracking"
-                        className="border border-transparent data-[state=inactive]:border-primary data-[state=active]:bg-primary data-[state=active]:text-card rounded-[16px] px-4 py-2 transition-all mr-2"
-                      >
-                        Tracking
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="history"
-                        className="border border-transparent data-[state=inactive]:border-primary data-[state=active]:bg-primary data-[state=active]:text-card rounded-[16px] px-4 py-2 transition-all mr-2"
-                      >
-                        History
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="details" className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Customer Information</label>
-                          <div className="space-y-1">
-                            <p className="flex items-center text-sm">
-                              <User className="w-4 h-4 mr-2" />
-                              {selectedRide.customer_name}
-                            </p>
-                            <p className="flex items-center text-sm">
-                              <Phone className="w-4 h-4 mr-2" />
-                              {selectedRide.phone || "-"}
-                            </p>
-                            <p className="flex items-center text-sm">
-                              <MapPin className="w-4 h-4 mr-2" />
-                              {selectedRide.pickup_address || "-"}
-                            </p>
-                            <p className="flex items-center text-sm">
-                              <Mail className="w-4 h-4 mr-2" />
-                              {selectedRide.email || "-"}
-                            </p>
-                          </div>
+              {rides.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center">
+                    No rides found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rides.map((ride, index) => (
+                  <TableRow key={ride.id}>
+                    <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                    <TableCell>{ride.ride_code}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{ride.customer_name}</p>
+                        <p className="text-sm text-muted-foreground">{ride.phone}</p>
+                        <p className="text-sm text-muted-foreground">{ride.email || "-"}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-sm">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                          {ride.pickup_address}
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Ride Information</label>
-                          <div className="space-y-1">
-                            <p className="flex items-center text-sm">
-                              <Calendar className="w-4 h-4 mr-2" />
-                              {selectedRide.scheduled_time || "-"}
-                            </p>
-                            <p className="flex items-center text-sm">
-                              <Car className="w-4 h-4 mr-2" />
-                              {selectedRide.car_name || "-"}
-                            </p>
-                            <p className="flex items-center text-sm">
-                              <Car className="w-4 h-4 mr-2" />
-                              {selectedRide.package_name || "-"} - {selectedRide.subpackage_name || "-"}
-                            </p>
-                            <p className="flex items-center text-sm">
-                              <DollarSign className="w-4 h-4 mr-2" />
-                              AED {Number(selectedRide.Price) ? Number(selectedRide.Price).toFixed(2) : "0.00"}
-                            </p>
-                            <p className="flex items-center text-sm">
-                              <DollarSign className="w-4 h-4 mr-2" />
-                              Total: AED {Number(selectedRide.Total) ? Number(selectedRide.Total).toFixed(2) : "0.00"}
-                            </p>
-                            {selectedRide.subpackage_name?.toLowerCase().includes("1 hour") && (
-                              <p className="flex items-center text-sm">
-                                <Clock className="w-4 h-4 mr-2" />
-                                {selectedRide.rider_hours} hours
-                              </p>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                          {ride.drop_address || "-"}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-sm">{ride.scheduled_time ? formatDateTime(ride.scheduled_time) : "-"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {ride.ride_date ? formatDateTime(ride.ride_date) : "-"}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <p className="text-sm">{ride.car_name || "-"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {ride.package_name || "-"} - {ride.subpackage_name || "-"}
+                      </p>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(ride.status)}</TableCell>
+                    <TableCell>
+                      <span className="font-medium">AED {ride.Price != null ? Number(ride.Price).toFixed(2) : "N/A"}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium">AED {ride.Total != null ? Number(ride.Total).toFixed(2) : "N/A"}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={() => setSelectedRide(ride)} title="View Details">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl" onPointerDownOutside={(e) => e.preventDefault()}>
+                            <DialogHeader>
+                              <DialogTitle>Ride Details</DialogTitle>
+                              <DialogDescription>Complete information about ride #{ride.ride_code}</DialogDescription>
+                            </DialogHeader>
+                            {selectedRide && (
+                              <Tabs defaultValue="details" className="w-full">
+                                <TabsList className="grid w-full grid-cols-3">
+                                  <TabsTrigger
+                                    value="details"
+                                    className="border border-transparent data-[state=inactive]:border-primary data-[state=active]:bg-primary data-[state=active]:text-card rounded-[16px] px-4 py-2 transition-all mr-2"
+                                  >
+                                    Details
+                                  </TabsTrigger>
+                                  <TabsTrigger
+                                    value="tracking"
+                                    className="border border-transparent data-[state=inactive]:border-primary data-[state=active]:bg-primary data-[state=active]:text-card rounded-[16px] px-4 py-2 transition-all mr-2"
+                                  >
+                                    Tracking
+                                  </TabsTrigger>
+                                  <TabsTrigger
+                                    value="history"
+                                    className="border border-transparent data-[state=inactive]:border-primary data-[state=active]:bg-primary data-[state=active]:text-card rounded-[16px] px-4 py-2 transition-all mr-2"
+                                  >
+                                    History
+                                  </TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="details" className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Customer Information</label>
+                                      <div className="space-y-1">
+                                        <p className="flex items-center text-sm">
+                                          <User className="w-4 h-4 mr-2" />
+                                          {selectedRide.customer_name}
+                                        </p>
+                                        <p className="flex items-center text-sm">
+                                          <Phone className="w-4 h-4 mr-2" />
+                                          {selectedRide.phone || "-"}
+                                        </p>
+                                        <p className="flex items-center text-sm">
+                                          <MapPin className="w-4 h-4 mr-2" />
+                                          {selectedRide.pickup_address || "-"}
+                                        </p>
+                                        <p className="flex items-center text-sm">
+                                          <Mail className="w-4 h-4 mr-2" />
+                                          {selectedRide.email || "-"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Ride Information</label>
+                                      <div className="space-y-1">
+                                        <p className="flex items-center text-sm">
+                                          <Calendar className="w-4 h-4 mr-2" />
+                                          {selectedRide.scheduled_time || "-"}
+                                        </p>
+                                        <p className="flex items-center text-sm">
+                                          <Car className="w-4 h-4 mr-2" />
+                                          {selectedRide.car_name || "-"}
+                                        </p>
+                                        <p className="flex items-center text-sm">
+                                          <Car className="w-4 h-4 mr-2" />
+                                          {selectedRide.package_name || "-"} - {selectedRide.subpackage_name || "-"}
+                                        </p>
+                                        <p className="flex items-center text-sm">
+                                          <DollarSign className="w-4 h-4 mr-2" />
+                                          AED {Number(selectedRide.Price) ? Number(selectedRide.Price).toFixed(2) : "0.00"}
+                                        </p>
+                                        <p className="flex items-center text-sm">
+                                          <DollarSign className="w-4 h-4 mr-2" />
+                                          Total: AED {Number(selectedRide.Total) ? Number(selectedRide.Total).toFixed(2) : "0.00"}
+                                        </p>
+                                        {selectedRide.subpackage_name?.toLowerCase().includes("1 hour") && (
+                                          <p className="flex items-center text-sm">
+                                            <Clock className="w-4 h-4 mr-2" />
+                                            {selectedRide.rider_hours} hours
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium">Route</label>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center text-sm">
+                                        <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                                        <span>Pickup: {selectedRide.pickup_address || "-"}</span>
+                                      </div>
+                                      <div className="flex items-center text-sm">
+                                        <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
+                                        <span>Drop: {selectedRide.drop_address || "-"}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {selectedRide.notes && (
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Special Notes</label>
+                                      <p className="text-sm text-muted-foreground">{selectedRide.notes}</p>
+                                    </div>
+                                  )}
+                                  {selectedRide.driver_id && (
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Driver Information</label>
+                                      <div className="space-y-1">
+                                        <p className="flex items-center text-sm">
+                                          <User className="w-4 h-4 mr-2" />
+                                          Driver ID: {selectedRide.driver_id}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </TabsContent>
+                                <TabsContent value="tracking" className="space-y-4">
+                                  <div className="h-64 bg-gray-100 rounded-lg overflow-hidden">
+                                    <MapView lat={25.2048} lng={55.2708} />
+                                  </div>
+                                </TabsContent>
+                                <TabsContent value="history" className="space-y-4">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                      <div>
+                                        <p className="text-sm">Ride created</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {selectedRide.createdAt || "-"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    {selectedRide.accept_time && (
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                        <div>
+                                          <p className="text-sm">Ride accepted</p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {selectedRide.accept_time || "-"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {selectedRide.pickup_time && (
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                        <div>
+                                          <p className="text-sm">Pickup started</p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {selectedRide.pickup_time || "-"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {selectedRide.dropoff_time && (
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                        <div>
+                                          <p className="text-sm">Drop-off completed</p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {selectedRide.dropoff_time || "-"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </TabsContent>
+                              </Tabs>
                             )}
-                          </div>
-                        </div>
+                          </DialogContent>
+                        </Dialog>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditModal(ride)}
+                          disabled={ride.status === "completed" || ride.status === "cancelled" || ride.status === "on-route"}
+                          title="Edit Ride"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setRideToCancel(ride);
+                                setIsCancelDialogOpen(true);
+                              }}
+                              disabled={ride.status === "completed" || ride.status === "cancelled"}
+                              title="Cancel Ride"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Cancel Ride</DialogTitle>
+                              <DialogDescription>
+                                Are you sure you want to cancel this ride? This action cannot be undone.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
+                                No, keep ride
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                className="bg-primary text-card hover:bg-primary hover:text-card"
+                                disabled={isDeleting}
+                                onClick={() => {
+                                  if (rideToCancel) {
+                                    handleCancelRide(rideToCancel.id);
+                                  }
+                                  setIsCancelDialogOpen(false);
+                                  setRideToCancel(null);
+                                }}
+                              >
+                                {isCancelling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                Yes, cancel ride
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Route</label>
-                        <div className="space-y-2">
-                          <div className="flex items-center text-sm">
-                            <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                            <span>Pickup: {selectedRide.pickup_address || "-"}</span>
-                          </div>
-                          <div className="flex items-center text-sm">
-                            <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
-                            <span>Drop: {selectedRide.drop_address || "-"}</span>
-                          </div>
-                        </div>
-                      </div>
-                      {selectedRide.notes && (
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Special Notes</label>
-                          <p className="text-sm text-muted-foreground">{selectedRide.notes}</p>
-                        </div>
-                      )}
-                      {selectedRide.driver_id && (
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Driver Information</label>
-                          <div className="space-y-1">
-                            <p className="flex items-center text-sm">
-                              <User className="w-4 h-4 mr-2" />
-                              Driver ID: {selectedRide.driver_id}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </TabsContent>
-                    <TabsContent value="tracking" className="space-y-4">
-                      <div className="h-64 bg-gray-100 rounded-lg overflow-hidden">
-                        <MapView lat={25.2048} lng={55.2708} />
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="history" className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                          <div>
-                            <p className="text-sm">Ride created</p>
-                            <p className="text-xs text-muted-foreground">
-                              {selectedRide.createdAt || "-"}
-                            </p>
-                          </div>
-                        </div>
-                        {selectedRide.accept_time && (
-                          <div className="flex items-center space-x-3">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <div>
-                              <p className="text-sm">Ride accepted</p>
-                              <p className="text-xs text-muted-foreground">
-                                {selectedRide.accept_time || "-"}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        {selectedRide.pickup_time && (
-                          <div className="flex items-center space-x-3">
-                            <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                            <div>
-                              <p className="text-sm">Pickup started</p>
-                              <p className="text-xs text-muted-foreground">
-                                {selectedRide.pickup_time || "-"}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        {selectedRide.dropoff_time && (
-                          <div className="flex items-center space-x-3">
-                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                            <div>
-                              <p className="text-sm">Drop-off completed</p>
-                              <p className="text-xs text-muted-foreground">
-                                {selectedRide.dropoff_time || "-"}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                )}
-              </DialogContent>
-            </Dialog>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openEditModal(ride)}
-              disabled={ride.status === "completed" || ride.status === "cancelled" || ride.status === "on-route"}
-              title="Edit Ride"
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-            <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setRideToCancel(ride);
-                    setIsCancelDialogOpen(true);
-                  }}
-                  disabled={ride.status === "completed" || ride.status === "cancelled"}
-                  title="Cancel Ride"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Cancel Ride</DialogTitle>
-                  <DialogDescription>
-                    Are you sure you want to cancel this ride? This action cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
-                    No, keep ride
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    className="bg-primary text-card hover:bg-primary hover:text-card"
-                    disabled={isDeleting}
-                    onClick={() => {
-                      if (rideToCancel) {
-                        handleCancelRide(rideToCancel.id);
-                      }
-                      setIsCancelDialogOpen(false);
-                      setRideToCancel(null);
-                    }}
-                  >
-                    {isCancelling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                    Yes, cancel ride
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </TableCell>
-      </TableRow>
-    ))
-  )}
-</TableBody>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
           </Table>
           {!isLoading.packages && !isLoading.subPackages && !isLoading.cars && !isLoading.baseFare && rides.length > 0 && (
             <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
@@ -1872,7 +1862,8 @@ const handleSelectDrop = useCallback(async (address: string) => {
         {renderModalContent(true)}
       </Dialog>
     </div>
-  );
+  </LoadScript>
+);
 };
 
 export default Rides;

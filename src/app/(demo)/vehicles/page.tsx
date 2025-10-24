@@ -601,7 +601,7 @@ export default function VehicleApproval() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{vehicle.driver.name}</TableCell>
+                    <TableCell>{vehicle.driver?.name}</TableCell>
                     <TableCell>{vehicle.license_plate}</TableCell>
                     <TableCell>{getStatusBadge(vehicle)}</TableCell>
                     <TableCell>

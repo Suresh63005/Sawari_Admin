@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,6 +150,20 @@ export default function Notifications() {
   // if (loading) {
   //   return <Loader />;
   // }
+// Helper to generate pagination numbers with ellipsis
+const getVisiblePages = useCallback((currentPage: number, totalPages: number): number[] => {
+  const maxVisiblePages = 5;
+  if (totalPages <= maxVisiblePages) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+  let endPage = startPage + maxVisiblePages - 1;
+  if (endPage > totalPages) {
+    endPage = totalPages;
+    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+  }
+  return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+}, []);
 
   return (
     <div className="space-y-6 p-6">
@@ -280,54 +295,57 @@ export default function Notifications() {
               </TableBody>
             </Table>
           </div>
-          <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-2 md:mb-0">
-              <label className="mr-2 text-sm text-primary">Items per page:</label>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="p-2 border border-primary rounded-md bg-card"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-              </select>
-            </div>
-            <div className="flex space-x-2">
-              <Button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                variant="outline"
-                className="text-primary"
-              >
-                Previous
-              </Button>
-              {Array.from({ length: Math.ceil(totalItems / itemsPerPage) }, (_, i) => i + 1).map((page) => (
-                <Button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  variant={currentPage === page ? "default" : "outline"}
-                  className={currentPage === page ? "bg-primary text-card" : "bg-card text-primary"}
-                >
-                  {page}
-                </Button>
-              ))}
-              <Button
-                onClick={() => setCurrentPage((p) => Math.min(Math.ceil(totalItems / itemsPerPage), p + 1))}
-                disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
-                variant="outline"
-                className="text-primary"
-              >
-                Next
-              </Button>
-            </div>
-            <span className="text-sm text-primary mt-2 md:mt-0">
-              Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
-            </span>
-          </div>
+  <div className="mt-4 flex flex-col md:flex-row justify-between items-center">
+  <div className="mb-2 md:mb-0">
+    <label className="mr-2 text-sm text-primary">Items per page:</label>
+    <select
+      value={itemsPerPage}
+      onChange={(e) => {
+        setItemsPerPage(Number(e.target.value));
+        setCurrentPage(1);
+      }}
+      className="p-2 border border-primary rounded-md bg-card"
+    >
+      <option value={5}>5</option>
+      <option value={10}>10</option>
+      <option value={20}>20</option>
+    </select>
+  </div>
+  <div className="flex items-center space-x-2">
+    <Button
+      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+      disabled={currentPage === 1}
+      variant="outline"
+      className="text-primary"
+    >
+      Previous
+    </Button>
+    {getVisiblePages(currentPage, Math.ceil(totalItems / itemsPerPage)).map((page) => (
+      <Button
+        key={page}
+        onClick={() => setCurrentPage(page)}
+        variant={currentPage === page ? "default" : "outline"}
+        className={currentPage === page ? "bg-primary text-card" : "bg-card text-primary"}
+      >
+        {page}
+      </Button>
+    ))}
+    {Math.ceil(totalItems / itemsPerPage) > 5 && currentPage < Math.ceil(totalItems / itemsPerPage) - 2 && (
+      <span className="px-2 py-1 text-sm text-muted-foreground">...</span>
+    )}
+    <Button
+      onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalItems / itemsPerPage), p + 1))}
+      disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
+      variant="outline"
+      className="text-primary"
+    >
+      Next
+    </Button>
+  </div>
+  <span className="text-sm text-primary mt-2 md:mt-0">
+    Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)} ({totalItems} total items)
+  </span>
+</div>
         </CardContent>
       </Card>
 

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -25,7 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "./ui/dialog"; // Assuming ShadCN/UI Dialog component
+} from "./ui/dialog";
 
 export interface DashboardProps {
   user: User;
@@ -144,6 +146,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         description: stats.totalRides.description,
         permission: "rides",
         link: "/rides",
+        hoverText: "Click to view all rides",
       },
       {
         title: "Active Rides",
@@ -152,7 +155,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         trend: stats.activeRides.trend,
         description: stats.activeRides.description,
         permission: "rides",
-        link: "/rides",
+        link: "/rides?status=on-route",
+        hoverText: "View ongoing rides",
       },
       {
         title: "Total Revenue",
@@ -162,6 +166,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         description: stats.revenue.description,
         permission: "earnings",
         link: "/earnings",
+        hoverText: "Revenue from completed rides",
       },
       {
         title: "Active Drivers",
@@ -171,6 +176,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         description: stats.drivers.description,
         permission: "drivers",
         link: "/drivers",
+        hoverText: "View all active drivers",
       },
       {
         title: "Active Vehicles",
@@ -180,6 +186,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         description: stats.vehicles.description,
         permission: "vehicles",
         link: "/vehicles",
+        hoverText: "View all active vehicles",
       },
       {
         title: "Online Drivers",
@@ -188,7 +195,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         trend: stats.onlineDrivers.trend ?? "",
         description: stats.onlineDrivers.description,
         permission: "drivers",
-        onClick: fetchOnlineDrivers, // Custom click handler
+        onClick: fetchOnlineDrivers,
+        hoverText: "See which drivers are online now",
       },
     ];
 
@@ -202,18 +210,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }
 
   return (
-    <div className="space-y-6">
-      {loading && <Loader />}
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="relative">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 relative z-0">
         {getStatsCards().map((stat, index) => (
           <Card
             key={index}
-            onClick={stat.onClick || (stat.link ? () => router.push(stat.link) : undefined)}
+            title={stat.hoverText}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (stat.onClick) {
+                stat.onClick();
+              } else if (stat.link) {
+                router.push(stat.link);
+              }
+            }}
+            onMouseEnter={() => console.log(`Hovering over ${stat.title}`)}
             className="cursor-pointer hover:shadow-lg transition-shadow"
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {stat.title}
+              </CardTitle>
               <div className="text-muted-foreground">{stat.icon}</div>
             </CardHeader>
             <CardContent>
@@ -235,33 +252,49 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </Card>
         ))}
       </div>
-
-      {/* Online Drivers Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Online Drivers</DialogTitle>
-            <DialogDescription>List of currently online drivers</DialogDescription>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-lg font-semibold">
+              Online Drivers
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              List of currently online drivers with their vehicle details
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto">
             {onlineDrivers.length > 0 ? (
-              onlineDrivers.map((driver) => (
-                <div key={driver.id} className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">{driver.name}</p>
-                    <p className="text-xs text-muted-foreground">{driver.vehicle}</p>
+              <div className="divide-y divide-gray-200">
+                {onlineDrivers.map((driver) => (
+                  <div
+                    key={driver.id}
+                    className="py-3 px-4 hover:bg-card transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">
+                          {driver.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {driver.vehicle}
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        Online
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No drivers are currently online.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No drivers are currently online.
+              </p>
             )}
           </div>
         </DialogContent>
       </Dialog>
-
       <div className="w-full">
-        {/* Recent Activity */}
         <Card>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
@@ -270,20 +303,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           <CardContent>
             <div className="space-y-4">
               {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-center space-x-3">
+                <div
+                  key={activity.id}
+                  className="flex items-center space-x-3"
+                >
                   <div className="w-2 h-2 bg-primary rounded-full"></div>
                   <div className="flex-1">
                     <p className="text-sm font-medium">{activity.action}</p>
-                    <p className="text-xs text-muted-foreground">{activity.user}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {activity.user}
+                    </p>
                   </div>
-                  <span className="text-xs text-muted-foreground">{activity.time}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {activity.time}
+                  </span>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
-
-        {/* Pending Approvals */}
         {pendingApprovals.length > 0 && (
           <Card className="mt-6">
             <CardHeader>
@@ -293,12 +331,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <CardContent>
               <div className="space-y-4">
                 {pendingApprovals.map((approval) => (
-                  <div key={approval.id} className="flex items-center justify-between">
+                  <div
+                    key={approval.id}
+                    className="flex items-center justify-between"
+                  >
                     <div className="flex items-center space-x-3">
                       <AlertCircle className="w-4 h-4 text-orange-500" />
                       <div>
                         <p className="text-sm font-medium">{approval.name}</p>
-                        <p className="text-xs text-muted-foreground">{approval.type}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {approval.type}
+                        </p>
                       </div>
                     </div>
                     <Badge

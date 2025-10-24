@@ -378,7 +378,7 @@ setIsSaving(true);
 
       <Card>
         <CardHeader>
-          <CardTitle>Cars ({cars.length})</CardTitle>
+          <CardTitle>Cars ({totalItems})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -499,7 +499,7 @@ setIsSaving(true);
                 </Button>
               </div>
               <span className="text-sm text-primary mt-2 md:mt-0">
-                Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
+                Page {currentPage} of {Math.ceil(totalItems / itemsPerPage)} ({totalItems} items)
               </span>
             </div>
           )}

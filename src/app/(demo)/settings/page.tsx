@@ -336,7 +336,7 @@ const Settings: React.FC = () => {
               />
             </div>
             <div>
-              <Label htmlFor="tax_rate">Tax</Label>
+              <Label htmlFor="tax_rate">Admin Charges %</Label>
               <Input
                 id="tax_rate"
                 name="tax_rate"
@@ -345,7 +345,7 @@ const Settings: React.FC = () => {
                 min="0"
                 value={settings.tax_rate || 0.0}
                 onChange={handleInputChange}
-                placeholder="Enter tax rate"
+                placeholder="Enter Admin Charges"
               />
             </div>
             <div>
@@ -456,21 +456,22 @@ const Settings: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Unsaved Changes</DialogTitle>
             <DialogDescription>
-              You have unsaved changes. Are you sure you want to leave without saving?
+              You have unsaved changes. make sure to save your changes before
+              leaving this page.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
+            {/* <Button
               variant="outline"
               onClick={handleCancelNavigation}
             >
               Cancel
-            </Button>
+            </Button> */}
             <Button
               className="bg-primary text-card"
               onClick={handleConfirmNavigation}
             >
-              Leave
+              Ok
             </Button>
           </DialogFooter>
         </DialogContent>

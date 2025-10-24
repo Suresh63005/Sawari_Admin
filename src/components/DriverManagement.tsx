@@ -50,6 +50,7 @@ import { format, parseISO } from "date-fns";
 
 interface Driver {
   id: string;
+  driver_code: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -597,6 +598,7 @@ export default function DriverManagement() {
             <TableHeader>
               <TableRow>
                 <TableHead>S.NO</TableHead>
+                <TableHead>Driver ID</TableHead>
                 <TableHead>Driver</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Experience</TableHead>
@@ -624,6 +626,7 @@ export default function DriverManagement() {
                     <TableCell>
                       {(currentPage - 1) * itemsPerPage + index + 1}
                     </TableCell>
+                    <TableCell>{driver.driver_code}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-3">
                         <Avatar>
@@ -672,7 +675,7 @@ export default function DriverManagement() {
                               <DialogTitle>Driver Details</DialogTitle>
                               <DialogDescription>
                                 Complete information about{" "}
-                                {`${driver.first_name} ${driver.last_name}`}
+                                {`${driver.first_name} ${driver.last_name}(${driver.driver_code}s)`}
                               </DialogDescription>
                             </DialogHeader>
                             {selectedDriver && (
